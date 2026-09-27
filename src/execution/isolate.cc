@@ -72,6 +72,7 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
+#include "src/json/json-parser.h"
 #include "src/libsampler/sampler.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -4177,6 +4178,7 @@ void Isolate::Deinit() {
 
   // Stop concurrent tasks before destroying resources since they might still
   // use those.
+  CancelJsonParseTasks(this);
   cancelable_task_manager()->CancelAndWait();
 
   // Cancel all compiler tasks.

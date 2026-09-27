@@ -1202,7 +1202,7 @@ class V8_EXPORT Isolate {
   /**
    * Returns true if there is ongoing background work within V8 that will
    * eventually post a foreground task, like asynchronous WebAssembly
-   * compilation.
+   * compilation or JSON.parseAsync processing.
    */
   bool HasPendingBackgroundTasks();
 

@@ -54,6 +54,9 @@ async function main() {
     '"\\uD800"', '"\\uDC00"', '"\\uD83D\\uDE00"',
     '"\\b\\f\\n\\r\\t\\\\\\/\\\""',
     '[]', '{}', '[1,2.5,-0,null,true,false,"a"]',
+    '[1,2.5,-0,1e400,1e-400,-1e400]',
+    '[1073741823,1073741824,-1073741824,-1073741825]',
+    '{"4294967294":1,"10000000":2,"a":3}',
     '{"a":1,"a":2,"__proto__":{"polluted":true},"constructor":3}',
     '{"2":"two","1":"one","00":0,"4294967295":3,"a":{}}',
     '{"\\u0061":1,"a":2,"\\u0030":4,"0":5}',
@@ -164,6 +167,30 @@ async function main() {
     equal(await JSON.parseAsync(text), JSON.parse(text));
   }
 
+  // Concurrent differential checks for the native worker grammar, including
+  // malformed mutations and lone UTF-16 surrogate code units.
+  const mutations = ['"', '\\', '0', '-', '.', ',', ':', '[', ']', '{', '}',
+                     ' ', '\n', 'e', 'u', '\u0000', '\uFEFF', '\uD800'];
+  for (let batch = 0; batch < 40; ++batch) {
+    await Promise.all(Array.from({length: 32}, async () => {
+      let text = JSON.stringify(value(3));
+      const position = random(text.length + 1);
+      if (random(2)) text = text.slice(0, position) + mutations[random(mutations.length)] + text.slice(position);
+      else text = text.slice(0, position) + text.slice(position + 1);
+      let expected, error;
+      try { expected = JSON.parse(text); } catch (caught) { error = caught; }
+      let actual, rejected;
+      try { actual = await JSON.parseAsync(text); } catch (caught) { rejected = caught; }
+      if (error) {
+        check(rejected instanceof SyntaxError, 'worker accepted invalid input: ' + text);
+        check(rejected.message === error.message, 'worker error differs: ' + text);
+      } else {
+        check(!rejected, 'worker rejected valid input: ' + text);
+        equal(actual, expected);
+      }
+    }));
+  }
+
   // The small job must finish before the large job; merely deferring a full
   // synchronous parse to one task fails this test. Force GC between slices.
   const largeText = '[' + '{"id":1,"label":"漢😀"},'.repeat(60000) + 'null]';
@@ -188,13 +215,10 @@ async function main() {
   const wide = {};
   for (let i = 0; i < 8000; ++i) wide['key' + i] = i;
   equal(await JSON.parseAsync(JSON.stringify(wide)), wide);
-  let whitespaceDone = false;
-  const whitespace = JSON.parseAsync(' '.repeat(100000) + '1').then(() => {
-    whitespaceDone = true;
-  });
+  const whitespace = JSON.parseAsync(' '.repeat(100000) + '1');
   await JSON.parseAsync('0');
-  check(!whitespaceDone, 'whitespace scanning must yield');
-  await whitespace;
+  // The worker may finish a whitespace-only prefix before the small job.
+  check(await whitespace === 1);
 
   // Large source-tracked arrays cross multiple slices too.
   const numbers = '[' + '1,'.repeat(10000) + '2]';

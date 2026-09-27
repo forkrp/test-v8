@@ -9658,8 +9658,9 @@ void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
 }
 
 bool Isolate::HasPendingBackgroundTasks() {
-#if V8_ENABLE_WEBASSEMBLY
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  if (i::HasPendingJsonParseTasks(i_isolate)) return true;
+#if V8_ENABLE_WEBASSEMBLY
   return i::wasm::GetWasmEngine()->HasRunningCompileJob(i_isolate);
 #else
   return false;

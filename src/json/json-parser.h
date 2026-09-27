@@ -22,6 +22,8 @@ class JsonParseAsyncState;
 
 V8_EXPORT_PRIVATE MaybeHandle<JSPromise> JsonParseAsync(
     Isolate* isolate, Handle<Object> source, Handle<Object> reviver);
+bool HasPendingJsonParseTasks(Isolate* isolate);
+void CancelJsonParseTasks(Isolate* isolate);
 
 enum ParseElementResult { kElementFound, kElementNotFound };
 
