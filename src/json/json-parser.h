@@ -18,6 +18,11 @@
 namespace v8 {
 namespace internal {
 
+class JsonParseAsyncState;
+
+V8_EXPORT_PRIVATE MaybeHandle<JSPromise> JsonParseAsync(
+    Isolate* isolate, Handle<Object> source, Handle<Object> reviver);
+
 enum ParseElementResult { kElementFound, kElementNotFound };
 
 class JsonString final {
@@ -151,6 +156,8 @@ enum class JsonToken : uint8_t {
 // A simple json parser.
 template <typename Char>
 class JsonParser final {
+  friend class JsonParseAsyncState;
+
  public:
   using SeqString = typename CharTraits<Char>::String;
   using SeqExternalString = typename CharTraits<Char>::ExternalString;

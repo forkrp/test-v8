@@ -1826,6 +1826,7 @@ filegroup(
         "src/interpreter/interpreter-intrinsics.cc",
         "src/interpreter/interpreter-intrinsics.h",
         "src/json/json-parser.cc",
+        "src/json/json-parser-async.cc",
         "src/json/json-parser.h",
         "src/json/json-stringifier.cc",
         "src/json/json-stringifier.h",

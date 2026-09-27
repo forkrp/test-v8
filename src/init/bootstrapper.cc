@@ -3562,6 +3562,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     JSObject::AddProperty(isolate_, global, "JSON", json_object, DONT_ENUM);
     SimpleInstallFunction(isolate_, json_object, "parse", Builtin::kJsonParse,
                           2, false);
+    SimpleInstallFunction(isolate_, json_object, "parseAsync",
+                          Builtin::kJsonParseAsync, 2, false);
     SimpleInstallFunction(isolate_, json_object, "stringify",
                           Builtin::kJsonStringify, 3, true);
     SimpleInstallFunction(isolate_, json_object, "rawJSON",

@@ -651,6 +651,7 @@ namespace internal {
                                                                                \
   /* JSON */                                                                   \
   CPP(JsonParse)                                                               \
+  CPP(JsonParseAsync)                                                          \
   CPP(JsonStringify)                                                           \
   CPP(JsonRawJson)                                                             \
   CPP(JsonIsRawJson)                                                           \

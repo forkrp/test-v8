@@ -525,11 +525,12 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
   V(kIcuPluralRulesTag,                         TAG(54)) \
   V(kIcuCollatorTag,                            TAG(55)) \
   V(kDisplayNamesInternalTag,                   TAG(56)) \
+  V(kJsonParseAsyncStateTag,                    TAG(58)) \
   /* External resources whose lifetime is tied to */     \
   /* their entry in the external pointer table but */    \
   /* which are not referenced via a Managed */           \
   V(kArrayBufferExtensionTag,                   TAG(57)) \
-  V(kLastManagedResourceTag,                    TAG(57)) \
+  V(kLastManagedResourceTag,                    TAG(58)) \
 
 // All external pointer tags.
 #define ALL_EXTERNAL_POINTER_TAGS(V) \

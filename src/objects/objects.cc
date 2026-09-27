@@ -6081,6 +6081,7 @@ Handle<Derived> ObjectMultiHashTableBase<Derived, N>::Put(
   entry = table->FindInsertionEntry(isolate, hash);
   table->set(Derived::EntryToIndex(entry), *key);
   table->SetEntryValues(entry, values);
+  table->ElementAdded();
   return table;
 }
 

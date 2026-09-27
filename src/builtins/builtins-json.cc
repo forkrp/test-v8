@@ -28,6 +28,14 @@ BUILTIN(JsonParse) {
                    : JsonParser<uint16_t>::Parse(isolate, string, reviver));
 }
 
+// Non-standard, cooperatively scheduled JSON parsing.
+BUILTIN(JsonParseAsync) {
+  HandleScope scope(isolate);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JsonParseAsync(isolate, args.atOrUndefined(isolate, 1),
+                              args.atOrUndefined(isolate, 2)));
+}
+
 // ES6 section 24.3.2 JSON.stringify.
 BUILTIN(JsonStringify) {
   HandleScope scope(isolate);

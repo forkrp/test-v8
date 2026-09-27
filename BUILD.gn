@@ -5463,6 +5463,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/interpreter/interpreter-intrinsics.cc",
     "src/interpreter/interpreter.cc",
     "src/json/json-parser.cc",
+    "src/json/json-parser-async.cc",
     "src/json/json-stringifier.cc",
     "src/libsampler/sampler.cc",
     "src/logging/counters.cc",
