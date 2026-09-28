@@ -10,6 +10,12 @@
 namespace v8 {
 namespace internal {
 
+bool HasPendingJsonStringifyTasks(Isolate* isolate);
+void CancelJsonStringifyTasks(Isolate* isolate);
+V8_WARN_UNUSED_RESULT MaybeHandle<JSPromise> JsonStringifyAsync(
+    Isolate* isolate, Handle<Object> object, Handle<Object> replacer,
+    Handle<Object> gap);
+
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> JsonStringify(Isolate* isolate,
                                                         Handle<Object> object,
                                                         Handle<Object> replacer,

@@ -11,6 +11,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/base/platform/time.h"
 #include "src/json/json-parser-background.h"
+#include "src/json/json-stringifier-async.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
@@ -518,6 +519,214 @@ TEST_WITH_PLATFORM(JsonParseAsyncQueuedWorkerOutlivesIsolate,
   isolate->Dispose();
   // The pool owns a task whose CancelableTask has not started yet. Its Run
   // and destructor must not touch the disposed isolate or post a completion.
+  gate->proceed.Signal();
+  CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+  CHECK(!runner->RunOne());
+}
+
+TEST(JsonStringifyAsyncNativeBounds) {
+  i::JsonStringifyData data;
+  CHECK(data.AddLength(i::String::kMaxLength));
+  CHECK(!data.AddLength(1));
+  CHECK(data.overflowed);
+  i::EncodeJsonStringify(&data);
+  CHECK(!data.result8 && !data.result16);
+  data.Reset();
+  CHECK(data.AddLength(i::String::kMaxLength));
+  data.cancelled.store(true, std::memory_order_relaxed);
+  i::EncodeJsonStringify(&data);
+  CHECK(!data.result8 && !data.result16);
+}
+
+TEST_WITH_PLATFORM(JsonStringifyAsyncConcurrentWorkers, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  auto gate = std::make_shared<JsonWorkerGate>();
+  CompileRun(
+      "var input = Array.from({length: 40001}, (_, i) => i / 8); "
+      "var expected = JSON.stringify(input)");
+  platform.SetWorkerGate(gate);
+  auto first = CompileRun("JSON.stringifyAsync(input)").As<v8::Promise>();
+  auto second = CompileRun("JSON.stringifyAsync(input)").As<v8::Promise>();
+  platform.SetWorkerGate(nullptr);
+  CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+  CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+  CHECK(isolate->HasPendingBackgroundTasks());
+  CHECK(CompileRun("input[0] = 'changed'; input.length = 0; 6 * 7 === 42")
+            ->IsTrue());
+  isolate->LowMemoryNotification();
+  gate->proceed.Signal();
+  gate->proceed.Signal();
+  CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+  CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+  while (runner->RunOne(isolate)) {
+  }
+  CHECK_EQ(v8::Promise::kFulfilled, first->State());
+  CHECK_EQ(v8::Promise::kFulfilled, second->State());
+  CHECK(first->Result()->StrictEquals(CompileRun("expected")));
+  CHECK(second->Result()->StrictEquals(CompileRun("expected")));
+  CHECK(!isolate->HasPendingBackgroundTasks());
+}
+
+TEST_WITH_PLATFORM(JsonStringifyAsyncResourceAndRealm, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  for (const char* expression :
+       {"'x'.repeat(100000)", "String.fromCharCode(0x6f22).repeat(100000)"}) {
+    std::string setup = "var input = " + std::string(expression) +
+                        "; var expected = JSON.stringify(input)";
+    CompileRun(setup.c_str());
+    auto promise = CompileRun("JSON.stringifyAsync(input)").As<v8::Promise>();
+    runner->WaitForTasks(1);
+    isolate->LowMemoryNotification();
+    {
+      auto other = v8::Context::New(isolate);
+      v8::Context::Scope other_scope(other);
+      CHECK(runner->RunOne(isolate));
+      CHECK(isolate->GetCurrentContext() == other);
+    }
+    CHECK_EQ(v8::Promise::kFulfilled, promise->State());
+    CHECK(promise->Result()->IsString());
+    auto text = promise->Result().As<v8::String>();
+    CHECK(text->IsExternalOneByte() || text->IsExternalTwoByte());
+    isolate->LowMemoryNotification();
+    CHECK(text->StrictEquals(CompileRun("expected")));
+    CHECK(context->Global()
+              ->Set(context.local(), v8_str("encoded"), text)
+              .FromJust());
+    CHECK(CompileRun("JSON.parse(encoded) === input")->IsTrue());
+  }
+}
+
+TEST_WITH_PLATFORM(JsonStringifyAsyncUnsupported, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  CompileRun("var calls = 0; var input = {toJSON() { ++calls; return 42; }}");
+  runner->supported = false;
+  auto first = CompileRun("JSON.stringifyAsync(input)").As<v8::Promise>();
+  CHECK_EQ(v8::Promise::kRejected, first->State());
+  runner->supported = true;
+  platform.worker_threads_supported = false;
+  auto second = CompileRun("JSON.stringifyAsync(input)").As<v8::Promise>();
+  CHECK_EQ(v8::Promise::kRejected, second->State());
+  CHECK(CompileRun("calls === 0")->IsTrue());
+  CHECK(!isolate->HasPendingBackgroundTasks());
+  platform.worker_threads_supported = true;
+}
+
+TEST_WITH_PLATFORM(JsonStringifyAsyncTermination, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  auto promise =
+      CompileRun("JSON.stringifyAsync('x'.repeat(100000))").As<v8::Promise>();
+  runner->WaitForTasks(1);
+  isolate->TerminateExecution();
+  CHECK(runner->RunOne(isolate));
+  CHECK_EQ(v8::Promise::kPending, promise->State());
+  CHECK(isolate->IsExecutionTerminating());
+  CHECK(!isolate->HasPendingBackgroundTasks());
+  isolate->CancelTerminateExecution();
+}
+
+TEST_WITH_PLATFORM(JsonStringifyAsyncTaskTiming, JsonTestPlatform) {
+  using v8::base::TimeTicks;
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  CompileRun(
+      "var input = 'abcdefghij'.repeat(1000000); "
+      "var expected = JSON.stringify(input)");
+  isolate->LowMemoryNotification();
+  auto start = TimeTicks::Now();
+  auto promise = CompileRun("JSON.stringifyAsync(input)").As<v8::Promise>();
+  double call_ms = (TimeTicks::Now() - start).InMillisecondsF();
+  auto wait_start = TimeTicks::Now();
+  auto task = runner->TakeOne(isolate);
+  double wait_ms = (TimeTicks::Now() - wait_start).InMillisecondsF();
+  CHECK(task);
+  auto complete_start = TimeTicks::Now();
+  task->Run();
+  task.reset();
+  double complete_ms = (TimeTicks::Now() - complete_start).InMillisecondsF();
+  double total_ms = (TimeTicks::Now() - start).InMillisecondsF();
+  CHECK_EQ(v8::Promise::kFulfilled, promise->State());
+  CHECK(promise->Result()->StrictEquals(CompileRun("expected")));
+  CHECK(!isolate->HasPendingBackgroundTasks());
+  // Diagnostic only: host scheduling and GC are not hard real-time bounds.
+  printf(
+      "JSON.stringifyAsync 10 MB: capture=%.3f ms wait=%.3f ms "
+      "complete=%.3f ms total=%.3f ms workers=%d\n",
+      call_ms, wait_ms, complete_ms, total_ms,
+      platform.NumberOfWorkerThreads());
+}
+
+TEST_WITH_PLATFORM(JsonStringifyAsyncDroppedCompletion, JsonTestPlatform) {
+  v8::Isolate::CreateParams params;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  auto isolate = v8::Isolate::New(params);
+  auto runner = platform.HoldTasks(isolate);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    auto context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+    CompileRun("JSON.stringifyAsync('x'.repeat(100000))");
+    auto task = runner->TakeOne(isolate);
+    CHECK(task);
+    task.reset();  // A host may discard a queued foreground task.
+    isolate->LowMemoryNotification();
+    CHECK(isolate->HasPendingBackgroundTasks());
+  }
+  // Registry ownership must release the persistent roots on this thread.
+  isolate->Dispose();
+}
+
+TEST_WITH_PLATFORM(JsonStringifyAsyncTasksOutliveIsolate, JsonTestPlatform) {
+  v8::Isolate::CreateParams params;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  auto isolate = v8::Isolate::New(params);
+  auto runner = platform.HoldTasks(isolate);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    auto context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+    CompileRun("JSON.stringifyAsync('x'.repeat(100000))");
+    runner->WaitForTasks(1);
+  }
+  isolate->Dispose();
+  while (runner->RunOne()) {
+  }
+}
+
+TEST_WITH_PLATFORM(JsonStringifyAsyncQueuedWorkerOutlivesIsolate,
+                   JsonTestPlatform) {
+  v8::Isolate::CreateParams params;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  auto isolate = v8::Isolate::New(params);
+  auto runner = platform.HoldTasks(isolate);
+  auto gate = std::make_shared<JsonWorkerGate>();
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    auto context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+    platform.SetWorkerGate(gate);
+    CompileRun("JSON.stringifyAsync('x'.repeat(100000))");
+    platform.SetWorkerGate(nullptr);
+    CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+    CHECK(isolate->HasPendingBackgroundTasks());
+  }
+  isolate->Dispose();
   gate->proceed.Signal();
   CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
   CHECK(!runner->RunOne());

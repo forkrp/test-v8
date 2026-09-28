@@ -57,13 +57,15 @@ def main():
     parser.add_argument('--runs', type=int, default=7)
     parser.add_argument('--jobs', type=int, nargs='+', default=[1, 4])
     parser.add_argument('--mode', choices=['both', 'sync', 'async'], default='both')
+    parser.add_argument('--script', type=Path,
+                        default=Path(__file__).with_suffix('.js'))
     parser.add_argument('--cases', nargs='+', default=[
         'records', 'numbers', 'strings', 'nested', 'varied', 'long_strings',
         'unicode'])
     args = parser.parse_args()
     if not 1 <= args.workers <= 16:
         parser.error('workers must be in [1, 16], matching this platform limit')
-    script = Path(__file__).with_suffix('.js').resolve()
+    script = args.script.resolve()
     for index, case in enumerate(args.cases):
         for jobs in args.jobs:
             # Also alternate binary order between cases to reduce ordering bias.

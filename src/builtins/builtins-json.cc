@@ -46,6 +46,15 @@ BUILTIN(JsonStringify) {
                            JsonStringify(isolate, object, replacer, indent));
 }
 
+// Non-standard: caller-thread semantic capture, worker-thread text encoding.
+BUILTIN(JsonStringifyAsync) {
+  HandleScope scope(isolate);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JsonStringifyAsync(isolate, args.atOrUndefined(isolate, 1),
+                                  args.atOrUndefined(isolate, 2),
+                                  args.atOrUndefined(isolate, 3)));
+}
+
 // https://tc39.es/proposal-json-parse-with-source/#sec-json.rawjson
 BUILTIN(JsonRawJson) {
   HandleScope scope(isolate);
