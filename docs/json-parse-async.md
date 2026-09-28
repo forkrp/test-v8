@@ -2,6 +2,7 @@
 
 `JSON.parseAsync(text[, reviver])` 是本分支的**非标准 V8 扩展**，返回 Promise。
 语法扫描、结构解析和数字转换在线程池执行；结果对象仍在调用方 isolate 的线程构建。
+本轮优化目标、保留/撤回方案及最新 release 对照见 [优化记录](json-parse-async-optimization.md)。
 **不是把整段同步 `JSON.parse` 延后执行，也不是整条路径都脱离主线程。**
 
 **接入前提：**宿主必须提供工作线程、non-nestable foreground task 调度，以及
@@ -40,8 +41,8 @@ const [users, orders] = await Promise.all([
 仅用于注册、结束和查询，不包住解析过程，也不把多个 worker 串行化。
 
 工作线程只持有原生内存，不读写 V8 Handle、JSObject、Map 或调用方堆。扫描结果是
-每条 16 字节的前序记录：容器结束位置/计数、数字值或字符串位置/标志。reviver 另需
-结束位置和主线程快照。普通对象与小型嵌套结构复用 `BuildJsonObject` / `BuildJsonArray`；
+每条 12 字节的前序记录：容器结束位置/计数、数字值或字符串位置/标志。reviver 另需
+起止位置和主线程快照。普通对象与小型嵌套结构复用 `BuildJsonObject` / `BuildJsonArray`；
 无 reviver 的大数组按元素类型预分配并直接填充，double 数组不先创建临时 HeapNumber。
 深度超过 16 或超过 128 条记录的结构走可暂停的非递归路径。
 
@@ -52,7 +53,8 @@ const [users, orders] = await Promise.all([
 
 ## 响应性、内存与吞吐边界
 
-前台构建每片最多推进 4096 步，每 64 步检查约 2 ms 的软预算。小子树一次完成，
+前台构建每片最多推进 4096 步；普通数组最多 128 个元素一批，批次仍计入步骤预算，
+在跨过检查阈值时检查约 2 ms 的软预算。小子树一次完成，
 大结构保存进度后重新投递 non-nestable task。**2 ms 不是硬性最长任务时间。**
 以下工作仍可能形成长任务：
 
@@ -64,11 +66,11 @@ const [users, orders] = await Promise.all([
 总耗时增加。要求解析后还有大量计算时，应把后续计算也放在工作线程自己的 isolate，
 只回传最终的小结果，而不是承诺任意巨大对象图都能无成本跨线程交付。
 
-每个任务额外保留一份原生输入和记录数组，记录数组容量可能高于实际条数；还会保留
-原始 V8 字符串和构建中的结果。输入内存计入 Managed 的估计大小，完成的 worker 记录
-在首次前台任务计入 external memory，释放时扣除。**worker 正在增长的记录尚未逐次
-反馈给调用方 GC，GC 记账也不是内存配额。**宿主/调用者必须限制输入大小和在途调用数，
-不能因接口返回 Promise 就无界提交成千上万个大文档。
+每个任务在扫描期间保留一份原生输入，worker 完成后即释放该副本；前台使用强引用保护的原始 V8 字符串。原生记录使用标准 deque 按块增长，避免连续大数组反复扩容复制；每个前台片段结束后回收已消费的前缀，不把整份记录与完整结果一直同时保留到结束。
+
+后台标记 Smi，前台无需再做通用 double-to-Smi 判断。最多 64 个已解析短字符串在同次解析内复用；哈希碰撞须比较真实内容，不同内容退回原路径，不替换已有槽。UTF-16 和单字节字符串都覆盖。该缓存不跨调用、不跨 isolate；不是无界字符串驻留池。
+
+Managed 管理状态生命周期，状态在调用、worker 完成和前台回收边界调整 external memory 估计。worker 正在增长的记录尚未逐次反馈给调用方 GC；估计不含 deque 块余量和分配器管理开销，也不是内存配额。宿主/调用者仍须限制输入大小和在途调用数，不能因接口返回 Promise 就无界提交大文档。
 
 ## 原生宿主需要做什么
 
@@ -94,7 +96,8 @@ microtask checkpoint。d8 的 setTimeout 不等价于真实 UI 帧调度验证�
 
 ## 实现与销毁安全
 
-- `src/json/json-parser-background.{h,cc}`：无 V8 堆访问的语法扫描器和原生结果记录。
+- `src/json/json-scanner.h`：同步/异步共享的字符分类表和无转义字符串扫描原语。
+- `src/json/json-parser-background.{h,cc}`：无 V8 堆访问的语法状态机和紧凑原生记录；语法状态机本身仍独立。
 - `src/json/json-parser-async.cc`：线程池投递、分片构建、GC 根、异常与 Promise 生命周期。
 - `src/json/json-parser.h`：授权复用原构建器、字符串与错误方法，声明任务查询/取消接口。
 - `src/api/api.cc`、`src/execution/isolate.cc`：在途任务查询和销毁前取消。
@@ -129,12 +132,12 @@ C++ 用例在 `test/cctest/test-json-async.cc`，使用
 `JsonParseAsyncConcurrentWorkers` 使用双 worker 屏障：断言两个实际工作线程均非调用方
 线程且同时在途，并验证期间主线程仍能执行 JS 和 GC，不依靠耗时猜测并行。
 
-JS 检查包括固定种子差分样本、1280 个并发输入变异检查、语法错误消息、Unicode、
+JS 检查包括固定种子差分样本、1280 个并发输入变异检查、短字符串碰撞、扫描块边界、语法错误消息、Unicode、
 reviver、深宽结构、数值数组和原型语义。吞吐基准以同步连续执行 N 次对比
-`Promise.all` 的 N 次提交；两边均保留全部结果，显式 GC 后计时，包含异步初始调用、
+`Promise.all` 的 N 次提交；两边均保留全部结果，显式 GC 后计时并交替执行顺序，包含异步初始调用、
 排队、解析、构建和 Promise 完成，不仅测 worker 自身。
 
-### 本机验证结果
+### 优化前历史结果（a7a56c174）
 
 macOS x64，`is_debug=false`、`dcheck_always_on=true`，关闭 i18n 和 sandbox。
 下表为同一脚本每项 5 轮的中位数，单位 ms；同步列为串行完成全部 N 份，

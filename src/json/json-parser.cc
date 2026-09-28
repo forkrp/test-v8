@@ -12,6 +12,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/heap/factory.h"
+#include "src/json/json-scanner.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/elements-kind.h"
@@ -60,68 +61,6 @@ static const constexpr JsonToken one_char_json_tokens[256] = {
     INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
 #undef CALL_GET_SCAN_FLAGS
 #define CALL_GET_SCAN_FLAGS(N) GetOneCharJsonToken(128 + N),
-        INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
-#undef CALL_GET_SCAN_FLAGS
-};
-
-enum class EscapeKind : uint8_t {
-  kIllegal,
-  kSelf,
-  kBackspace,
-  kTab,
-  kNewLine,
-  kFormFeed,
-  kCarriageReturn,
-  kUnicode
-};
-
-using EscapeKindField = base::BitField8<EscapeKind, 0, 3>;
-using MayTerminateStringField = EscapeKindField::Next<bool, 1>;
-using NumberPartField = MayTerminateStringField::Next<bool, 1>;
-
-constexpr bool MayTerminateJsonString(uint8_t flags) {
-  return MayTerminateStringField::decode(flags);
-}
-
-constexpr EscapeKind GetEscapeKind(uint8_t flags) {
-  return EscapeKindField::decode(flags);
-}
-
-constexpr bool IsNumberPart(uint8_t flags) {
-  return NumberPartField::decode(flags);
-}
-
-constexpr uint8_t GetJsonScanFlags(uint8_t c) {
-  // clang-format off
-  return (c == 'b' ? EscapeKindField::encode(EscapeKind::kBackspace)
-          : c == 't' ? EscapeKindField::encode(EscapeKind::kTab)
-          : c == 'n' ? EscapeKindField::encode(EscapeKind::kNewLine)
-          : c == 'f' ? EscapeKindField::encode(EscapeKind::kFormFeed)
-          : c == 'r' ? EscapeKindField::encode(EscapeKind::kCarriageReturn)
-          : c == 'u' ? EscapeKindField::encode(EscapeKind::kUnicode)
-          : c == '"' ? EscapeKindField::encode(EscapeKind::kSelf)
-          : c == '\\' ? EscapeKindField::encode(EscapeKind::kSelf)
-          : c == '/' ? EscapeKindField::encode(EscapeKind::kSelf)
-          : EscapeKindField::encode(EscapeKind::kIllegal)) |
-         (c < 0x20 ? MayTerminateStringField::encode(true)
-          : c == '"' ? MayTerminateStringField::encode(true)
-          : c == '\\' ? MayTerminateStringField::encode(true)
-          : MayTerminateStringField::encode(false)) |
-         NumberPartField::encode(c == '.' ||
-                                 c == 'e' ||
-                                 c == 'E' ||
-                                 IsDecimalDigit(c) ||
-                                 c == '-' ||
-                                 c == '+');
-  // clang-format on
-}
-
-// Table of one-character scan flags, by character (0x00..0xFF only).
-static const constexpr uint8_t character_json_scan_flags[256] = {
-#define CALL_GET_SCAN_FLAGS(N) GetJsonScanFlags(N),
-    INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
-#undef CALL_GET_SCAN_FLAGS
-#define CALL_GET_SCAN_FLAGS(N) GetJsonScanFlags(128 + N),
         INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
 #undef CALL_GET_SCAN_FLAGS
 };
@@ -255,19 +194,19 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
     }
   }
 
-    Handle<JSObject> context =
-        isolate_->factory()->NewJSObject(isolate_->object_function());
-    if (pass_source_to_reviver && IsString(*val_node)) {
-      JSReceiver::CreateDataProperty(isolate_, context,
-                                     isolate_->factory()->source_string(),
-                                     val_node, Just(kThrowOnError))
-          .Check();
-    }
-    Handle<Object> argv[] = {name, value, context};
-    Handle<Object> result;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate_, result, Execution::Call(isolate_, reviver_, holder, 3, argv),
-        Object);
+  Handle<JSObject> context =
+      isolate_->factory()->NewJSObject(isolate_->object_function());
+  if (pass_source_to_reviver && IsString(*val_node)) {
+    JSReceiver::CreateDataProperty(isolate_, context,
+                                   isolate_->factory()->source_string(),
+                                   val_node, Just(kThrowOnError))
+        .Check();
+  }
+  Handle<Object> argv[] = {name, value, context};
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate_, result, Execution::Call(isolate_, reviver_, holder, 3, argv),
+      Object);
   return outer_scope.CloseAndEscape(result);
 }
 
@@ -2105,13 +2044,7 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
   base::uc32 bits = 0;
 
   while (true) {
-    cursor_ = std::find_if(cursor_, end_, [&bits](Char c) {
-      if (sizeof(Char) == 2 && V8_UNLIKELY(c > unibrow::Latin1::kMaxChar)) {
-        bits |= c;
-        return false;
-      }
-      return MayTerminateJsonString(character_json_scan_flags[c]);
-    });
+    cursor_ = ScanJsonStringCharacters(cursor_, end_, &bits);
 
     if (V8_UNLIKELY(is_at_end())) {
       AllowGarbageCollection allow_before_exception;

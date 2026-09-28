@@ -1830,6 +1830,7 @@ filegroup(
         "src/json/json-parser-background.cc",
         "src/json/json-parser-background.h",
         "src/json/json-parser.h",
+        "src/json/json-scanner.h",
         "src/json/json-stringifier.cc",
         "src/json/json-stringifier.h",
         "src/logging/code-events.h",

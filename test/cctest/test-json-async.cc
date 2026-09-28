@@ -10,6 +10,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/platform/time.h"
+#include "src/json/json-parser-background.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
@@ -157,6 +158,39 @@ class JsonTestPlatform final : public TestPlatform {
 
 }  // namespace
 
+TEST(JsonParseAsyncCompactRecords) {
+  static_assert(sizeof(i::BackgroundJsonNode) == 12);
+  i::BackgroundJsonNode nodes[3];
+  const double values[] = {1.25, -0.0, 1.23456789012345e100};
+  for (int index = 0; index < 3; ++index) {
+    nodes[index].SetNumber(values[index]);
+    // Adjacent 12-byte records need not have 8-byte-aligned double payloads.
+    CHECK_EQ(v8::base::bit_cast<uint64_t>(values[index]),
+             v8::base::bit_cast<uint64_t>(nodes[index].Number()));
+  }
+  nodes[0].kind = i::BackgroundJsonNode::kKey;
+  nodes[0].flags = i::BackgroundJsonNode::kIndex;
+  nodes[0].data.string.start = UINT32_MAX - 1;
+  CHECK_EQ(UINT32_MAX - 1, nodes[0].AsString().index());
+
+  i::BackgroundJsonData data(false);
+  for (int index = 0; index < 10000; ++index) {
+    i::BackgroundJsonNode node;
+    node.kind = i::BackgroundJsonNode::kNumber;
+    node.SetNumber(index);
+    data.nodes.push_back(node);
+  }
+  size_t bytes = data.MemoryUsage();
+  data.DiscardBefore(4097);
+  CHECK_EQ(10000u, data.NodeCount());
+  CHECK_EQ(4097.0, data.NodeAt(4097).Number());
+  CHECK_EQ(9999.0, data.NodeAt(9999).Number());
+  CHECK_LT(data.MemoryUsage(), bytes);
+  data.DiscardBefore(10000);
+  CHECK(data.nodes.empty());
+  CHECK_EQ(10000u, data.NodeCount());
+}
+
 TEST(JsonParseAsyncSnapshotTableGrowth) {
   auto isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
@@ -293,10 +327,22 @@ TEST_WITH_PLATFORM(JsonParseAsyncPrimitiveArraysGC, JsonTestPlatform) {
   v8::HandleScope scope(isolate);
   LocalContext context;
   auto runner = platform.HoldTasks(isolate);
-  for (const char* input : {"'[' + '1.5,-0,'.repeat(20000) + '2]'",
-                            "JSON.stringify(Array.from({length:20000}, (_, i) "
-                            "=> 'long-string-value-' + i))"}) {
-    std::string script = "JSON.parseAsync(" + std::string(input) + ")";
+  const struct {
+    const char* input;
+    const char* check;
+  } cases[] = {{"'[' + '1.5,-0,'.repeat(20000) + '2]'",
+                "result.length === 40001 && result[0] === 1.5 && "
+                "Object.is(result[1], -0) && result[40000] === 2"},
+               {"JSON.stringify(Array.from({length:20000}, (_, i) "
+                "=> 'long-string-value-' + i))",
+                "result.length === 20000 && "
+                "result[19999] === 'long-string-value-19999'"},
+               {"JSON.stringify(Array.from({length:20000}, (_, i) "
+                "=> i & 1 ? 'BB' : 'Aa'))",
+                "result.length === 20000 && result[0] === 'Aa' && "
+                "result[19999] === 'BB'"}};
+  for (const auto& test : cases) {
+    std::string script = "JSON.parseAsync(" + std::string(test.input) + ")";
     auto promise = CompileRun(script.c_str()).As<v8::Promise>();
     CHECK(runner->RunOne(isolate));
     CHECK_EQ(v8::Promise::kPending, promise->State());
@@ -309,10 +355,7 @@ TEST_WITH_PLATFORM(JsonParseAsyncPrimitiveArraysGC, JsonTestPlatform) {
     CHECK(context->Global()
               ->Set(context.local(), v8_str("result"), promise->Result())
               .FromJust());
-    CHECK(CompileRun("result.length === 40001 ? (result[0] === 1.5 && "
-                     "Object.is(result[1], -0) && result[40000] === 2) : "
-                     "result[19999] === 'long-string-value-19999'")
-              ->IsTrue());
+    CHECK(CompileRun(test.check)->IsTrue());
   }
 }
 

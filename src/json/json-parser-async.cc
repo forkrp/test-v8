@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -76,20 +77,28 @@ class JsonParseAsyncState final {
   void Cancel() { data_->cancelled.store(true, std::memory_order_relaxed); }
   std::shared_ptr<v8::TaskRunner> runner() const { return runner_; }
 
+  void AccountNativeMemory() {
+    int64_t bytes = static_cast<int64_t>(data_->MemoryUsage());
+    int64_t delta = bytes - native_bytes_;
+    native_bytes_ = bytes;
+    if (delta) {
+      reinterpret_cast<v8::Isolate*>(isolate_)
+          ->AdjustAmountOfExternalAllocatedMemory(delta);
+    }
+  }
+
   bool Run() {
     if (data_->cancelled.load(std::memory_order_relaxed)) return true;
     HandleScope scope(isolate_);
     SaveAndSwitchContext context(isolate_, *context_);
     v8::TryCatch caught(reinterpret_cast<v8::Isolate*>(isolate_));
-    if (!accounted_tape_) {
-      accounted_tape_ = true;
-      tape_bytes_ = data_->nodes.capacity() * sizeof(BackgroundJsonNode) +
-                    data_->source_ends.capacity() * sizeof(uint32_t);
-      reinterpret_cast<v8::Isolate*>(isolate_)
-          ->AdjustAmountOfExternalAllocatedMemory(tape_bytes_);
-    }
+    AccountNativeMemory();
     bool done =
         data_->is_one_byte ? BuildSlice<uint8_t>() : BuildSlice<uint16_t>();
+    // No tape references escape BuildSlice. Completed values are already
+    // rooted in V8; release consumed native blocks before yielding again.
+    data_->DiscardBefore(cursor_);
+    AccountNativeMemory();
     if (isolate_->has_exception()) {
       RejectJsonException(isolate_, promise_, &caught);
       return true;
@@ -122,11 +131,12 @@ class JsonParseAsyncState final {
     }
     handles_.reset();
     data_.reset();
-    if (tape_bytes_) {
+    if (native_bytes_) {
       reinterpret_cast<v8::Isolate*>(isolate_)
-          ->AdjustAmountOfExternalAllocatedMemory(-tape_bytes_);
-      tape_bytes_ = 0;
+          ->AdjustAmountOfExternalAllocatedMemory(-native_bytes_);
+      native_bytes_ = 0;
     }
+    short_strings_ = {};
     std::vector<Frame>().swap(frames_);
     std::vector<Handle<Object>>().swap(roots_);
     properties_ = {};
@@ -186,9 +196,21 @@ class JsonParseAsyncState final {
     using Node = BackgroundJsonNode;
     switch (token.kind) {
       case Node::kString:
+        if (token.flags & Node::kCachedString) {
+          auto& cached = short_strings_[token.depth];
+          if (cached.is_null()) {
+            cached =
+                handles_->NewHandle(parser->MakeString(token.AsString(offset)));
+          }
+          return cached;
+        }
         return parser->MakeString(token.AsString(offset));
       case Node::kNumber:
-        return isolate_->factory()->NewNumber(token.data.number);
+        if (token.flags & Node::kSmi) {
+          return handle(Smi::FromInt(static_cast<int>(token.Number())),
+                        isolate_);
+        }
+        return isolate_->factory()->NewHeapNumber(token.Number());
       case Node::kTrue:
         return isolate_->factory()->true_value();
       case Node::kFalse:
@@ -198,6 +220,38 @@ class JsonParseAsyncState final {
       default:
         UNREACHABLE();
     }
+  }
+
+  template <typename Char>
+  int FillPrimitiveArray(JsonParser<Char>* parser, int offset, int limit) {
+    Frame& frame = frames_.back();
+    auto array = frame.direct_array;
+    size_t end = std::min<size_t>(frame.end, cursor_ + limit);
+    size_t start = cursor_;
+    if (array->HasDoubleElements()) {
+      DisallowGarbageCollection no_gc;
+      auto elements = FixedDoubleArray::cast(array->elements());
+      while (cursor_ < end) {
+        elements->set(frame.next_element++, data_->NodeAt(cursor_++).Number());
+      }
+    } else if (array->HasSmiElements()) {
+      DisallowGarbageCollection no_gc;
+      auto elements = FixedArray::cast(array->elements());
+      while (cursor_ < end) {
+        elements->set(
+            frame.next_element++,
+            Smi::FromInt(static_cast<int>(data_->NodeAt(cursor_++).Number())),
+            SKIP_WRITE_BARRIER);
+      }
+    } else {
+      while (cursor_ < end &&
+             data_->NodeAt(cursor_).kind >= BackgroundJsonNode::kString) {
+        auto value = Primitive(parser, data_->NodeAt(cursor_++), offset);
+        // MakeString can GC: reload the backing store and keep its barrier.
+        FixedArray::cast(array->elements())->set(frame.next_element++, *value);
+      }
+    }
+    return static_cast<int>(cursor_ - start);
   }
 
   template <typename Char>
@@ -227,7 +281,7 @@ class JsonParseAsyncState final {
                                  Handle<Map> feedback = {}) {
     using Node = BackgroundJsonNode;
     using Continuation = typename JsonParser<Char>::JsonContinuation;
-    const Node& token = data_->nodes[cursor_++];
+    const Node& token = data_->NodeAt(cursor_++);
     if (token.kind != Node::kObject && token.kind != Node::kArray)
       return Primitive(parser, token, offset);
     if (token.kind == Node::kArray) {
@@ -253,7 +307,7 @@ class JsonParseAsyncState final {
     size_t start = parser->property_stack_.size();
     Continuation cont(isolate_, Continuation::kObjectProperty, start);
     while (cursor_ < token.data.container.end) {
-      auto key = data_->nodes[cursor_++].AsString(offset);
+      auto key = data_->NodeAt(cursor_++).AsString(offset);
       if (key.is_index()) {
         ++cont.elements;
         cont.max_index = std::max(cont.max_index, key.index());
@@ -343,10 +397,12 @@ class JsonParseAsyncState final {
     const auto deadline =
         base::TimeTicks::Now() + base::TimeDelta::FromMilliseconds(2);
     bool done = false;
+    int next_budget_check = 0;
     // Only materialization is sliced. Use JSON's fast builders instead of
     // repeated generic CreateDataProperty calls or a serialized object clone.
     for (int work = 0; work < 4096; ++work) {
-      if ((work & 63) == 0) {
+      if (work >= next_budget_check) {
+        next_budget_check = work + 64;
         STACK_CHECK(isolate_, true);
         if (work != 0 && base::TimeTicks::Now() >= deadline) break;
       }
@@ -355,29 +411,17 @@ class JsonParseAsyncState final {
         Close(&parser);
         continue;
       }
-      if (cursor_ == data_->nodes.size()) {
+      if (cursor_ == data_->NodeCount()) {
         DCHECK(frames_.empty());
         done = true;
         break;
       }
-      const Node& token = data_->nodes[cursor_];
+      const Node& token = data_->NodeAt(cursor_);
       if (!frames_.empty() && !frames_.back().direct_array.is_null() &&
           token.kind >= Node::kString) {
-        Frame& frame = frames_.back();
-        int index = static_cast<int>(frame.next_element++);
-        auto array = frame.direct_array;
-        if (array->HasDoubleElements()) {
-          FixedDoubleArray::cast(array->elements())
-              ->set(index, token.data.number);
-        } else if (array->HasSmiElements()) {
-          FixedArray::cast(array->elements())
-              ->set(index,
-                    Smi::FromInt(static_cast<int32_t>(token.data.number)));
-        } else {
-          auto value = Primitive(&parser, token, source_offset);
-          FixedArray::cast(array->elements())->set(index, *value);
-        }
-        ++cursor_;
+        work += FillPrimitiveArray(&parser, source_offset,
+                                   std::min(128, 4096 - work)) -
+                1;
         continue;
       }
       Handle<Object> value;
@@ -427,24 +471,17 @@ class JsonParseAsyncState final {
           continue;
         }
         case Node::kString:
-          value = parser.MakeString(token.AsString(source_offset));
-          break;
         case Node::kNumber:
-          value = isolate_->factory()->NewNumber(token.data.number);
-          break;
         case Node::kTrue:
-          value = isolate_->factory()->true_value();
-          break;
         case Node::kFalse:
-          value = isolate_->factory()->false_value();
-          break;
         case Node::kNull:
-          value = isolate_->factory()->null_value();
+          value = Primitive(&parser, token, source_offset);
           break;
       }
       Handle<Object> node = isolate_->factory()->undefined_value();
       if (data_->track_source) {
-        node = isolate_->factory()->NewSubString(source_, token.start,
+        node = isolate_->factory()->NewSubString(source_,
+                                                 data_->source_starts[cursor_],
                                                  data_->source_ends[cursor_]);
       }
       Emit(&parser, value, node);
@@ -467,8 +504,8 @@ class JsonParseAsyncState final {
   std::vector<Frame> frames_;
   std::vector<Handle<Object>> roots_;
   size_t live_roots_ = 0, cursor_ = 0;
-  int64_t tape_bytes_ = 0;
-  bool accounted_tape_ = false;
+  int64_t native_bytes_ = 0;
+  std::array<Handle<String>, 64> short_strings_{};
   base::SmallVector<JsonProperty, 16> properties_;
   base::SmallVector<Handle<Object>, 16> elements_, property_nodes_,
       element_nodes_;
@@ -524,6 +561,10 @@ class JsonParseBackgroundTask final : public CancelableTask {
         completion_(std::move(completion)) {}
   void RunInternal() override {
     ParseJsonInBackground(data_.get());
+    // The tape stores offsets into the rooted original string. No foreground
+    // code needs the worker's input copy after parsing has finished.
+    data_->one_byte = base::OwnedVector<uint8_t>();
+    data_->two_byte = base::OwnedVector<uint16_t>();
     runner_->PostNonNestableTask(std::move(completion_));
   }
 
@@ -571,13 +612,12 @@ MaybeHandle<JSPromise> JsonParseAsync(Isolate* isolate, Handle<Object> source,
     String::WriteToFlat(*string, data->two_byte.begin(), 0, length);
   }
   auto state = Managed<JsonParseAsyncState>::FromUniquePtr(
-      isolate,
-      sizeof(JsonParseAsyncState) + sizeof(BackgroundJsonData) +
-          static_cast<size_t>(length) * (data->is_one_byte ? 1 : 2),
+      isolate, sizeof(JsonParseAsyncState) + sizeof(BackgroundJsonData),
       std::make_unique<JsonParseAsyncState>(isolate, string, reviver, promise,
                                             data, runner));
   auto root = Handle<Managed<JsonParseAsyncState>>::cast(
       isolate->global_handles()->Create(*state));
+  root->raw()->AccountNativeMemory();
   platform->CallOnWorkerThread(std::make_unique<JsonParseBackgroundTask>(
       isolate, std::move(data), runner,
       std::make_unique<JsonParseAsyncTask>(isolate, root)));

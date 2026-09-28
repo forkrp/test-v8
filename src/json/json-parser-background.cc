@@ -5,9 +5,12 @@
 #include "src/json/json-parser-background.h"
 
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <limits>
 
 #include "src/base/strings.h"
+#include "src/json/json-scanner.h"
 #include "src/numbers/conversions-inl.h"
 
 namespace v8 {
@@ -23,8 +26,7 @@ class BackgroundJsonParser {
 
   void Parse() {
     using Node = BackgroundJsonNode;
-    // Do not reserve proportional to bytes: a huge single string has one node.
-    output_->nodes.reserve(256);
+    // Grow by blocks, not by input bytes: a huge single string has one node.
     while (!Cancelled()) {
       SkipWhitespace();
       if (Cancelled()) return;
@@ -50,9 +52,10 @@ class BackgroundJsonParser {
           }
           Node node;
           node.kind = Node::kKey;
-          node.start = position_;
+          uint32_t start = position_;
+          node.data.string.start = start;
           if (!ReadString(&node)) return;
-          Append(node);
+          Append(node, start);
           state_ = State::kColon;
           break;
         }
@@ -88,7 +91,7 @@ class BackgroundJsonParser {
           [[fallthrough]];
         case State::kValue: {
           Node node;
-          node.start = position_;
+          uint32_t start = position_;
           switch (c) {
             case '{':
             case '[':
@@ -96,12 +99,13 @@ class BackgroundJsonParser {
               node.depth = 1;
               if (c == '[') node.flags |= Node::kAllNumbers | Node::kAllSmis;
               ++position_;
-              stack_.push_back({Append(node), c == '['});
+              stack_.push_back({Append(node, start), c == '['});
               state_ =
                   c == '[' ? State::kArrayFirstValue : State::kObjectFirstKey;
               continue;
             case '"':
               node.kind = Node::kString;
+              node.data.string.start = start;
               if (!ReadString(&node)) return;
               break;
             case 't':
@@ -122,12 +126,13 @@ class BackgroundJsonParser {
                 return;
               }
               node.kind = Node::kNumber;
-              if (!ReadNumber(&node.data.number)) return;
+              double number;
+              if (!ReadNumber(&number)) return;
+              node.SetNumber(number);
+              if (IsSmiDouble(number)) node.flags |= Node::kSmi;
           }
-          Append(node);
-          CompleteValue(
-              node.kind == Node::kNumber,
-              node.kind == Node::kNumber && IsSmiDouble(node.data.number));
+          Append(node, start);
+          CompleteValue(node.kind == Node::kNumber, node.flags & Node::kSmi);
           break;
         }
       }
@@ -156,7 +161,7 @@ class BackgroundJsonParser {
   uint32_t Current() const {
     return position_ < input_.size() ? input_[position_] : UINT32_MAX;
   }
-  static bool Digit(uint32_t c) { return c >= '0' && c <= '9'; }
+  static bool Digit(uint32_t c) { return IsJsonDecimalDigit(c); }
   void Fail(base::Optional<MessageTemplate> message = base::nullopt) {
     output_->failed = true;
     output_->error_position = static_cast<int>(position_);
@@ -170,10 +175,13 @@ class BackgroundJsonParser {
       if ((position_ & 4095) == 0 && Cancelled()) return;
     }
   }
-  uint32_t Append(const BackgroundJsonNode& node) {
+  uint32_t Append(const BackgroundJsonNode& node, uint32_t start) {
     uint32_t index = static_cast<uint32_t>(output_->nodes.size());
     output_->nodes.push_back(node);
-    if (output_->track_source) output_->source_ends.push_back(position_);
+    if (output_->track_source) {
+      output_->source_starts.push_back(start);
+      output_->source_ends.push_back(position_);
+    }
     return index;
   }
   void CompleteValue(bool number = false, bool smi = false) {
@@ -278,13 +286,33 @@ class BackgroundJsonParser {
     bool is_index = node->kind == Node::kKey;
     bool leading_zero = false;
     bool escaped = false;
+    auto add_index_char = [&](uint32_t c, uint32_t at) {
+      if (!is_index) return;
+      if (!Digit(c) || (at != 0 && leading_zero) ||
+          index > (UINT32_MAX - 1 - (c - '0')) / 10) {
+        is_index = false;
+      } else {
+        index = index * 10 + c - '0';
+        if (at == 0) leading_zero = c == '0';
+      }
+    };
     while (position_ < input_.size()) {
-      if ((position_ & 4095) == 0 && Cancelled()) return false;
+      if (Cancelled()) return false;
+      const Char* begin = input_.begin() + position_;
+      const Char* end =
+          input_.begin() + std::min<size_t>(position_ + 4096, input_.size());
+      const Char* stop = ScanJsonStringCharacters(begin, end, &bits);
+      for (const Char* p = begin; p != stop && is_index; ++p)
+        add_index_char(*p, length + static_cast<uint32_t>(p - begin));
+      uint32_t count = static_cast<uint32_t>(stop - begin);
+      position_ += count;
+      length += count;
+      if (stop == end) continue;
       uint32_t c = Current();
       if (c == '"') {
         ++position_;
         node->data.string.length = length;
-        node->data.string.index = index;
+        if (is_index && length != 0) node->data.string.start = index;
         bool convert = sizeof(Char) == 1 ? bits > 255 : bits <= 255;
         node->flags =
             (convert ? Node::kConvert : 0) | (escaped ? Node::kEscape : 0) |
@@ -292,6 +320,9 @@ class BackgroundJsonParser {
                  ? Node::kInternalize
                  : 0) |
             ((is_index && length != 0) ? Node::kIndex : 0);
+        if (node->kind == Node::kString && length < 10 && !escaped) {
+          CacheShortString(node);
+        }
         return true;
       }
       if (c < 0x20) {
@@ -345,15 +376,7 @@ class BackgroundJsonParser {
         }
       }
       bits |= c;
-      if (is_index) {
-        if (!Digit(c) || (length != 0 && leading_zero) ||
-            index > (UINT32_MAX - 1 - (c - '0')) / 10) {
-          is_index = false;
-        } else {
-          index = index * 10 + c - '0';
-          if (length == 0) leading_zero = c == '0';
-        }
-      }
+      add_index_char(c, length);
       ++length;
       ++position_;
     }
@@ -361,11 +384,34 @@ class BackgroundJsonParser {
     return false;
   }
 
+  void CacheShortString(BackgroundJsonNode* node) {
+    // Bound retained V8 strings to 64 slots. A collision falls back to the
+    // existing string table; never replace a slot already referenced by tape.
+    uint32_t hash = node->data.string.length;
+    const Char* chars = input_.begin() + node->data.string.start + 1;
+    for (uint32_t i = 0; i < node->data.string.length; ++i)
+      hash = hash * 31 + chars[i];
+    uint32_t slot = hash & (short_strings_.size() - 1);
+    if (short_strings_[slot]) {
+      const auto& previous = output_->nodes[short_strings_[slot] - 1];
+      if (previous.data.string.length != node->data.string.length ||
+          std::memcmp(input_.begin() + previous.data.string.start + 1, chars,
+                      node->data.string.length * sizeof(Char)) != 0) {
+        return;
+      }
+    } else {
+      short_strings_[slot] = static_cast<uint32_t>(output_->nodes.size()) + 1;
+    }
+    node->flags |= BackgroundJsonNode::kCachedString;
+    node->depth = static_cast<uint16_t>(slot);
+  }
+
   BackgroundJsonData* const output_;
   base::Vector<const Char> input_;
   uint32_t position_ = 0;
   State state_ = State::kValue;
   std::vector<Frame> stack_;
+  std::array<uint32_t, 64> short_strings_{};
 };
 
 }  // namespace

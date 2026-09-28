@@ -215,6 +215,19 @@ async function main() {
   const wide = {};
   for (let i = 0; i < 8000; ++i) wide['key' + i] = i;
   equal(await JSON.parseAsync(JSON.stringify(wide)), wide);
+  // Same short-string hash, distinct contents; parsed strings must not alias
+  // a cache slot merely because their hash or length matches.
+  const collisions = Array.from({length: 20000}, (_, i) =>
+    ['Aa', 'BB', 'Aa', 'ok', 'é', String(i % 200)][i % 6]);
+  equal(await JSON.parseAsync(JSON.stringify(collisions)), collisions);
+  equal(await JSON.parseAsync(JSON.stringify([...collisions, '成功', '文字列'])),
+        [...collisions, '成功', '文字列']);
+  for (const length of [4094, 4095, 4096, 4097, 8192]) {
+    for (const suffix of ['\\uD800', '\\uD83D\\uDE00', '\\n', '漢']) {
+      const text = '"' + 'a'.repeat(length) + suffix + '"';
+      equal(await JSON.parseAsync(text), JSON.parse(text));
+    }
+  }
   const whitespace = JSON.parseAsync(' '.repeat(100000) + '1');
   await JSON.parseAsync('0');
   // The worker may finish a whitespace-only prefix before the small job.
