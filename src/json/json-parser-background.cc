@@ -54,19 +54,20 @@ class BackgroundJsonParser {
           node.kind = Node::kKey;
           uint32_t start = position_;
           node.data.string.start = start;
-          if (!ReadString(&node)) return;
+          if (!ReadString<true>(&node)) return;
           Append(node, start);
-          state_ = State::kColon;
-          break;
-        }
-        case State::kColon:
-          if (c != ':') {
+          // A key must be followed by a colon and a value. Consume the colon
+          // here instead of dispatching another state for every property.
+          SkipWhitespace();
+          if (Cancelled()) return;
+          if (Current() != ':') {
             Fail(MessageTemplate::kJsonParseExpectedColonAfterPropertyName);
             return;
           }
           ++position_;
           state_ = State::kValue;
           break;
+        }
         case State::kObjectNext:
         case State::kArrayNext: {
           bool array = state_ == State::kArrayNext;
@@ -106,7 +107,7 @@ class BackgroundJsonParser {
             case '"':
               node.kind = Node::kString;
               node.data.string.start = start;
-              if (!ReadString(&node)) return;
+              if (!ReadString<false>(&node)) return;
               break;
             case 't':
               node.kind = Node::kTrue;
@@ -144,7 +145,6 @@ class BackgroundJsonParser {
     kValue,
     kObjectFirstKey,
     kObjectKey,
-    kColon,
     kObjectNext,
     kArrayFirstValue,
     kArrayNext,
@@ -175,7 +175,7 @@ class BackgroundJsonParser {
       if ((position_ & 4095) == 0 && Cancelled()) return;
     }
   }
-  uint32_t Append(const BackgroundJsonNode& node, uint32_t start) {
+  V8_INLINE uint32_t Append(const BackgroundJsonNode& node, uint32_t start) {
     uint32_t index = static_cast<uint32_t>(output_->nodes.size());
     output_->nodes.push_back(node);
     if (output_->track_source) {
@@ -188,8 +188,8 @@ class BackgroundJsonParser {
     if (stack_.empty()) {
       state_ = State::kDone;
     } else {
-      ++output_->nodes[stack_.back().node].data.container.count;
       auto& parent = output_->nodes[stack_.back().node];
+      ++parent.data.container.count;
       if (!number) parent.flags &= ~BackgroundJsonNode::kAllNumbers;
       if (!smi) parent.flags &= ~BackgroundJsonNode::kAllSmis;
       state_ = stack_.back().array ? State::kArrayNext : State::kObjectNext;
@@ -279,11 +279,12 @@ class BackgroundJsonParser {
     return true;
   }
 
+  template <bool is_key>
   bool ReadString(BackgroundJsonNode* node) {
     using Node = BackgroundJsonNode;
     ++position_;
     uint32_t length = 0, bits = 0, index = 0;
-    bool is_index = node->kind == Node::kKey;
+    bool is_index = is_key;
     bool leading_zero = false;
     bool escaped = false;
     auto add_index_char = [&](uint32_t c, uint32_t at) {
@@ -316,11 +317,11 @@ class BackgroundJsonParser {
         bool convert = sizeof(Char) == 1 ? bits > 255 : bits <= 255;
         node->flags =
             (convert ? Node::kConvert : 0) | (escaped ? Node::kEscape : 0) |
-            ((node->kind == Node::kKey || (sizeof(Char) == 1 && length < 10))
+            ((is_key || (sizeof(Char) == 1 && length < 10))
                  ? Node::kInternalize
                  : 0) |
             ((is_index && length != 0) ? Node::kIndex : 0);
-        if (node->kind == Node::kString && length < 10 && !escaped) {
+        if (!is_key && length < 10 && !escaped) {
           CacheShortString(node);
         }
         return true;

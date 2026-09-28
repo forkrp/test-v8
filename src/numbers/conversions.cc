@@ -9,6 +9,7 @@
 
 #include <cmath>
 
+#include "src/base/compiler-specific.h"
 #include "src/base/numbers/dtoa.h"
 #include "src/base/numbers/strtod.h"
 #include "src/base/small-vector.h"
@@ -909,6 +910,10 @@ double StringToDouble(const char* str, int flags, double empty_string_val) {
   return StringToDouble(base::OneByteVector(str), flags, empty_string_val);
 }
 
+#if defined(V8_TARGET_ARCH_X64) && defined(V8_CC_GNU)
+// Keep this hot conversion entry aligned as preceding code grows.
+ALIGNAS(64)
+#endif
 double StringToDouble(base::Vector<const uint8_t> str, int flags,
                       double empty_string_val) {
   return InternalStringToDouble(str.begin(), str.end(), flags,

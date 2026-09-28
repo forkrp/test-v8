@@ -99,6 +99,26 @@ async function main() {
     }
   }
 
+  // Fused key/colon dispatch must preserve errors even when cancellation
+  // checkpoints or UTF-16 input boundaries fall between the key and value.
+  for (const whitespace of ['', ' \t\r\n', ' '.repeat(4096)]) {
+    for (const key of ['"a"', '"漢"', '"\\u0030"']) {
+      for (const suffix of ['', ':', ': ', ':]', ':0,}', ':0}', ' 0}']) {
+        const text = '{' + key + whitespace + suffix;
+        let expected, error;
+        try { expected = JSON.parse(text); } catch (caught) { error = caught; }
+        if (!error) {
+          equal(await JSON.parseAsync(text), expected);
+          continue;
+        }
+        let rejected;
+        try { await JSON.parseAsync(text); } catch (caught) { rejected = caught; }
+        check(rejected instanceof SyntaxError && rejected.message === error.message,
+              'fused property dispatch error differs: ' + text);
+      }
+    }
+  }
+
   // Differential reviver order, this binding, source text, deletion, mutation,
   // repeated keys, array snapshots, and precision-preserving conversion.
   function reviver(log) {
@@ -215,6 +235,16 @@ async function main() {
   const wide = {};
   for (let i = 0; i < 8000; ++i) wide['key' + i] = i;
   equal(await JSON.parseAsync(JSON.stringify(wide)), wide);
+  // Cross many tape blocks and slices with primitive and nested object fields,
+  // changing shapes, index keys, duplicate keys, and mutable double fields.
+  const recordText = '[' + Array.from({length: 6000}, (_, i) => i % 3 === 0
+    ? '{"x":0.5,"y":[1,-0,{"z":true}],"2":3}'
+    : i % 3 === 1 ? '{"y":null,"x":1.25,"x":2.5,"__proto__":7}'
+    : '{"漢":"文字","x":3.75,"y":false}').join(',') + ']';
+  const records = await JSON.parseAsync(recordText);
+  equal(records, JSON.parse(recordText));
+  records[0].x = 99.25;
+  check(records[3].x === 0.5, 'double fields must have unique mutable storage');
   // Same short-string hash, distinct contents; parsed strings must not alias
   // a cache slot merely because their hash or length matches.
   const collisions = Array.from({length: 20000}, (_, i) =>

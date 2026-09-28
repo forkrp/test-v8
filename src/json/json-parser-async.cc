@@ -222,6 +222,12 @@ class JsonParseAsyncState final {
     }
   }
 
+  const BackgroundJsonNode& Next() {
+    DCHECK_LT(cursor_, data_->NodeCount());
+    ++cursor_;
+    return *next_++;
+  }
+
   template <typename Char>
   int FillPrimitiveArray(JsonParser<Char>* parser, int offset, int limit) {
     Frame& frame = frames_.back();
@@ -232,7 +238,7 @@ class JsonParseAsyncState final {
       DisallowGarbageCollection no_gc;
       auto elements = FixedDoubleArray::cast(array->elements());
       while (cursor_ < end) {
-        elements->set(frame.next_element++, data_->NodeAt(cursor_++).Number());
+        elements->set(frame.next_element++, Next().Number());
       }
     } else if (array->HasSmiElements()) {
       DisallowGarbageCollection no_gc;
@@ -240,13 +246,13 @@ class JsonParseAsyncState final {
       while (cursor_ < end) {
         elements->set(
             frame.next_element++,
-            Smi::FromInt(static_cast<int>(data_->NodeAt(cursor_++).Number())),
+            Smi::FromInt(static_cast<int>(Next().Number())),
             SKIP_WRITE_BARRIER);
       }
     } else {
       while (cursor_ < end &&
-             data_->NodeAt(cursor_).kind >= BackgroundJsonNode::kString) {
-        auto value = Primitive(parser, data_->NodeAt(cursor_++), offset);
+             next_->kind >= BackgroundJsonNode::kString) {
+        auto value = Primitive(parser, Next(), offset);
         // MakeString can GC: reload the backing store and keep its barrier.
         FixedArray::cast(array->elements())->set(frame.next_element++, *value);
       }
@@ -281,13 +287,20 @@ class JsonParseAsyncState final {
                                  Handle<Map> feedback = {}) {
     using Node = BackgroundJsonNode;
     using Continuation = typename JsonParser<Char>::JsonContinuation;
-    const Node& token = data_->NodeAt(cursor_++);
-    if (token.kind != Node::kObject && token.kind != Node::kArray)
-      return Primitive(parser, token, offset);
+    const Node& token = Next();
+    // Primitive children are handled inline by their parent; recurse only for
+    // containers, retaining the existing depth and subtree-size limits.
+    DCHECK(token.kind == Node::kObject || token.kind == Node::kArray);
     if (token.kind == Node::kArray) {
       HandleScope scope(isolate_);
       size_t start = parser->element_stack_.size();
       while (cursor_ < token.data.container.end) {
+        const Node& element = *next_;
+        if (element.kind >= Node::kString) {
+          parser->element_stack_.emplace_back(
+              Primitive(parser, Next(), offset));
+          continue;
+        }
         Handle<Map> next_feedback;
         if (parser->element_stack_.size() > start) {
           auto previous = *parser->element_stack_.back();
@@ -307,12 +320,18 @@ class JsonParseAsyncState final {
     size_t start = parser->property_stack_.size();
     Continuation cont(isolate_, Continuation::kObjectProperty, start);
     while (cursor_ < token.data.container.end) {
-      auto key = data_->NodeAt(cursor_++).AsString(offset);
+      auto key = Next().AsString(offset);
       if (key.is_index()) {
         ++cont.elements;
         cont.max_index = std::max(cont.max_index, key.index());
       }
-      auto value = BuildSmallValue(parser, offset);
+      const Node& field = *next_;
+      Handle<Object> value;
+      if (field.kind >= Node::kString) {
+        value = Primitive(parser, Next(), offset);
+      } else {
+        value = BuildSmallValue(parser, offset);
+      }
       parser->property_stack_.emplace_back(key, value);
     }
     auto value = parser->BuildJsonObject(cont, feedback);
@@ -392,6 +411,10 @@ class JsonParseAsyncState final {
       return true;
     }
     const int source_offset = parser.position();
+    // Recreate the iterator after every prefix reclamation. Only this thread
+    // consumes the completed tape; never reuse this iterator across slices.
+    DCHECK_EQ(cursor_, data_->node_base);
+    next_ = data_->nodes.cbegin();
     parser.property_stack_ = std::move(properties_);
     parser.element_stack_ = std::move(elements_);
     const auto deadline =
@@ -416,7 +439,7 @@ class JsonParseAsyncState final {
         done = true;
         break;
       }
-      const Node& token = data_->NodeAt(cursor_);
+      const Node& token = *next_;
       if (!frames_.empty() && !frames_.back().direct_array.is_null() &&
           token.kind >= Node::kString) {
         work += FillPrimitiveArray(&parser, source_offset,
@@ -454,7 +477,7 @@ class JsonParseAsyncState final {
                 kind, 0, static_cast<int>(token.data.container.count));
             frames_.back().direct_array = Handle<JSArray>::cast(Retain(result));
           }
-          ++cursor_;
+          Next();
           continue;
         }
         case Node::kKey: {
@@ -467,7 +490,7 @@ class JsonParseAsyncState final {
           parser.property_stack_.emplace_back(key);
           if (data_->track_source)
             property_nodes_.emplace_back(Handle<Object>());
-          ++cursor_;
+          Next();
           continue;
         }
         case Node::kString:
@@ -485,8 +508,9 @@ class JsonParseAsyncState final {
                                                  data_->source_ends[cursor_]);
       }
       Emit(&parser, value, node);
-      ++cursor_;
+      Next();
     }
+    next_ = {};
     properties_ = std::move(parser.property_stack_);
     elements_ = std::move(parser.element_stack_);
     return done;
@@ -504,6 +528,7 @@ class JsonParseAsyncState final {
   std::vector<Frame> frames_;
   std::vector<Handle<Object>> roots_;
   size_t live_roots_ = 0, cursor_ = 0;
+  std::deque<BackgroundJsonNode>::const_iterator next_;
   int64_t native_bytes_ = 0;
   std::array<Handle<String>, 64> short_strings_{};
   base::SmallVector<JsonProperty, 16> properties_;

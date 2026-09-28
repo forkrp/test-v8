@@ -173,3 +173,8 @@ JSON.parseAsync 2.4 MB: sync=42.649 ms call=0.887 ms worker_wait=9.360 ms foregr
 ```
 
 最慢前台片段包含分配、GC 和调度噪声；上述软预算不能用来承诺硬实时上界。
+
+### 后续优化记录
+
+- [第一轮优化与验收](json-parse-async-optimization.md)：紧凑记录、分块回收、批量材料化与短字符串复用。
+- [第二轮优化与验收](json-parse-async-optimization-round2.md)：后台状态与字符串扫描特化、原语免递归、前台顺序读取、数值热入口布局控制，以及相对 `bec433731` 的 Release 对照。
