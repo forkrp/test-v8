@@ -137,6 +137,7 @@ class JsonParseAsyncState final {
       native_bytes_ = 0;
     }
     short_strings_ = {};
+    key_strings_ = {};
     std::vector<Frame>().swap(frames_);
     std::vector<Handle<Object>>().swap(roots_);
     properties_ = {};
@@ -226,6 +227,15 @@ class JsonParseAsyncState final {
     DCHECK_LT(cursor_, data_->NodeCount());
     ++cursor_;
     return *next_++;
+  }
+
+  base::Vector<const Handle<String>> KeyCache() {
+    if (key_strings_[0].is_null()) {
+      for (auto& key : key_strings_) {
+        key = handles_->NewHandle(isolate_->factory()->empty_string());
+      }
+    }
+    return base::VectorOf(key_strings_);
   }
 
   template <typename Char>
@@ -320,7 +330,8 @@ class JsonParseAsyncState final {
     size_t start = parser->property_stack_.size();
     Continuation cont(isolate_, Continuation::kObjectProperty, start);
     while (cursor_ < token.data.container.end) {
-      auto key = Next().AsString(offset);
+      const Node& key_token = Next();
+      auto key = key_token.AsString(offset, true);
       if (key.is_index()) {
         ++cont.elements;
         cont.max_index = std::max(cont.max_index, key.index());
@@ -334,7 +345,10 @@ class JsonParseAsyncState final {
       }
       parser->property_stack_.emplace_back(key, value);
     }
-    auto value = parser->BuildJsonObject(cont, feedback);
+    auto value = token.flags & Node::kHasCachedKeys
+                     ? parser->BuildJsonObjectWithCachedKeys(cont, feedback,
+                                                             KeyCache())
+                     : parser->BuildJsonObject(cont, feedback);
     parser->property_stack_.resize_no_init(start);
     return cont.scope.CloseAndEscape(Handle<Object>::cast(value));
   }
@@ -531,6 +545,7 @@ class JsonParseAsyncState final {
   std::deque<BackgroundJsonNode>::const_iterator next_;
   int64_t native_bytes_ = 0;
   std::array<Handle<String>, 64> short_strings_{};
+  std::array<Handle<String>, 64> key_strings_{};
   base::SmallVector<JsonProperty, 16> properties_;
   base::SmallVector<Handle<Object>, 16> elements_, property_nodes_,
       element_nodes_;

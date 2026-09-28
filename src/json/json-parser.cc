@@ -1203,6 +1203,8 @@ class JsonParser<Char>::NamedPropertyIterator {
     return NamedPropertyValueIterator(start_, it_);
   }
 
+  const JsonProperty* current() const { return it_; }
+
  private:
   JsonParser<Char>& parser_;
 
@@ -1212,8 +1214,54 @@ class JsonParser<Char>::NamedPropertyIterator {
 };
 
 template <typename Char>
-Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
-                                                   Handle<Map> feedback) {
+class JsonParser<Char>::CachedNamedPropertyIterator
+    : public JsonParser<Char>::NamedPropertyIterator {
+ public:
+  using Base = typename JsonParser<Char>::NamedPropertyIterator;
+  CachedNamedPropertyIterator(JsonParser<Char>* parser,
+                              const JsonProperty* begin,
+                              const JsonProperty* end,
+                              base::Vector<const Handle<String>> keys)
+      : Base(*parser, begin, end), keys_(keys) {
+    DCHECK_EQ(JsonString::kNoCacheSlot, keys.length());
+  }
+
+  Handle<String> GetKey(Handle<String> expected_key_hint) {
+    uint8_t slot = this->current()->string.cache_slot();
+    if (slot == JsonString::kNoCacheSlot) {
+      return Base::GetKey(expected_key_hint);
+    }
+    auto key = keys_[slot];
+    DCHECK(!key.is_null());
+    // Empty names are never cached. Patch the persistent slot, not a local
+    // handle, so a later slice can reuse the internalized string across GC.
+    if (key->length() == 0) key.PatchValue(*Base::GetKey(expected_key_hint));
+    return key;
+  }
+
+ private:
+  base::Vector<const Handle<String>> keys_;
+};
+
+template <typename Char>
+Handle<JSObject> JsonParser<Char>::BuildJsonObject(
+    const JsonContinuation& cont, Handle<Map> feedback) {
+  return BuildJsonObjectImpl<false>(cont, feedback, {});
+}
+
+template <typename Char>
+Handle<JSObject> JsonParser<Char>::BuildJsonObjectWithCachedKeys(
+    const JsonContinuation& cont, Handle<Map> feedback,
+    base::Vector<const Handle<String>> keys) {
+  return BuildJsonObjectImpl<true>(cont, feedback, keys);
+}
+
+// Share the construction logic, not a runtime cache branch in JSON.parse.
+template <typename Char>
+template <bool cached_keys>
+Handle<JSObject> JsonParser<Char>::BuildJsonObjectImpl(
+    const JsonContinuation& cont, Handle<Map> feedback,
+    base::Vector<const Handle<String>> keys) {
   if (!feedback.is_null() && feedback->is_deprecated()) {
     feedback = Map::Update(isolate_, feedback);
   }
@@ -1267,10 +1315,15 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
       isolate_, elements_kind, named_length, feedback,
       JSDataObjectBuilder::kHeapNumbersGuaranteedUniquelyOwned);
 
-  NamedPropertyIterator it(*this, property_stack_.begin() + start,
-                           property_stack_.end());
-
-  return js_data_object_builder.BuildFromIterator(it, elements);
+  if constexpr (cached_keys) {
+    CachedNamedPropertyIterator it(this, property_stack_.begin() + start,
+                                   property_stack_.end(), keys);
+    return js_data_object_builder.BuildFromIterator(it, elements);
+  } else {
+    NamedPropertyIterator it(*this, property_stack_.begin() + start,
+                             property_stack_.end());
+    return js_data_object_builder.BuildFromIterator(it, elements);
+  }
 }
 
 template <typename Char>

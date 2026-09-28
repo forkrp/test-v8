@@ -40,6 +40,14 @@ async function main() {
         active: !!(i & 1)})))), 30000],
     ['long_strings', () => '[' + ('"' + 'abcdef\\u1234\\n'.repeat(80) + '",').repeat(2000) + 'null]', 2001],
     ['unicode', () => '[' + '{"id":1,"state":"成功","text":"文字列"},'.repeat(70000) + 'null]', 70001],
+    ['key_churn', () => JSON.stringify(Array.from({length: 30000}, (_, i) =>
+      ({['key' + i]: i, tail: i & 1 ? 'value' : 0}))), 30000],
+    ['wide_objects', () => JSON.stringify(Array.from({length: 16}, (_, row) =>
+      Object.fromEntries(Array.from({length: 2048}, (_, i) =>
+        ['property' + i, i + row])))), 16],
+    ['key_collisions', () => '[' +
+      '{"Aa":1,"BB":2,"AaAa":3,"BBBB":4,"AaBB":5,"BBAa":6},'.repeat(30000) +
+      'null]', 30001],
   ];
   if (onlyCase && !cases.some(([name]) => name === onlyCase)) {
     throw new Error('unknown benchmark case: ' + onlyCase);

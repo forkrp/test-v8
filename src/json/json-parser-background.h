@@ -38,7 +38,9 @@ struct BackgroundJsonNode {
     kSmi = 16,
     kAllNumbers = 32,
     kAllSmis = 64,
-    kCachedString = 128
+    kCachedString = 128,
+    // Kind-specific: an object has at least one directly cached named key.
+    kHasCachedKeys = kCachedString
   };
   union {
     // Store the bits with four-byte alignment; memcpy accessors avoid undefined
@@ -53,7 +55,7 @@ struct BackgroundJsonNode {
   } data{};
   Kind kind = kNull;
   uint8_t flags = 0;
-  // Container depth (saturated at 17), or the short-string cache slot.
+  // Container depth (saturated at 17), or a value/key string cache slot.
   uint16_t depth = 0;
 
   double Number() const {
@@ -65,10 +67,13 @@ struct BackgroundJsonNode {
     std::memcpy(data.number_bits, &value, sizeof(value));
   }
 
-  JsonString AsString(int source_offset = 0) const {
+  JsonString AsString(int source_offset = 0, bool cache_key = false) const {
     if (flags & kIndex) return JsonString(data.string.start);
     return JsonString(source_offset + data.string.start + 1, data.string.length,
-                      flags & kConvert, flags & kInternalize, flags & kEscape);
+                      flags & kConvert, flags & kInternalize, flags & kEscape,
+                      cache_key && kind == kKey && (flags & kCachedString)
+                          ? depth
+                          : JsonString::kNoCacheSlot);
   }
 };
 static_assert(sizeof(BackgroundJsonNode) == 12);

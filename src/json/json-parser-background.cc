@@ -9,6 +9,7 @@
 #include <cstring>
 #include <limits>
 
+#include "src/base/memory.h"
 #include "src/base/strings.h"
 #include "src/json/json-scanner.h"
 #include "src/numbers/conversions-inl.h"
@@ -153,7 +154,10 @@ class BackgroundJsonParser {
   struct Frame {
     uint32_t node;
     bool array;
+    uint8_t key_count = 0;
+    bool cached_keys = false;
   };
+  static_assert(sizeof(Frame) == 8);
 
   bool Cancelled() const {
     return output_->cancelled.load(std::memory_order_relaxed);
@@ -200,6 +204,9 @@ class BackgroundJsonParser {
     uint32_t node = stack_.back().node;
     output_->nodes[node].data.container.end =
         static_cast<uint32_t>(output_->nodes.size());
+    if (stack_.back().cached_keys) {
+      output_->nodes[node].flags |= BackgroundJsonNode::kHasCachedKeys;
+    }
     if (output_->track_source) output_->source_ends[node] = position_;
     stack_.pop_back();
     if (!stack_.empty()) {
@@ -283,6 +290,36 @@ class BackgroundJsonParser {
   bool ReadString(BackgroundJsonNode* node) {
     using Node = BackgroundJsonNode;
     ++position_;
+    uint32_t key_slot = JsonString::kNoCacheSlot;
+    if constexpr (is_key) {
+      auto& frame = stack_.back();
+      DCHECK(!frame.array);
+      if (!output_->track_source && frame.key_count < key_strings_.size()) {
+        // Same-shaped records repeat keys at the same depth and field ordinal.
+        // Exact matching replaces scanning on a hit, rather than rescanning
+        // and hashing a key that was already validated in this document.
+        // Wide objects use the generic foreground builder; do not repeatedly
+        // probe the same full table for all of their remaining properties.
+        key_slot = static_cast<uint32_t>(
+            (stack_.size() * 8 + frame.key_count++) &
+            (key_strings_.size() - 1));
+        if (key_strings_[key_slot]) {
+          const auto& previous = output_->nodes[key_strings_[key_slot] - 1];
+          uint32_t length = previous.data.string.length;
+          if (input_.size() - position_ > length &&
+              input_[position_ + length] == '"' &&
+              EqualKey(input_.begin() + previous.data.string.start + 1,
+                       input_.begin() + position_, length * sizeof(Char))) {
+            node->data.string.length = length;
+            node->flags = previous.flags;
+            node->depth = static_cast<uint16_t>(key_slot);
+            frame.cached_keys = true;
+            position_ += length + 1;
+            return true;
+          }
+        }
+      }
+    }
     uint32_t length = 0, bits = 0, index = 0;
     bool is_index = is_key;
     bool leading_zero = false;
@@ -321,8 +358,20 @@ class BackgroundJsonParser {
                  ? Node::kInternalize
                  : 0) |
             ((is_index && length != 0) ? Node::kIndex : 0);
-        if (!is_key && length < 10 && !escaped) {
-          CacheShortString(node);
+        if (!escaped) {
+          if constexpr (is_key) {
+            if (key_slot != JsonString::kNoCacheSlot && !is_index &&
+                length != 0 && length <= 32 && !key_strings_[key_slot]) {
+              // Never replace a slot already referenced by another tape key.
+              key_strings_[key_slot] =
+                  static_cast<uint32_t>(output_->nodes.size()) + 1;
+              node->flags |= Node::kCachedString;
+              node->depth = static_cast<uint16_t>(key_slot);
+              stack_.back().cached_keys = true;
+            }
+          } else if (length < 10) {
+            CacheShortString(node);
+          }
         }
         return true;
       }
@@ -385,23 +434,49 @@ class BackgroundJsonParser {
     return false;
   }
 
+  static V8_INLINE bool EqualKey(const Char* left, const Char* right,
+                                 size_t bytes) {
+    auto a = reinterpret_cast<base::Address>(left);
+    auto b = reinterpret_cast<base::Address>(right);
+    // Read exactly the validated key length, including at the input boundary.
+    // Equality of same-sized words is independent of the host byte order.
+    switch (bytes) {
+      case 1:
+        return base::ReadUnalignedValue<uint8_t>(a) ==
+               base::ReadUnalignedValue<uint8_t>(b);
+      case 2:
+        return base::ReadUnalignedValue<uint16_t>(a) ==
+               base::ReadUnalignedValue<uint16_t>(b);
+      case 4:
+        return base::ReadUnalignedValue<uint32_t>(a) ==
+               base::ReadUnalignedValue<uint32_t>(b);
+      case 8:
+        return base::ReadUnalignedValue<uint64_t>(a) ==
+               base::ReadUnalignedValue<uint64_t>(b);
+      default:
+        return std::memcmp(left, right, bytes) == 0;
+    }
+  }
+
   void CacheShortString(BackgroundJsonNode* node) {
-    // Bound retained V8 strings to 64 slots. A collision falls back to the
-    // existing string table; never replace a slot already referenced by tape.
-    uint32_t hash = node->data.string.length;
+    // Keys and values have separate bounded tables: a cached value need not
+    // be internalized, whereas the object builder requires internalized keys.
+    // Never replace a slot already referenced by the tape on collision.
+    auto& slots = short_strings_;
     const Char* chars = input_.begin() + node->data.string.start + 1;
+    uint32_t hash = node->data.string.length;
     for (uint32_t i = 0; i < node->data.string.length; ++i)
       hash = hash * 31 + chars[i];
-    uint32_t slot = hash & (short_strings_.size() - 1);
-    if (short_strings_[slot]) {
-      const auto& previous = output_->nodes[short_strings_[slot] - 1];
-      if (previous.data.string.length != node->data.string.length ||
-          std::memcmp(input_.begin() + previous.data.string.start + 1, chars,
-                      node->data.string.length * sizeof(Char)) != 0) {
-        return;
-      }
+    uint32_t slot = hash & (slots.size() - 1);
+    if (slots[slot]) {
+      const auto& previous = output_->nodes[slots[slot] - 1];
+      if (previous.data.string.length != node->data.string.length) return;
+      const Char* previous_chars =
+          input_.begin() + previous.data.string.start + 1;
+      size_t bytes = node->data.string.length * sizeof(Char);
+      if (std::memcmp(previous_chars, chars, bytes) != 0) return;
     } else {
-      short_strings_[slot] = static_cast<uint32_t>(output_->nodes.size()) + 1;
+      slots[slot] = static_cast<uint32_t>(output_->nodes.size()) + 1;
     }
     node->flags |= BackgroundJsonNode::kCachedString;
     node->depth = static_cast<uint16_t>(slot);
@@ -413,6 +488,7 @@ class BackgroundJsonParser {
   State state_ = State::kValue;
   std::vector<Frame> stack_;
   std::array<uint32_t, 64> short_strings_{};
+  std::array<uint32_t, 64> key_strings_{};
 };
 
 }  // namespace

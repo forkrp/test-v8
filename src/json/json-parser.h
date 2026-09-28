@@ -29,13 +29,16 @@ enum ParseElementResult { kElementFound, kElementNotFound };
 
 class JsonString final {
  public:
+  static constexpr uint8_t kNoCacheSlot = 64;
+
   JsonString()
       : start_(0),
         length_(0),
         needs_conversion_(false),
         internalize_(false),
         has_escape_(false),
-        is_index_(false) {}
+        is_index_(false),
+        cache_slot_(kNoCacheSlot) {}
 
   explicit JsonString(uint32_t index)
       : index_(index),
@@ -43,16 +46,20 @@ class JsonString final {
         needs_conversion_(false),
         internalize_(false),
         has_escape_(false),
-        is_index_(true) {}
+        is_index_(true),
+        cache_slot_(kNoCacheSlot) {}
 
   JsonString(int start, int length, bool needs_conversion, bool internalize,
-             bool has_escape)
+             bool has_escape, uint8_t cache_slot = kNoCacheSlot)
       : start_(start),
         length_(length),
         needs_conversion_(needs_conversion),
         internalize_(internalize),
         has_escape_(has_escape),
-        is_index_(false) {}
+        is_index_(false),
+        cache_slot_(cache_slot) {
+    DCHECK_LE(cache_slot, kNoCacheSlot);
+  }
 
   bool internalize() const {
     DCHECK(!is_index_);
@@ -86,6 +93,11 @@ class JsonString final {
 
   bool is_index() const { return is_index_; }
 
+  uint8_t cache_slot() const {
+    DCHECK(!is_index_);
+    return cache_slot_;
+  }
+
  private:
   union {
     const int start_;
@@ -96,7 +108,10 @@ class JsonString final {
   const bool internalize_ : 1;
   const bool has_escape_ : 1;
   const bool is_index_ : 1;
+  // Async named keys only; use descriptor padding, not another property array.
+  const uint8_t cache_slot_ : 7;
 };
+static_assert(sizeof(JsonString) == 12);
 
 struct JsonProperty {
   JsonProperty() { UNREACHABLE(); }
@@ -194,6 +209,7 @@ class JsonParser final {
 
  private:
   class NamedPropertyIterator;
+  class CachedNamedPropertyIterator;
 
   template <typename T>
   using SmallVector = base::SmallVector<T, 16>;
@@ -340,7 +356,14 @@ class JsonParser final {
   MaybeHandle<Object> ParseJsonObject(Handle<Map> feedback);
 
   Handle<JSObject> BuildJsonObject(const JsonContinuation& cont,
-                                   Handle<Map> feedback);
+                                 Handle<Map> feedback);
+  Handle<JSObject> BuildJsonObjectWithCachedKeys(
+      const JsonContinuation& cont, Handle<Map> feedback,
+      base::Vector<const Handle<String>> keys);
+  template <bool cached_keys>
+  V8_INLINE Handle<JSObject> BuildJsonObjectImpl(
+      const JsonContinuation& cont, Handle<Map> feedback,
+      base::Vector<const Handle<String>> keys);
   Handle<Object> BuildJsonArray(size_t start);
 
   static const int kMaxContextCharacters = 10;

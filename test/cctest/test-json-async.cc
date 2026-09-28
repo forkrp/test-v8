@@ -160,6 +160,8 @@ class JsonTestPlatform final : public TestPlatform {
 
 TEST(JsonParseAsyncCompactRecords) {
   static_assert(sizeof(i::BackgroundJsonNode) == 12);
+  static_assert(sizeof(i::JsonString) == 12);
+  CHECK_EQ(i::JsonString::kNoCacheSlot, i::JsonString().cache_slot());
   i::BackgroundJsonNode nodes[3];
   const double values[] = {1.25, -0.0, 1.23456789012345e100};
   for (int index = 0; index < 3; ++index) {
@@ -172,6 +174,20 @@ TEST(JsonParseAsyncCompactRecords) {
   nodes[0].flags = i::BackgroundJsonNode::kIndex;
   nodes[0].data.string.start = UINT32_MAX - 1;
   CHECK_EQ(UINT32_MAX - 1, nodes[0].AsString().index());
+  nodes[0].flags = i::BackgroundJsonNode::kCachedString;
+  nodes[0].data.string = {4, 10};
+  for (uint16_t slot : {0, 63}) {
+    nodes[0].depth = slot;
+    auto key = nodes[0].AsString(5, true);
+    CHECK_EQ(slot, key.cache_slot());
+    CHECK_EQ(16, key.start());
+    CHECK_EQ(4, key.length());
+    CHECK_EQ(i::JsonString::kNoCacheSlot,
+             nodes[0].AsString().cache_slot());
+  }
+  nodes[0].kind = i::BackgroundJsonNode::kString;
+  CHECK_EQ(i::JsonString::kNoCacheSlot,
+           nodes[0].AsString(0, true).cache_slot());
 
   i::BackgroundJsonData data(false);
   for (int index = 0; index < 10000; ++index) {
@@ -359,6 +375,34 @@ TEST_WITH_PLATFORM(JsonParseAsyncPrimitiveArraysGC, JsonTestPlatform) {
   }
 }
 
+TEST_WITH_PLATFORM(JsonParseAsyncKeyCacheSurvivesGC, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  auto promise = CompileRun(
+      "JSON.parseAsync(JSON.stringify(Array.from({length:20000}, (_, i) => "
+      "({['dynamic' + String.fromCharCode(0x6f22)]: i, id: i, "
+      "nested: {id: i + 0.25}, '': i & 1}))))").As<v8::Promise>();
+  CHECK(runner->RunOne(isolate));
+  CHECK_EQ(v8::Promise::kPending, promise->State());
+  isolate->LowMemoryNotification();
+  CHECK(runner->RunOne(isolate));
+  isolate->LowMemoryNotification();
+  while (runner->RunOne(isolate)) {
+  }
+  CHECK_EQ(v8::Promise::kFulfilled, promise->State());
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("result"), promise->Result())
+            .FromJust());
+  CHECK(CompileRun(
+      "result.length === 20000 && result.every((v, i) => "
+      "v['dynamic' + String.fromCharCode(0x6f22)] === i && v.id === i && "
+      "v.nested.id === i + 0.25 && v[''] === (i & 1))")->IsTrue());
+  CHECK(CompileRun("result[0].nested.id = 99.5; "
+                   "result[1].nested.id === 1.25")->IsTrue());
+}
+
 TEST_WITH_PLATFORM(JsonParseAsyncTaskTiming, JsonTestPlatform) {
   using v8::base::TimeTicks;
   auto isolate = CcTest::isolate();
@@ -405,9 +449,9 @@ TEST_WITH_PLATFORM(JsonParseAsyncTaskTiming, JsonTestPlatform) {
   printf(
       "JSON.parseAsync 2.4 MB: sync=%.3f ms call=%.3f ms "
       "worker_wait=%.3f ms foreground=%.3f ms slices=%d "
-      "max_slice=%.3f ms total=%.3f ms\n",
+      "max_slice=%.3f ms total=%.3f ms workers=%d\n",
       synchronous_ms, call_ms, worker_wait_ms, foreground_ms, slices,
-      max_slice_ms, total_ms);
+      max_slice_ms, total_ms, platform.NumberOfWorkerThreads());
 }
 
 TEST_WITH_PLATFORM(JsonParseAsyncTermination, JsonTestPlatform) {

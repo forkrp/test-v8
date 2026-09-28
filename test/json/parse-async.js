@@ -245,6 +245,47 @@ async function main() {
   equal(records, JSON.parse(recordText));
   records[0].x = 99.25;
   check(records[3].x === 0.5, 'double fields must have unique mutable storage');
+
+  // Cached property names remain distinct from cached string values, including
+  // UTF-16 values that are not internalized. Collisions and overflow fall back.
+  for (const suffix of ['', '漢']) {
+    const keys = ['', 'Aa', 'BB', '__proto__', '0', '4294967294', '4294967295',
+                  'x'.repeat(32), 'x'.repeat(33),
+                  ...Array.from({length: 160}, (_, i) => 'key' + i + suffix)];
+    const objects = Array.from({length: 3000}, (_, i) => Object.fromEntries([
+      ['id', i % 3 === 0 ? i + 0.125 : i % 3 === 1 ? 'value' : null],
+      [keys[i % keys.length], i], ['tail', {nested: !!(i & 1)}],
+    ]));
+    const text = JSON.stringify(['Aa', 'BB', suffix, ...objects]);
+    equal(await JSON.parseAsync(text), JSON.parse(text));
+  }
+  const duplicateKeys = '[' +
+      '{"Aa":1,"BB":2,"0":3,"Aa":4},'.repeat(1000) +
+      '{"BB":5,"Aa":6,"\\u0041a":7},"漢",{"漢":8}]';
+  equal(await JSON.parseAsync(duplicateKeys), JSON.parse(duplicateKeys));
+
+  // A repeated-key shortcut must compare the complete name and closing quote,
+  // including truncated input, escape aliases, and multibyte key lengths.
+  for (const width of [1, 2, 3, 4, 5, 7, 8, 9, 31, 32, 33]) {
+    for (const character of ['a', '漢']) {
+      const key = character.repeat(width);
+      for (const suffix of ['":2}]', '":2,}]', '', 'x":2}]', '\\u0061":2}]',
+                            '\n":2}]']) {
+        const text = '[{"' + key + '":1},{"' + key + suffix;
+        let expected, error;
+        try { expected = JSON.parse(text); } catch (caught) { error = caught; }
+        if (!error) {
+          equal(await JSON.parseAsync(text), expected);
+        } else {
+          let rejected;
+          try { await JSON.parseAsync(text); } catch (caught) { rejected = caught; }
+          check(rejected instanceof SyntaxError && rejected.message === error.message,
+                'cached property error differs: ' + text);
+        }
+      }
+    }
+  }
+
   // Same short-string hash, distinct contents; parsed strings must not alias
   // a cache slot merely because their hash or length matches.
   const collisions = Array.from({length: 20000}, (_, i) =>

@@ -2,7 +2,7 @@
 
 `JSON.parseAsync(text[, reviver])` 是本分支的**非标准 V8 扩展**，返回 Promise。
 语法扫描、结构解析和数字转换在线程池执行；结果对象仍在调用方 isolate 的线程构建。
-本轮优化目标、保留/撤回方案及最新 release 对照见 [优化记录](json-parse-async-optimization.md)。
+最新目标、保留/撤回方案及 Release 对照见 [第三轮优化记录](json-parse-async-optimization-round3.md)。
 **不是把整段同步 `JSON.parse` 延后执行，也不是整条路径都脱离主线程。**
 
 **接入前提：**宿主必须提供工作线程、non-nestable foreground task 调度，以及
@@ -25,7 +25,7 @@ const [users, orders] = await Promise.all([
 
 支持双字节字符、转义、孤立代理项、重复键、数字键顺序、`-0`、`__proto__` 自有数据属性，
 以及 reviver 的删除、this、调用顺序和 context.source。最终结果遵循 Promise resolution：
-例如 reviver 返回的 thenable 会被采用。本扩展不改同步的 `JSON.parse` 或 `v8::JSON::Parse`。
+例如 reviver 返回的 thenable 会被采用。本扩展不改变同步 `JSON.parse` 或 `v8::JSON::Parse` 的 API 和语义。
 
 ## 线程与数据流
 
@@ -69,6 +69,9 @@ const [users, orders] = await Promise.all([
 每个任务在扫描期间保留一份原生输入，worker 完成后即释放该副本；前台使用强引用保护的原始 V8 字符串。原生记录使用标准 deque 按块增长，避免连续大数组反复扩容复制；每个前台片段结束后回收已消费的前缀，不把整份记录与完整结果一直同时保留到结束。
 
 后台标记 Smi，前台无需再做通用 double-to-Smi 判断。最多 64 个已解析短字符串在同次解析内复用；哈希碰撞须比较真实内容，不同内容退回原路径，不替换已有槽。UTF-16 和单字节字符串都覆盖。该缓存不跨调用、不跨 isolate；不是无界字符串驻留池。
+
+无 reviver 时另有独立的 64 槽属性键表：对已验证的非空、无转义、非索引短键，按层级与属性序号选槽，并严格比较全部字符和结束引号，命中时替代重复扫描。宽对象超过前 64 个属性不再探测。前台小子树构建复用 GC 根保护的内部化键，但继续执行原对象构建器的 Map / 字段表示检查。键和字符串值不共享槽，碰撞不覆盖旧键；原生节点及字符串描述符仍为 12 字节。
+普通与缓存对象构建入口编译期特化同一份实现，避免给同步 `JSON.parse` 增加每对象的缓存选择分支。
 
 Managed 管理状态生命周期，状态在调用、worker 完成和前台回收边界调整 external memory 估计。worker 正在增长的记录尚未逐次反馈给调用方 GC；估计不含 deque 块余量和分配器管理开销，也不是内存配额。宿主/调用者仍须限制输入大小和在途调用数，不能因接口返回 Promise 就无界提交大文档。
 
@@ -178,3 +181,4 @@ JSON.parseAsync 2.4 MB: sync=42.649 ms call=0.887 ms worker_wait=9.360 ms foregr
 
 - [第一轮优化与验收](json-parse-async-optimization.md)：紧凑记录、分块回收、批量材料化与短字符串复用。
 - [第二轮优化与验收](json-parse-async-optimization-round2.md)：后台状态与字符串扫描特化、原语免递归、前台顺序读取、数值热入口布局控制，以及相对 `bec433731` 的 Release 对照。
+- [第三轮优化与验收](json-parse-async-optimization-round3.md)：有界属性键复用、重复键扫描融合、固定线程数并发对照，以及流水线 / 复制 / 内存调度的取舍。
