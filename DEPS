@@ -125,6 +125,10 @@ vars = {
 }
 
 deps = {
+  'third_party/dragonbox/src':
+    Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
+  'third_party/highway/src':
+    Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '84379d1c73de9681b54fbe1c035a23c7bd5d272d',
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + '01e3c73f58ca209014103abf934cc33be5f863d6',
   'buildtools':
@@ -372,6 +376,8 @@ include_rules = [
   '+third_party/fp16/src/include',
   '+third_party/v8/codegen',
   '+third_party/fuzztest',
+  '+third_party/dragonbox/src/include',
+  '+hwy/highway.h',
   # Abseil features are allow-listed. Please use your best judgement when adding
   # to this set -- if in doubt, email v8-dev@. For general guidance, refer to
   # the Chromium guidelines (though note that some requirements in V8 may be
@@ -380,6 +386,7 @@ include_rules = [
   '+absl/container/flat_hash_map.h',
   '+absl/container/flat_hash_set.h',
   '+absl/container/btree_map.h',
+  '+absl/functional/overload.h',
   '+absl/types/optional.h',
   '+absl/types/variant.h',
   '+absl/status',

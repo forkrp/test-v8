@@ -11,6 +11,7 @@
 #include "src/common/high-allocation-throughput-scope.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/descriptor-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
@@ -354,6 +355,14 @@ class JsonParser final {
       Handle<Map> feedback = {});
   MaybeHandle<Object> ParseJsonArray();
   MaybeHandle<Object> ParseJsonObject(Handle<Map> feedback);
+  template <DescriptorArray::FastIterableState fast_iterable_state>
+  V8_INLINE bool ParseJsonObjectProperties(JsonContinuation* cont,
+                                           MessageTemplate first_token_msg,
+                                           Handle<DescriptorArray> descriptors);
+  V8_INLINE bool ParseJsonPropertyValue(const JsonString& key);
+  V8_INLINE bool FastKeyMatch(const uint8_t* key_chars, uint32_t key_length);
+  V8_INLINE bool FastKeyMatch(const uint8_t* key_chars, uint32_t key_length,
+                              JsonString scanned_key);
 
   Handle<JSObject> BuildJsonObject(const JsonContinuation& cont,
                                  Handle<Map> feedback);

@@ -1762,6 +1762,9 @@ DEFINE_INT(cppgc_random_gc_interval, 0,
 
 DEFINE_INT(retain_maps_for_n_gc, 2,
            "keeps maps alive for <n> old space garbage collections")
+DEFINE_BOOL(json_stringify_fast_path, true,
+            "use the side-effect-free JSON stringify fast path")
+
 DEFINE_BOOL(trace_gc, false,
             "print one trace line following each garbage collection")
 DEFINE_BOOL(trace_gc_nvp, false,

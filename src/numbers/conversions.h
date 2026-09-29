@@ -5,6 +5,8 @@
 #ifndef V8_NUMBERS_CONVERSIONS_H_
 #define V8_NUMBERS_CONVERSIONS_H_
 
+#include <string_view>
+
 #include "src/base/export-template.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -157,6 +159,14 @@ EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 MaybeHandle<BigInt> BigIntLiteral(IsolateT* isolate, const char* string);
 
 const int kDoubleToCStringMinBufferSize = 100;
+
+// Length-aware numeric output, backported from V8 14.4. The returned view may
+// refer to a static literal or into the supplied buffer; it need not end in
+// NUL.
+V8_EXPORT_PRIVATE std::string_view DoubleToStringView(
+    double value, base::Vector<char> buffer);
+V8_EXPORT_PRIVATE std::string_view IntToStringView(int value,
+                                                   base::Vector<char> buffer);
 
 // Converts a double to a string value according to ECMA-262 9.8.1.
 // The buffer should be large enough for any floating point number.

@@ -3830,6 +3830,11 @@ void DescriptorArray::Initialize(Tagged<EnumCache> empty_enum_cache,
   set_number_of_all_descriptors(nof_descriptors + slack);
   set_number_of_descriptors(nof_descriptors);
   set_raw_gc_state(raw_gc_state, kRelaxedStore);
+  set_flags(FastIterableBits::encode(FastIterableState::kUnknown),
+            kRelaxedStore);
+#if V8_TARGET_ARCH_64_BIT && !defined(V8_COMPRESS_POINTERS)
+  set_optional_padding(0);
+#endif
   set_enum_cache(empty_enum_cache, SKIP_WRITE_BARRIER);
   MemsetTagged(GetDescriptorSlot(0), undefined_value,
                number_of_all_descriptors() * kEntrySize);

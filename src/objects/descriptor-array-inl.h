@@ -37,6 +37,27 @@ RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_descriptors,
                         kNumberOfDescriptorsOffset)
 RELAXED_UINT32_ACCESSORS(DescriptorArray, raw_gc_state, kRawGcStateOffset)
 
+RELAXED_UINT32_ACCESSORS(DescriptorArray, flags, kFlagsOffset)
+
+DescriptorArray::FastIterableState DescriptorArray::fast_iterable() const {
+  return FastIterableBits::decode(flags(kRelaxedLoad));
+}
+
+void DescriptorArray::set_fast_iterable(FastIterableState value) {
+  uint32_t f = flags(kRelaxedLoad);
+  f = FastIterableBits::update(f, value);
+  set_flags(f, kRelaxedStore);
+}
+
+void DescriptorArray::set_fast_iterable_if(FastIterableState new_value,
+                                           FastIterableState if_value) {
+  uint32_t f = flags(kRelaxedLoad);
+  if (FastIterableBits::decode(f) == if_value) {
+    f = FastIterableBits::update(f, new_value);
+    set_flags(f, kRelaxedStore);
+  }
+}
+
 inline int16_t DescriptorArray::number_of_slack_descriptors() const {
   return number_of_all_descriptors() - number_of_descriptors();
 }
@@ -134,6 +155,9 @@ void DescriptorArray::SetKey(InternalIndex descriptor_number,
                              Tagged<Name> key) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
+  // A changed key can invalidate the shared JSON key fast path.
+  set_fast_iterable_if(FastIterableState::kUnknown,
+                       FastIterableState::kJsonFast);
   EntryKeyField::Relaxed_Store(*this, entry_offset, key);
   WRITE_BARRIER(*this, entry_offset + kEntryKeyOffset, key);
 }
@@ -199,6 +223,14 @@ void DescriptorArray::SetDetails(InternalIndex descriptor_number,
                                  PropertyDetails details) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
+  // Representation/constness generalization does not change JSON key layout.
+  // Invalidate only changes that break the fast-iteration contract.
+  if (details.IsDontEnum() || details.location() != PropertyLocation::kField ||
+      details.kind() != PropertyKind::kData ||
+      details.field_index() != descriptor_number.as_int()) {
+    set_fast_iterable_if(FastIterableState::kUnknown,
+                         FastIterableState::kJsonFast);
+  }
   EntryDetailsField::Relaxed_Store(*this, entry_offset, details.AsSmi());
 }
 

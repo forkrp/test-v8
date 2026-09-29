@@ -3763,6 +3763,7 @@ v8_header_set("v8_internal_headers") {
     "src/json/json-parser.h",
     "src/json/json-parser-background.h",
     "src/json/json-stringifier-async.h",
+    "src/json/json-stringifier-capture.h",
     "src/json/json-stringifier-escape.h",
     "src/json/json-scanner.h",
     "src/json/json-stringifier.h",
@@ -5471,6 +5472,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/json/json-parser-background.cc",
     "src/json/json-stringifier-async.cc",
     "src/json/json-stringifier-background.cc",
+    "src/json/json-stringifier-fast.cc",
+    "src/json/json-stringifier-escape.cc",
     "src/json/json-stringifier.cc",
     "src/libsampler/sampler.cc",
     "src/logging/counters.cc",
@@ -6128,6 +6131,8 @@ v8_source_set("v8_base_without_compiler") {
     ":v8_tracing",
     ":v8_version",
     "src/inspector:inspector",
+    "//third_party/dragonbox",
+    "//third_party/highway:libhwy",
   ]
 
   public_deps = [

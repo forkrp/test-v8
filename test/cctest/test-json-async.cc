@@ -6,12 +6,15 @@
 #include <cstdio>
 #include <deque>
 
+#include "src/api/api-inl.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/platform/time.h"
 #include "src/json/json-parser-background.h"
 #include "src/json/json-stringifier-async.h"
+#include "src/json/json-stringifier-escape.h"
+#include "src/json/json-stringifier.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
@@ -536,6 +539,96 @@ TEST(JsonStringifyAsyncNativeBounds) {
   data.cancelled.store(true, std::memory_order_relaxed);
   i::EncodeJsonStringify(&data);
   CHECK(!data.result8 && !data.result16);
+}
+
+TEST(JsonUpstreamEscapeScanner) {
+  uint8_t narrow[80];
+  uint16_t wide[80];
+  std::fill(std::begin(narrow), std::end(narrow), 'a');
+  std::fill(std::begin(wide), std::end(wide), 0x1234);
+  for (size_t offset = 0; offset < 16; ++offset) {
+    for (size_t length = 0; length <= 64; ++length) {
+      CHECK_EQ(length, i::FindJsonEscape(narrow + offset, length));
+      CHECK_EQ(length, i::FindJsonEscape(wide + offset, length));
+    }
+  }
+  for (uint32_t c = 0; c <= 0xffff; ++c) {
+    wide[31] = c;
+    CHECK_EQ(i::JsonStringDoNotEscape(static_cast<uint16_t>(c)) ? 64u : 30u,
+             i::FindJsonEscape(wide + 1, 64));
+    if (c < 256) {
+      narrow[31] = c;
+      CHECK_EQ(i::JsonStringDoNotEscape(static_cast<uint8_t>(c)) ? 64u : 30u,
+               i::FindJsonEscape(narrow + 1, 64));
+    }
+  }
+}
+
+TEST(JsonUpstreamDescriptorMetadata) {
+  auto isolate = CcTest::isolate();
+  auto internal = CcTest::i_isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto object = CompileRun("var metadataTarget = {a: 1, b: 2}; metadataTarget");
+  auto raw = i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*object));
+  CompileRun("JSON.stringify(metadataTarget)");
+  auto descriptors = i::handle(raw->map()->instance_descriptors(), internal);
+  using State = i::DescriptorArray::FastIterableState;
+  CHECK_EQ(State::kJsonFast, descriptors->fast_iterable());
+  i::InternalIndex first(0);
+  descriptors->Sort();  // Sorting only changes lookup-order details.
+  CHECK_EQ(State::kJsonFast, descriptors->fast_iterable());
+  descriptors->Set(first, descriptors->GetKey(first),
+                    descriptors->GetValue(first),
+                    descriptors->GetDetails(first));
+  CHECK_EQ(State::kUnknown, descriptors->fast_iterable());
+  CompileRun("JSON.stringify(metadataTarget)");
+  auto copy = i::DescriptorArray::CopyUpTo(internal, descriptors, 2);
+  CHECK_EQ(State::kUnknown, copy->fast_iterable());
+  isolate->LowMemoryNotification();
+  CHECK(CompileRun(
+            "Object.defineProperty(metadataTarget, 'b', {enumerable: false});"
+            "JSON.stringify(metadataTarget) === '{\"a\":1}'")
+            ->IsTrue());
+}
+
+TEST(JsonUpstreamFastCapture) {
+  auto isolate = CcTest::isolate();
+  auto internal = CcTest::i_isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto object = CompileRun("({asyncCaptureKey: 1.25, text: 'hello'})");
+  auto raw = i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*object));
+  auto descriptors = i::handle(raw->map()->instance_descriptors(), internal);
+  using State = i::DescriptorArray::FastIterableState;
+  CHECK_NE(State::kJsonFast, descriptors->fast_iterable());
+  i::JsonStringifyData data;
+  auto undefined = internal->factory()->undefined_value();
+  CHECK(!i::CaptureJsonStringify(internal, raw, undefined, undefined, &data)
+             .is_null());
+  CHECK_EQ(State::kJsonFast, descriptors->fast_iterable());
+  CHECK_EQ(1u, data.number_count);
+  CHECK(!data.result8 && !data.result16);
+  i::EncodeJsonStringify(&data);
+  CHECK(data.result8);
+  CHECK_EQ(std::string(data.result8->data(), data.result8->length()),
+           "{\"asyncCaptureKey\":1.25,\"text\":\"hello\"}");
+}
+
+TEST(JsonUpstreamFastTermination) {
+  auto isolate = CcTest::isolate();
+  auto internal = CcTest::i_isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto value = CompileRun("Array.from({length: 20000}, (_, i) => i / 7)");
+  auto raw = v8::Utils::OpenHandle(*value);
+  auto undefined = internal->factory()->undefined_value();
+  v8::TryCatch caught(isolate);
+  isolate->TerminateExecution();
+  CHECK(i::JsonStringify(internal, raw, undefined, undefined).is_null());
+  CHECK(isolate->IsExecutionTerminating());
+  isolate->CancelTerminateExecution();
+  caught.Reset();
 }
 
 TEST_WITH_PLATFORM(JsonStringifyAsyncConcurrentWorkers, JsonTestPlatform) {

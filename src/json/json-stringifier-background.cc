@@ -77,9 +77,9 @@ class JsonNativeOutput {
             if ((i & 4095) == 0 && !ok()) return;
             if (i != 0 || part.leading_comma) Append(',');
             char text[100];
-            AppendCString(
-                IntToCString(data_->integers[part.data.span.offset + i],
-                             base::Vector<char>(text, 100)));
+            AppendString(IntToStringView(
+                data_->integers[part.data.span.offset + i],
+                base::Vector<char>(text, 100)));
           }
           break;
       }
@@ -100,7 +100,10 @@ class JsonNativeOutput {
     buffer_[size_++] = static_cast<Char>(value);
   }
   void AppendCString(const char* text) {
-    size_t length = std::strlen(text);
+    AppendString(text);
+  }
+  void AppendString(std::string_view text) {
+    size_t length = text.size();
     if (!Ensure(length)) return;
     for (size_t i = 0; i < length; ++i) {
       buffer_[size_++] = static_cast<Char>(text[i]);
@@ -127,9 +130,11 @@ class JsonNativeOutput {
     if (length != static_cast<size_t>(part.data.span.length) + 2) return false;
     // Capture reserves the quotes but only the worker decides whether the
     // string needs escaping. Immutable native storage can then be adopted.
-    for (size_t i = 1; i + 1 < length; ++i) {
-      if ((i & 4095) == 0 && !ok()) return true;
-      if (!JsonStringDoNotEscape(source[i])) return false;
+    for (size_t i = 1; i + 1 < length;) {
+      if (!ok()) return true;
+      size_t count = std::min<size_t>(4096, length - i - 1);
+      if (FindJsonEscape(source.data() + i, count) != count) return false;
+      i += count;
     }
     auto result = std::make_unique<JsonOutputResource<Char, std::vector<Char>>>(
         std::move(source), length);
@@ -164,20 +169,10 @@ class JsonNativeOutput {
       AppendCString("null");
     } else {
       char text[100];
-      AppendCString(DoubleToCString(value, base::Vector<char>(text, 100)));
+      AppendString(DoubleToStringView(value, base::Vector<char>(text, 100)));
     }
   }
 
-  struct SpanWriter {
-    Char* cursor;
-    template <typename InputChar>
-    V8_INLINE void Append(InputChar value) {
-      *cursor++ = static_cast<Char>(value);
-    }
-    V8_INLINE void AppendCString(const char* text) {
-      while (*text) Append(static_cast<uint8_t>(*text++));
-    }
-  };
   struct Memo {
     uint8_t kind = JsonStringifyPart::kRaw8;
     uint32_t source_offset = 0, source_length = 0;
@@ -214,7 +209,7 @@ class JsonNativeOutput {
           begin[count - 1] >= 0xD800 && begin[count - 1] <= 0xDBFF) {
         --count;  // Never split a surrogate pair at a cancellation boundary.
       }
-      if (!quoted) {
+      if (!quoted || (count >= 32 && FindJsonEscape(begin, count) == count)) {
         if (!Ensure(count)) return;
         if constexpr (sizeof(Char) == sizeof(InputChar)) {
           std::memcpy(buffer_.begin() + size_, begin, count * sizeof(Char));
@@ -226,7 +221,7 @@ class JsonNativeOutput {
         auto span = base::Vector<const InputChar>(begin, count);
         if (count * 6 <= String::kMaxLength - size_) {
           if (!Ensure(count * 6)) return;
-          SpanWriter writer{buffer_.begin() + size_};
+          JsonStringSpanWriter<Char> writer{buffer_.begin() + size_};
           WriteJsonString<false>(span, &writer);
           size_ = writer.cursor - buffer_.begin();
         } else {

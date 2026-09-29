@@ -13,6 +13,7 @@
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
 #include "src/utils/utils.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -40,6 +41,7 @@ class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
 //     [16:0  bits]: number_of_all_descriptors (including slack)
 //     [32:16 bits]: number_of_descriptors
 //     [64:32 bits]: raw_gc_state (used by GC)
+//     [96:64 bits]: JSON fast-iterable flags (and optional tagged alignment)
 //     [kEnumCacheOffset]: enum cache
 //   Elements:
 //     [kHeaderSize + 0]: first key (and internalized String)
@@ -58,6 +60,28 @@ class DescriptorArray
   DECL_INT16_ACCESSORS(number_of_descriptors)
   inline int16_t number_of_slack_descriptors() const;
   inline int number_of_entries() const;
+
+  DECL_RELAXED_UINT32_ACCESSORS(flags)
+
+  enum class FastIterableState : uint8_t {
+    // Descriptors are JSON fast iterable, iff all of the following conditions
+    // are met:
+    // - No key is a symbol.
+    // - All keys are enumberable.
+    // - All keys are one-byte and don't contain any character that requires
+    //   escaping.
+    // - All properties are located in field.
+    kJsonFast = 0b00,
+    kJsonSlow = 0b01,
+    kUnknown = 0b11
+  };
+
+  DEFINE_TORQUE_GENERATED_DESCRIPTOR_ARRAY_FLAGS()
+
+  inline FastIterableState fast_iterable() const;
+  inline void set_fast_iterable(FastIterableState value);
+  inline void set_fast_iterable_if(FastIterableState new_value,
+                                   FastIterableState if_value);
 
   void ClearEnumCache();
   inline void CopyEnumCacheFrom(Tagged<DescriptorArray> array);

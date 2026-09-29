@@ -1,5 +1,7 @@
 # JSON.stringifyAsync 设计、目标与验收
 
+后续的官方同步优化回移及异步复用见 [V8 14.4 JSON 回移记录](json-upstream-backport.md)。本文性能数字保留为引入 stringifyAsync 时的历史基线，不应作为当前 HEAD 的同步分母。
+
 日期：2026-09-28。本分支已有 JSON.parseAsync；本轮目标是新增真正使用平台工作线程的 `JSON.stringifyAsync(value[, replacer[, space]])`，而不是把同步 stringify 包在 Promise 中。性能目标用同机固定线程、独立基线和端到端测量验收，不承诺未经验证的“所有输入最快”。
 
 **验收结论：**大字符串、数值数组和相应并发负载有显著收益；任意对象的语义采集仍同步。4 worker / 4 任务的数值数组约快 5.00 倍，10 MB 无转义字符串约快 11.41 倍，但嵌套对象批次慢约 16.2%，并消耗更多 CPU / RSS。不要把该 API 当作所有输入的自动替代品，也没有测量宿主 UI 的帧率。

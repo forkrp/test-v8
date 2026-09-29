@@ -2,7 +2,7 @@
 
 `JSON.parseAsync(text[, reviver])` 是本分支的**非标准 V8 扩展**，返回 Promise。
 语法扫描、结构解析和数字转换在线程池执行；结果对象仍在调用方 isolate 的线程构建。
-最新目标、保留/撤回方案及 Release 对照见 [第三轮优化记录](json-parse-async-optimization-round3.md)。
+解析器原有优化见 [第三轮优化记录](json-parse-async-optimization-round3.md)；后续官方同步基线回移及最新对照见 [V8 14.4 JSON 回移记录](json-upstream-backport.md)。
 **不是把整段同步 `JSON.parse` 延后执行，也不是整条路径都脱离主线程。**
 
 **接入前提：**宿主必须提供工作线程、non-nestable foreground task 调度，以及
