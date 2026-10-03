@@ -1,0 +1,228 @@
+JSON.parseAsync / JSON.stringifyAsync Android optimization review
+2026-10-03. Baseline: 8ef8c78fdf4698c8358e0109134d891f032e086a.
+Branch: codex/json-async-android-improvements.
+
+Scope and reviewed history
+The recent James Chen <dumganhar@gmail.com> author/committer series is:
+8ef8c78fd C++20; cc7d79fd7 upstream fast JSON backport/capture reuse;
+160af1612 worker stringifyAsync; 9a20fc93f bounded keys;
+4f6451bfb dispatch/materialization; 65132f812 compact tape/native memory;
+084b6b1c7 worker parseAsync; 1d20aff17 cooperative parseAsync.
+The performance baseline includes all eight commits. Experiments change the
+native worker/capture/materialization paths without changing public API shape.
+
+Selected implementation
+1. ARM32 integer NEON escape scanning. This NDK configuration uses ARMv7,
+   NEON and Thumb. Vendored Highway selects EMU128 because the target lacks
+   the VFPv4/FMA feature macros. The scanner only requires integer operations:
+   unsigned control-character comparison, quote/backslash equality, UTF-16
+   surrogate-range masking, and mask reduction. It scans complete vectors
+   and uses the original scalar predicate for the exact tail. ARM64 keeps
+   Highway; the ARM64 NEON-only experiment was binary-identical to baseline.
+2. Outlined sparse string escaping. Copy ordinary runs in bulk; encode each
+   special character or surrogate pair with the existing shared encoder.
+   Keep dense escapes and short suffixes on the scalar path. Work remains
+   bounded by 4,096-unit chunks and preserves cancellation polling.
+3. Materialization work accounting. Charge the full cursor delta consumed
+   by BuildSmallValue. Use a soft cap of 65,536 units (one bounded subtree can overshoot);
+   check the existing two-ms
+   deadline and stack every 512 units, with at most one bounded 128-node
+   subtree between checks. Primitive-array filling still stops after at
+   most 128 entries. Loop/frame overhead can also consume work units.
+   These are cooperative scheduling bounds, not hard latency guarantees:
+   allocations, GC and task completion can exceed the deadline.
+4. Valid paired-surrogate root strings. Preserve the captured UTF-16 buffer
+   and adopt it as the external output resource when no escaping is needed.
+   Validate high/low pairs together across 4,096-unit chunk boundaries;
+   reject lone surrogates and other specials to the existing encoder.
+   Native tests assert pointer identity for adoption and exact output against
+   the shared encoder for fallback. The worker touches native buffers only;
+   the existing foreground completion transfers ownership to V8.
+
+Rejected and deferred experiments
+- Parser SIMD remains experimental: long-string gains came with a dense
+  escape regression. No parser SIMD change is included.
+- A persistent Smi handle cache did not produce convincing representative
+  end-to-end improvement and adds per-job memory/lookup work. It is removed.
+  Mutable HeapNumber fields must remain independently owned.
+- A 4,096-physical-node slice cap produced 123-296 tasks instead of 12-26 and
+  slowed representative inputs about 5-8%. Checking the clock every 64 nodes
+  also cost about 5-10% in object/nested controls. Both variants are removed.
+- Numeric capture allocation was investigated with reserve-only, bulk fill,
+  spans >=64, and outlined bulk variants. Bulk filling reduces submission
+  time about 4-9% in its isolated matrix, with small wall-time benefits, but
+  ARM64 synchronous ten-digit parsing regresses about 14-17%. A fresh HEAD
+  rebuild is byte-for-byte identical to the frozen baseline on both arches.
+  Removing capture changes restores this control to within about 1%; removing
+  the slice-budget change does not. Outlining and reserve-only variants also
+  fail the control. This demonstrates a build/image performance effect but
+  does not prove its microarchitectural cause. All capture allocation changes
+  are rejected; the final capture implementation matches HEAD exactly.
+- Ten-digit integer parsing remains an experiment. The original prefix/tail
+  shortcut saves about 36-40% on its target, but a complete matrix revealed
+  ARM64 UTF-16 parse controls 14-21% slower. A cold conversion helper repaired
+  Unicode controls but regressed ASCII controls. A literal-only helper saved
+  24-28% on integers but still regressed ARM32 concurrent ASCII parsing. A
+  shared synchronous/background converter with an outlined string reader
+  improved both integer targets, but ARM32 mixed-number batches slowed ~10%
+  and one-job records ~5%. These numeric and string-reader prototypes are
+  all rejected. The final synchronous and background numeric parser sources
+  match HEAD exactly. This is a compiler-sensitive optimization opportunity,
+  not a production recommendation supported by the current measurements.
+
+Foreground profile and limits
+ARM64 simpleperf collected 3,671 main-thread samples with DWARF call stacks.
+JSDataObjectBuilder's cached-property iterator accounts for 23.11% self;
+BuildSmallValue accounts for 14.30% self. GC has about 28.13% inclusive.
+These figures overlap in call chains and must not be added. The capture
+includes fixture setup and forced GC, so it is evidence of hotspots rather
+than an API-only attribution. The diagnostic covers repeated objects with
+2, 12 and 60 fields. Further object-template/shape shortcuts need independent
+ownership, field representation, dictionary/indexed-key and GC proofs.
+No unmeasured object clone shortcut is included.
+
+Dedicated final materialization diagnostics (five measured runs after two
+warmups; performance governor/taskset f0):
+arch fields | foreground ms before -> final | tasks before -> final | median slice ms before -> final
+arm32 2 | 49.554 -> 48.435 | 26 -> 15 | 1.276 -> 2.424
+arm32 12 | 42.315 -> 42.691 | 12 -> 13 | 2.879 -> 2.783
+arm32 60 | 61.360 -> 59.978 | 15 -> 19 | 3.754 -> 2.728
+arm64 2 | 41.514 -> 40.427 | 26 -> 15 | 1.079 -> 2.045
+arm64 12 | 32.944 -> 33.154 | 13 -> 13 | 2.097 -> 2.054
+arm64 60 | 44.129 -> 45.391 | 17 -> 20 | 2.189 -> 1.673
+The phase runs were collected at different times and do not prove small
+throughput gains. The alternating matrix is stronger end-to-end evidence.
+Wide objects use shorter typical slices; small records use fewer, larger
+slices. GC and allocation still exceed the cooperative deadline. The largest
+final diagnostic slice observed was 8.685 ms; there is no hard two-ms bound.
+
+Device, build and measurement method
+Attached rooted OnePlus 6 (ONEPLUS A6003), Snapdragon 845, Android 15 / Lineage
+22.2, serial 885841c1. Both armeabi-v7a and arm64-v8a binaries run on the same
+physical device. NDK: /Users/james/software/android/sdk/ndk/27.3.13750724.
+Host: macOS ARM64. Release O2, C++20, API 21, no LTO/PGO, NDK libc++_shared;
+Intl, Wasm, sandbox and static roots disabled in both baseline and final.
+These differ from build-android.sh's Wasm setting; compare identical configs
+here, then validate the embedding's production configuration separately.
+
+The Mac host adaptation is isolated in out/json-android-review. GN generation
+temporarily adapts host checks and restores tracked build files. Torque runs
+on Mac (ARM32 layouts via -m32); ELF mksnapshot runs on the device, with
+--no-short-builtin-calls only for that generator to avoid its teardown trap.
+This flag is not applied to benchmark d8. A filtered CCTest graph links the
+JSON test file plus required helpers, excluding unrelated debug_helper.
+No changes to production BUILD.gn or build-android.sh are retained.
+
+Run one process at a time on big cores 4-7 (taskset f0), four worker threads.
+The runner sets policy4 governor to performance and restores it in finally.
+Input setup, expected-output creation, output validation and forced GC occur
+outside each timed API call/batch. Two warmup rounds precede nine measured
+rounds. Two passes reverse binary order. Report pooled sample medians and
+100*(1-final/baseline) as percent less wall time; each jobs=4 value is the
+whole four-job batch. Sync batches are sequential; async batches overlap.
+Submission/entry timing is measured separately from Promise completion.
+Temperature, frequency, hashes and raw samples are stored in every row.
+Whole-process CPU/RSS includes setup, validation and GC; it is not API-only.
+The final validation records and binary SHA256 manifest identify the exact
+source and executables used. Fresh HEAD reconstruction reproduces both frozen
+baseline binaries exactly (headcheck-sha.json).
+Do not infer general production speedups or memory savings from these cases.
+Material controls showing >=5% slowdown require repeat measurements before
+retaining the implicated experiment. Smaller shifts remain disclosed noise
+or small overhead, rather than being claimed as a gain.
+
+Final results and validation
+Validation completed: 26 focused native tests per architecture, plus four JS
+suites in normal and --stress-compaction modes per architecture (68 passes).
+Tests cover exact escaping and errors, uint32/overflow/negative-zero/random
+numbers, reviver source, mutable-field independence, metadata/cache growth,
+worker concurrency, GC between slices, cancellation, tasks surviving isolate
+disposal, dropped completion, cross-realm strings and external resources.
+The PrimitiveArraysGC fixture was enlarged beyond the new physical-work
+cap so its pending assertion forces GC between slices independently of CPU
+speed. New boundary suite: 864 string cases and 6,020 numeric entries.
+No full test262/all-V8 suite, sanitizer build, or production embedding was
+validated. Timing diagnostics have no brittle wall-clock assertions.
+
+The candidate-v1 parser and candidate-capture matrices were rejected. Their
+raw files and ablations preserve the regression evidence. The fresh final
+matrix contains the four retained changes; numeric parser/capture sources
+match the original commit. All 68 checks passed for these exact binaries.
+
+Final four-change matrix: baseline -> final ms; percent less batch wall time.
+case / jobs | ARM32 | ARM64
+long_ascii / 1 | 7.880 -> 3.795 (+51.8%) | 3.227 -> 3.160 (+2.1%)
+long_ascii / 4 | 17.052 -> 11.260 (+34.0%) | 9.239 -> 9.200 (+0.4%)
+long_unicode / 1 | 11.085 -> 4.173 (+62.4%) | 3.515 -> 3.610 (-2.7%)
+long_unicode / 4 | 22.594 -> 11.831 (+47.6%) | 9.427 -> 9.556 (-1.4%)
+sparse_ascii / 1 | 7.807 -> 5.466 (+30.0%) | 6.659 -> 5.045 (+24.2%)
+sparse_ascii / 4 | 15.743 -> 12.829 (+18.5%) | 14.616 -> 12.334 (+15.6%)
+sparse_unicode / 1 | 7.356 -> 5.484 (+25.4%) | 6.535 -> 4.978 (+23.8%)
+sparse_unicode / 4 | 15.569 -> 13.348 (+14.3%) | 14.510 -> 12.335 (+15.0%)
+emoji / 1 | 12.871 -> 5.341 (+58.5%) | 13.043 -> 4.559 (+65.0%)
+emoji / 4 | 28.419 -> 12.627 (+55.6%) | 28.886 -> 10.425 (+63.9%)
+records / 1 | 37.878 -> 37.885 (-0.0%) | 28.772 -> 28.944 (-0.6%)
+records / 4 | 129.052 -> 126.996 (+1.6%) | 88.431 -> 88.528 (-0.1%)
+numbers / 1 | 15.901 -> 15.816 (+0.5%) | 11.264 -> 11.052 (+1.9%)
+numbers / 4 | 28.007 -> 29.124 (-4.0%) | 20.568 -> 20.456 (+0.5%)
+
+All flagged final controls passed targeted repeats (four reversed passes,
+15 measured rounds per process; 60 samples per binary):
+arm32 parse emoji 1 async 10.210 -> 10.230 (-0.2% less time);60 samples per binary
+arm32 parse emoji 4 async 21.572 -> 21.535 (+0.2% less time);60 samples per binary
+arm32 parse long_unicode 1 async 9.818 -> 9.897 (-0.8% less time);60 samples per binary
+arm32 parse long_unicode 4 async 23.110 -> 22.121 (+4.3% less time);60 samples per binary
+arm64 parse integers 1 async 14.753 -> 14.394 (+2.4% less time);60 samples per binary
+arm64 parse integers 4 async 25.440 -> 24.209 (+4.8% less time);60 samples per binary
+arm64 stringify sparse_ascii 4 sync 12.828 -> 12.081 (+5.8% less time);60 samples per binary
+The initial matrix outliers remain in raw data. No repeat >=5% material
+control regression remains in the final four-change candidate. Small shifts
+and process-to-process variation remain; the tables report observed medians.
+The final synchronous ten-digit parser control is near baseline after the
+capture experiment was removed; the specific removal comparison is recorded
+in retained-ablation-arm64.jsonl. Numeric parser sources are unchanged.
+Detailed all-mode/all-case results: final-summary.txt and final-summary.json.
+Each median pools18 samples across2 reversedpasses. Positivepercent means less time.
+832rawrows;208comparisons. Jobs4 timings are totalbatchtime, not perjob.
+
+Reproduction in this workspace
+1. Save current work before creating a baseline checkout at the hash above.
+   Use identical args.gn for baseline and candidate. Frozen baseline binaries
+   are out/json-android-review/binaries/d8-arm{32,64}-baseline.
+2. Existing Mac-adapted build outputs and compiler wrappers:
+   python3 out/json-android-review/gen.py out/json-review-arm32
+   python3 out/json-android-review/gen.py out/json-review-arm64
+   /opt/homebrew/bin/ninja -C out/json-review-arm32 -j4 d8
+   /opt/homebrew/bin/ninja -C out/json-review-arm64 -j4 d8
+   python3 out/json-android-goal/filter-cctest.py out/json-review-arm32
+   python3 out/json-android-goal/filter-cctest.py out/json-review-arm64
+   /opt/homebrew/bin/ninja -C out/json-review-arm32 -f json-async-tests.ninja -j4 cctest-json-async
+   /opt/homebrew/bin/ninja -C out/json-review-arm64 -f json-async-tests.ninja -j4 cctest-json-async
+   Finish d8 before CCTest in each output directory. mksnapshot uses the phone;
+   never build it while a timed phone benchmark is running.
+3. Use the supplied adb (or put its platform-tools directory on PATH). Push
+   each frozen d8 as /data/local/tmp/v8-json-review/<arch>/d8-<label>, with its
+   architecture's NDK libc++_shared.so in that directory. chmod 755 binaries.
+   Push test/json/async-android-benchmark.js to
+   /data/local/tmp/v8-json-review/android-async-goal-benchmark.js.
+4. Benchmark both architectures sequentially with run-device.py. Example:
+   python3 out/json-android-goal/run-device.py arm32 --labels baseline final --cases records numbers ten_digit_ints integers fragmented_numbers nested long_ascii long_unicode sparse_ascii sparse_unicode dense_unicode long_strings emoji --runs 9 --passes 2 --output out/json-android-goal/final-arm32.jsonl
+   Repeat for arm64 with a fresh output filename. The runner appends; do not
+   reuse a result file unless intentionally aggregating another run.
+   python3 out/json-android-goal/compare.py <result.jsonl> baseline final
+5. Run test/json/{parse-async,stringify-async,json-upstream,async-json-android}.js
+   with d8 --expose-gc, and again adding --stress-compaction. Run each of the
+   26 test-json-async native tests in its own CCTest process. The saved runner
+   out/json-android-goal/validate-final.py performs these on both architectures.
+   For dedicated timing: python3 out/json-android-goal/run-native-profile.py final
+
+Evidence location
+out/json-android-goal contains independent experiment raw JSONL, the final
+raw matrix, final-validation.jsonl, materialization logs, simpleperf data and
+report, frozen binaries, final-sha256.json, exact build configurations/logs,
+and helper scripts. out/json-android-review retains the original review,
+Highway target probe, ARM32 assembly, baseline binaries and Mac build helpers.
+The saved source patch is final-source.patch; the evidence archive is
+final-evidence.tar.gz (binaries remain in the local binaries directories).
+New permanent JS correctness/benchmark files are under test/json; native
+adoption and materialization diagnostic tests are in test/cctest/test-json-async.cc.

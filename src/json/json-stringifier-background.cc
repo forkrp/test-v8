@@ -17,6 +17,20 @@ namespace v8 {
 namespace internal {
 namespace {
 
+V8_NOINLINE bool ValidateUnescapedSurrogateSuffix(const uint16_t* begin,
+                                                  const uint16_t* end) {
+  while (begin != end) {
+    uint16_t c = *begin++;
+    if (c >= 0xd800 && c <= 0xdbff) {
+      if (begin == end || *begin < 0xdc00 || *begin > 0xdfff) return false;
+      ++begin;
+    } else if (!JsonStringDoNotEscape(c)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 template <typename Char, typename Storage = base::OwnedVector<Char>>
 class JsonOutputResource final
     : public std::conditional_t<sizeof(Char) == 1,
@@ -133,7 +147,23 @@ class JsonNativeOutput {
     for (size_t i = 1; i + 1 < length;) {
       if (!ok()) return true;
       size_t count = std::min<size_t>(4096, length - i - 1);
-      if (FindJsonEscape(source.data() + i, count) != count) return false;
+      if constexpr (sizeof(Char) == 2) {
+        if (i + count < length - 1 && source[i + count - 1] >= 0xd800 &&
+            source[i + count - 1] <= 0xdbff) {
+          --count;  // Validate a boundary pair together in the next chunk.
+        }
+      }
+      size_t prefix = FindJsonEscape(source.data() + i, count);
+      if (prefix != count) {
+        if constexpr (sizeof(Char) == 1) {
+          return false;
+        } else {
+          if (!ValidateUnescapedSurrogateSuffix(source.data() + i + prefix,
+                                                source.data() + i + count)) {
+            return false;
+          }
+        }
+      }
       i += count;
     }
     auto result = std::make_unique<JsonOutputResource<Char, std::vector<Char>>>(
@@ -209,7 +239,8 @@ class JsonNativeOutput {
           begin[count - 1] >= 0xD800 && begin[count - 1] <= 0xDBFF) {
         --count;  // Never split a surrogate pair at a cancellation boundary.
       }
-      if (!quoted || (count >= 32 && FindJsonEscape(begin, count) == count)) {
+      size_t prefix = quoted && count >= 32 ? FindJsonEscape(begin, count) : 0;
+      if (!quoted || (count >= 32 && prefix == count)) {
         if (!Ensure(count)) return;
         if constexpr (sizeof(Char) == sizeof(InputChar)) {
           std::memcpy(buffer_.begin() + size_, begin, count * sizeof(Char));
@@ -222,7 +253,11 @@ class JsonNativeOutput {
         if (count * 6 <= String::kMaxLength - size_) {
           if (!Ensure(count * 6)) return;
           JsonStringSpanWriter<Char> writer{buffer_.begin() + size_};
-          WriteJsonString<false>(span, &writer);
+          if (prefix >= 32) {
+            WriteSparseString(span, prefix, &writer);
+          } else {
+            WriteJsonString<false>(span, &writer);
+          }
           size_ = writer.cursor - buffer_.begin();
         } else {
           // A conservative reservation must not reject an actually fitting
@@ -237,6 +272,44 @@ class JsonNativeOutput {
     if (memo) {
       *memo = {part.kind, part.data.span.offset, part.data.span.length,
                start,     size_ - start,         true};
+    }
+  }
+
+  template <typename InputChar>
+  V8_NOINLINE void WriteSparseString(base::Vector<const InputChar> span,
+                                     size_t prefix,
+                                     JsonStringSpanWriter<Char>* writer) {
+    const InputChar* chars = span.begin();
+    size_t remaining = span.size();
+    while (true) {
+      if constexpr (sizeof(Char) == sizeof(InputChar)) {
+        std::memcpy(writer->cursor, chars, prefix * sizeof(Char));
+        writer->cursor += prefix;
+      } else {
+        for (size_t i = 0; i < prefix; ++i) writer->Append(chars[i]);
+      }
+      chars += prefix;
+      remaining -= prefix;
+      if (!remaining) return;
+      size_t escaped = 1;
+      if constexpr (sizeof(InputChar) == 2) {
+        if (chars[0] >= 0xd800 && chars[0] <= 0xdbff && remaining > 1 &&
+            chars[1] >= 0xdc00 && chars[1] <= 0xdfff) {
+          escaped = 2;
+        }
+      }
+      WriteJsonString<false>(base::Vector<const InputChar>(chars, escaped),
+                             writer);
+      chars += escaped;
+      remaining -= escaped;
+      if (!remaining) return;
+      prefix = FindJsonEscape(chars, remaining);
+      if (prefix < 32) {
+        // Dense escapes and short suffixes keep the existing scalar encoder.
+        WriteJsonString<false>(base::Vector<const InputChar>(chars, remaining),
+                               writer);
+        return;
+      }
     }
   }
 

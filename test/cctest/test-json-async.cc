@@ -347,20 +347,22 @@ TEST_WITH_PLATFORM(JsonParseAsyncPrimitiveArraysGC, JsonTestPlatform) {
   v8::HandleScope scope(isolate);
   LocalContext context;
   auto runner = platform.HoldTasks(isolate);
+  // Each fixture exceeds the physical node cap, so GC runs between slices
+  // even when primitive-array materialization is faster than the deadline.
   const struct {
     const char* input;
     const char* check;
-  } cases[] = {{"'[' + '1.5,-0,'.repeat(20000) + '2]'",
-                "result.length === 40001 && result[0] === 1.5 && "
-                "Object.is(result[1], -0) && result[40000] === 2"},
-               {"JSON.stringify(Array.from({length:20000}, (_, i) "
+  } cases[] = {{"'[' + '1.5,-0,'.repeat(100000) + '2]'",
+                "result.length === 200001 && result[0] === 1.5 && "
+                "Object.is(result[1], -0) && result[200000] === 2"},
+               {"JSON.stringify(Array.from({length:100000}, (_, i) "
                 "=> 'long-string-value-' + i))",
-                "result.length === 20000 && "
-                "result[19999] === 'long-string-value-19999'"},
-               {"JSON.stringify(Array.from({length:20000}, (_, i) "
+                "result.length === 100000 && "
+                "result[99999] === 'long-string-value-99999'"},
+               {"JSON.stringify(Array.from({length:100000}, (_, i) "
                 "=> i & 1 ? 'BB' : 'Aa'))",
-                "result.length === 20000 && result[0] === 'Aa' && "
-                "result[19999] === 'BB'"}};
+                "result.length === 100000 && result[0] === 'Aa' && "
+                "result[99999] === 'BB'"}};
   for (const auto& test : cases) {
     std::string script = "JSON.parseAsync(" + std::string(test.input) + ")";
     auto promise = CompileRun(script.c_str()).As<v8::Promise>();
@@ -458,6 +460,63 @@ TEST_WITH_PLATFORM(JsonParseAsyncTaskTiming, JsonTestPlatform) {
       max_slice_ms, total_ms, platform.NumberOfWorkerThreads());
 }
 
+TEST_WITH_PLATFORM(JsonParseAsyncMaterializationProfile, JsonTestPlatform) {
+  using v8::base::TimeTicks;
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  for (int fields : {2, 12, 60}) {
+    const int records = fields == 2 ? 100000 : fields == 12 ? 30000 : 10000;
+    std::string setup = "var profileRecord = {}; for (var k = 0; k < " +
+                        std::to_string(fields) +
+                        "; ++k) profileRecord['k' + k] = "
+                        "[0, 3.5, 'value'][k % 3]; var profileInput = '[' + "
+                        "(JSON.stringify(profileRecord) + ',').repeat(" +
+                        std::to_string(records) + ") + 'null]'";
+    CompileRun(setup.c_str());
+    for (int round = -2; round < 5; ++round) {
+      isolate->LowMemoryNotification();
+      v8::HandleScope discard(isolate);
+      auto start = TimeTicks::Now();
+      auto promise =
+          CompileRun("JSON.parseAsync(profileInput)").As<v8::Promise>();
+      double call_ms = (TimeTicks::Now() - start).InMillisecondsF();
+      double wait_ms = 0, foreground_ms = 0;
+      std::vector<double> slices;
+      while (true) {
+        auto before_wait = TimeTicks::Now();
+        auto task = runner->TakeOne(isolate);
+        wait_ms += (TimeTicks::Now() - before_wait).InMillisecondsF();
+        if (!task) break;
+        auto before_slice = TimeTicks::Now();
+        task->Run();
+        task.reset();
+        double elapsed = (TimeTicks::Now() - before_slice).InMillisecondsF();
+        foreground_ms += elapsed;
+        slices.push_back(elapsed);
+        CHECK_LT(slices.size(), 100000u);
+      }
+      double total_ms = (TimeTicks::Now() - start).InMillisecondsF();
+      CHECK_EQ(v8::Promise::kFulfilled, promise->State());
+      CHECK_EQ(static_cast<uint32_t>(records + 1),
+               promise->Result().As<v8::Array>()->Length());
+      CHECK_GT(slices.size(), 1u);
+      if (round < 0) continue;
+      // Diagnostic only: GC and allocations do not have hard timing bounds.
+      printf(
+          "JSON_ASYNC_PROFILE {\"fields\":%d,\"records\":%d,"
+          "\"round\":%d,\"call_ms\":%.3f,\"wait_ms\":%.3f,"
+          "\"foreground_ms\":%.3f,\"total_ms\":%.3f,\"slices_ms\":[",
+          fields, records, round, call_ms, wait_ms, foreground_ms, total_ms);
+      for (size_t i = 0; i < slices.size(); ++i) {
+        printf("%s%.3f", i ? "," : "", slices[i]);
+      }
+      printf("]}\n");
+    }
+  }
+}
+
 TEST_WITH_PLATFORM(JsonParseAsyncTermination, JsonTestPlatform) {
   auto isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -539,6 +598,44 @@ TEST(JsonStringifyAsyncNativeBounds) {
   data.cancelled.store(true, std::memory_order_relaxed);
   i::EncodeJsonStringify(&data);
   CHECK(!data.result8 && !data.result16);
+}
+
+TEST(JsonStringifyAsyncNativeSurrogateAdoption) {
+  for (size_t offset :
+       {0u, 7u, 8u, 15u, 16u, 31u, 32u, 4094u, 4095u, 4096u, 4097u, 8191u}) {
+    for (bool paired : {false, true}) {
+      std::vector<uint16_t> chars(offset, 0x6f22);
+      chars.push_back(0xd83d);
+      if (paired) chars.push_back(0xde00);
+      chars.push_back('x');
+      i::JsonStringifyData data;
+      data.wide_output = true;
+      data.two_byte.push_back('"');
+      data.two_byte.insert(data.two_byte.end(), chars.begin(), chars.end());
+      data.two_byte.push_back('"');
+      CHECK(data.AddLength(chars.size() + 2));
+      i::JsonStringifyPart part;
+      part.kind = i::JsonStringifyPart::kString16;
+      part.data.span.offset = 1;
+      part.data.span.length = static_cast<uint32_t>(chars.size());
+      data.parts.push_back(part);
+      const uint16_t* captured = data.two_byte.data();
+      std::vector<uint16_t> expected(chars.size() * 6 + 2);
+      expected[0] = '"';
+      i::JsonStringSpanWriter<uint16_t> writer{expected.data() + 1};
+      i::WriteJsonString<false>(
+          v8::base::Vector<const uint16_t>(chars.data(), chars.size()),
+          &writer);
+      *writer.cursor++ = '"';
+      size_t length = writer.cursor - expected.data();
+      i::EncodeJsonStringify(&data);
+      CHECK(data.result16);
+      CHECK_EQ(paired, data.result16->data() == captured);
+      CHECK_EQ(length, data.result16->length());
+      CHECK_EQ(0, std::memcmp(data.result16->data(), expected.data(),
+                              length * sizeof(uint16_t)));
+    }
+  }
 }
 
 TEST(JsonUpstreamEscapeScanner) {
@@ -669,7 +766,9 @@ TEST_WITH_PLATFORM(JsonStringifyAsyncResourceAndRealm, JsonTestPlatform) {
   LocalContext context;
   auto runner = platform.HoldTasks(isolate);
   for (const char* expression :
-       {"'x'.repeat(100000)", "String.fromCharCode(0x6f22).repeat(100000)"}) {
+       {"'x'.repeat(100000)", "String.fromCharCode(0x6f22).repeat(100000)",
+        "'\\ud83d\\ude00'.repeat(50000)",
+        "'x'.repeat(4095) + '\\ud83d\\ude00' + 'x'.repeat(4096)"}) {
     std::string setup = "var input = " + std::string(expression) +
                         "; var expected = JSON.stringify(input)";
     CompileRun(setup.c_str());

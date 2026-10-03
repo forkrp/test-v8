@@ -437,9 +437,13 @@ class JsonParseAsyncState final {
     int next_budget_check = 0;
     // Only materialization is sliced. Use JSON's fast builders instead of
     // repeated generic CreateDataProperty calls or a serialized object clone.
-    for (int work = 0; work < 4096; ++work) {
+    // Count physical tape nodes. The deadline is primary; a larger node cap
+    // avoids overslicing cheap scalar arrays. Check every 512 nodes, plus at
+    // most one bounded 128-node subtree, rather than every 64 containers.
+    constexpr int kMaximumSliceWork = 64 * 1024;
+    for (int work = 0; work < kMaximumSliceWork; ++work) {
       if (work >= next_budget_check) {
-        next_budget_check = work + 64;
+        next_budget_check = work + 512;
         STACK_CHECK(isolate_, true);
         if (work != 0 && base::TimeTicks::Now() >= deadline) break;
       }
@@ -457,7 +461,7 @@ class JsonParseAsyncState final {
       if (!frames_.empty() && !frames_.back().direct_array.is_null() &&
           token.kind >= Node::kString) {
         work += FillPrimitiveArray(&parser, source_offset,
-                                   std::min(128, 4096 - work)) -
+                                   std::min(128, kMaximumSliceWork - work)) -
                 1;
         continue;
       }
@@ -474,7 +478,9 @@ class JsonParseAsyncState final {
                   isolate_->stack_guard()->real_climit() + 64 * KB) {
             auto feedback = ObjectFeedback(
                 &parser, frames_.empty() ? nullptr : &frames_.back());
+            size_t before = cursor_;
             auto value = BuildSmallValue(&parser, source_offset, feedback);
+            work += static_cast<int>(cursor_ - before) - 1;
             Emit(&parser, value, isolate_->factory()->undefined_value());
             continue;
           }
