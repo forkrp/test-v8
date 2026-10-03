@@ -145,6 +145,20 @@ static void ReadDiyFp(Vector<const char> buffer, DiyFp* result,
   }
 }
 
+// DoubleStrtod has already bounded this input to at most 15 digits. Its
+// integer value fits in uint64_t, so the generic per-digit overflow test is
+// unnecessary here. ReadDiyFp keeps the generic reader for longer inputs.
+[[maybe_unused]] static uint64_t ReadExactUint64(Vector<const char> buffer) {
+  DCHECK_LE(buffer.length(), kMaxExactDoubleIntegerDecimalDigits);
+  uint64_t result = 0;
+  for (int i = 0; i < buffer.length(); ++i) {
+    int digit = buffer[i] - '0';
+    DCHECK(0 <= digit && digit <= 9);
+    result = 10 * result + digit;
+  }
+  return result;
+}
+
 static bool DoubleStrtod(Vector<const char> trimmed, int exponent,
                          double* result) {
 #if (V8_TARGET_ARCH_IA32 || defined(USE_SIMULATOR)) && !defined(_MSC_VER)
@@ -161,7 +175,6 @@ static bool DoubleStrtod(Vector<const char> trimmed, int exponent,
   return false;
 #else
   if (trimmed.length() <= kMaxExactDoubleIntegerDecimalDigits) {
-    int read_digits;
     // The trimmed input fits into a double.
     // If the 10^exponent (resp. 10^-exponent) fits into a double too then we
     // can compute the result-double simply by multiplying (resp. dividing) the
@@ -170,15 +183,13 @@ static bool DoubleStrtod(Vector<const char> trimmed, int exponent,
     // return the best possible approximation.
     if (exponent < 0 && -exponent < kExactPowersOfTenSize) {
       // 10^-exponent fits into a double.
-      *result = static_cast<double>(ReadUint64(trimmed, &read_digits));
-      DCHECK(read_digits == trimmed.length());
+      *result = static_cast<double>(ReadExactUint64(trimmed));
       *result /= exact_powers_of_ten[-exponent];
       return true;
     }
     if (0 <= exponent && exponent < kExactPowersOfTenSize) {
       // 10^exponent fits into a double.
-      *result = static_cast<double>(ReadUint64(trimmed, &read_digits));
-      DCHECK(read_digits == trimmed.length());
+      *result = static_cast<double>(ReadExactUint64(trimmed));
       *result *= exact_powers_of_ten[exponent];
       return true;
     }
@@ -189,8 +200,7 @@ static bool DoubleStrtod(Vector<const char> trimmed, int exponent,
       // The trimmed string was short and we can multiply it with
       // 10^remaining_digits. As a result the remaining exponent now fits
       // into a double too.
-      *result = static_cast<double>(ReadUint64(trimmed, &read_digits));
-      DCHECK(read_digits == trimmed.length());
+      *result = static_cast<double>(ReadExactUint64(trimmed));
       *result *= exact_powers_of_ten[remaining_digits];
       *result *= exact_powers_of_ten[exponent - remaining_digits];
       return true;

@@ -794,6 +794,17 @@ FastJsonStringifier<Char, capture_mode>::FastJsonStringifier(Isolate* isolate)
 
 template <typename Char, bool capture_mode>
 void FastJsonStringifier<Char, capture_mode>::SerializeSmi(Tagged<Smi> object) {
+#if defined(V8_TARGET_ARCH_ARM64)
+  // Extra parts outweigh submission savings on ARM32. On ARM64, defer larger
+  // individual integers while keeping short literals in the punctuation run.
+  if constexpr (capture_mode) {
+    if (object.value() >= 10000 || object.value() <= -10000) {
+      buffer_.Flush();
+      capture_->Integer(object.value());
+      return;
+    }
+  }
+#endif
   static_assert(Smi::kMaxValue <= 2147483647);
   static_assert(Smi::kMinValue >= -2147483648);
   // sizeof(string) includes \0.

@@ -7,6 +7,15 @@ const [api = 'parse', name = 'long_ascii', jobsArg = '1', runsArg = '9', mode = 
 const jobs = Number(jobsArg), runs = Number(runsArg);
 if (!['parse', 'stringify'].includes(api) || !['sync', 'async', 'both'].includes(mode)) throw Error('options');
 const creators = {
+  repeat_unique: () => [...Array(1000).fill(3.5), ...Array.from({length:120000}, (_, i) => Math.sin(i + 0.125) * 1e12)],
+  unique_repeat: () => [...Array.from({length:120000}, (_, i) => Math.sin(i + 0.125) * 1e12), ...Array(1000).fill(3.5)],
+  records12: () => Array.from({length: 30000}, (_, i) => Object.fromEntries(Array.from({length:12}, (_, k) => ['k' + k, k % 3 === 0 ? i : k % 3 === 1 ? i / 8 : 'value']))),
+  records60: () => Array.from({length: 10000}, (_, i) => Object.fromEntries(Array.from({length:60}, (_, k) => ['k' + k, k % 3 === 0 ? i : k % 3 === 1 ? i / 8 : 'value']))),
+  smi_records: () => Array.from({length: 100000}, (_, i) => ({a:i,b:i+1,c:i+2,d:i+3})),
+  shape_churn: () => Array.from({length: 50000}, (_, i) => i & 1 ? {b:i,a:'value',c:i/8} : {a:i,b:'value',d:i/8}),
+  unique_doubles: () => Array.from({length: 120000}, (_, i) => Math.sin(i + 0.125) * 1e12),
+  short_ascii: () => Array.from({length: 50000}, (_, i) => 'entry-' + i + '-x'),
+  short_unicode: () => Array.from({length: 50000}, (_, i) => '文字-' + i + '-漢'),
   integers: () => Array.from({length: 200000}, (_, i) => i),
   fragmented_numbers: () => Array.from({length: 10000}, () => Array.from({length: 32}, (_, i) => i / 8)),
   emoji: () => '😀'.repeat(1000000),

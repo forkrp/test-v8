@@ -28,10 +28,12 @@ struct JsonStringifyPart {
     kString16,
     kNumber,
     kNumbers,
-    kIntegers
+    kIntegers,
+    kInteger
   };
   union {
     double number;
+    int32_t integer;
     struct {
       uint32_t offset, length;
     } span;

@@ -53,7 +53,14 @@ class JsonOutputResource final
 template <typename Char>
 class JsonNativeOutput {
  public:
-  explicit JsonNativeOutput(JsonStringifyData* data) : data_(data) {}
+  explicit JsonNativeOutput(JsonStringifyData* data) : data_(data) {
+    // Small jobs cannot amortize the numeric memo. Initialize only occupied
+    // markers; bits and text are read after a successful lookup or formatting.
+    number_cache_enabled_ = data_->number_count >= 64;
+    if (number_cache_enabled_) {
+      for (auto& memo : number_memo_) memo.length = 0;
+    }
+  }
 
   void Encode() {
     if (!ok()) return;
@@ -79,6 +86,12 @@ class JsonNativeOutput {
         case Part::kNumber:
           Number(part.data.number);
           break;
+        case Part::kInteger: {
+          char text[12];
+          AppendString(IntToStringView(part.data.integer,
+                                     base::Vector<char>(text, sizeof(text))));
+          break;
+        }
         case Part::kNumbers:
           for (uint32_t i = 0; i < part.data.span.length; ++i) {
             if ((i & 4095) == 0 && !ok()) return;
@@ -197,11 +210,50 @@ class JsonNativeOutput {
   void Number(double value) {
     if (!std::isfinite(value)) {
       AppendCString("null");
+    } else if (number_cache_enabled_) {
+      CachedNumber(value);
     } else {
       char text[100];
       AppendString(DoubleToStringView(value, base::Vector<char>(text, 100)));
     }
   }
+
+  // This job-local table stores native text, never V8 objects. Exact bits and
+  // bounded storage make collisions harmless. Low-hit windows use the original
+  // formatter for the rest of the job, including a unique suffix after repeats.
+  V8_NOINLINE void CachedNumber(double value) {
+    if (value == 0) {
+      Append('0');
+      return;
+    }
+    uint64_t bits;
+    std::memcpy(&bits, &value, sizeof(bits));
+    size_t slot = (bits ^ (bits >> 32) ^ (bits >> 48) ^ (bits >> 60)) & 15;
+    auto& memo = number_memo_[slot];
+    if (memo.length && memo.bits == bits) {
+      ++number_cache_hits_;
+    } else {
+      auto text = DoubleToStringView(
+          value, base::Vector<char>(memo.text, sizeof(memo.text)));
+      memo.bits = bits;
+      memo.offset = static_cast<uint8_t>(text.data() - memo.text);
+      memo.length = static_cast<uint8_t>(text.size());
+    }
+    AppendString(std::string_view(memo.text + memo.offset, memo.length));
+    if (++number_cache_uses_ == 64) {
+      if (number_cache_hits_ < 8) number_cache_enabled_ = false;
+      number_cache_uses_ = number_cache_hits_ = 0;
+    }
+  }
+
+  struct NumberMemo {
+    uint64_t bits;
+    // Finite shortest JSON numbers require at most 25 characters, including
+    // the sign and fixed-format leading zeros. Nonfinite values bypass this.
+    char text[32];
+    uint8_t offset;
+    uint8_t length;
+  };
 
   struct Memo {
     uint8_t kind = JsonStringifyPart::kRaw8;
@@ -317,6 +369,9 @@ class JsonNativeOutput {
   base::OwnedVector<Char> buffer_;
   size_t size_ = 0;
   std::array<Memo, 128> memo_{};
+  std::array<NumberMemo, 16> number_memo_;
+  uint32_t number_cache_uses_ = 0, number_cache_hits_ = 0;
+  bool number_cache_enabled_;
 };
 
 }  // namespace

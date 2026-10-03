@@ -723,6 +723,23 @@ class JSDataObjectBuilder {
     Handle<String> failed_property_add_key;
     for (; !it.Done(); it.Advance()) {
       Handle<String> property_key;
+      if constexpr (requires { it.GetKnownKey(); }) {
+        // Async keys are already rooted and internalized. Compare them without
+        // allocating the expected-key handle used by raw-string iterators.
+        if (IsOnExpectedFinalMapFastPath()) {
+          property_key = it.GetKnownKey();
+          if (!property_key.is_null() &&
+              expected_final_map_->instance_descriptors(isolate_)->GetKey(
+                  InternalIndex(current_property_index_)) == *property_key) {
+            if (!TryGeneralizeFieldToValue(it.GetValue(true))) {
+              failed_property_add_key = property_key;
+              break;
+            }
+            AdvanceToNextProperty();
+            continue;
+          }
+        }
+      }
       if (!TryAddFastPropertyForValue(
               [&](Handle<String> expected_key) {
                 return property_key = it.GetKey(expected_key);
@@ -1224,6 +1241,14 @@ class JsonParser<Char>::CachedNamedPropertyIterator
                               base::Vector<const Handle<String>> keys)
       : Base(*parser, begin, end), keys_(keys) {
     DCHECK_EQ(JsonString::kNoCacheSlot, keys.length());
+  }
+
+  Handle<String> GetKnownKey() {
+    uint8_t slot = this->current()->string.cache_slot();
+    if (slot == JsonString::kNoCacheSlot) return {};
+    auto key = keys_[slot];
+    // Empty names are not cached; an empty slot still needs GetKey's hint.
+    return key->length() ? key : Handle<String>();
   }
 
   Handle<String> GetKey(Handle<String> expected_key_hint) {

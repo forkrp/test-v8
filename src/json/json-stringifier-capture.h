@@ -85,6 +85,15 @@ class JsonStringifyCapture {
     ++data_->number_count;
   }
 
+  void Integer(int32_t value) {
+    if (!data_->AddLength(1)) return;
+    JsonStringifyPart part;
+    part.kind = JsonStringifyPart::kInteger;
+    part.data.integer = value;
+    Push(part);
+    ++data_->number_count;
+  }
+
   template <ElementsKind kind, typename Elements>
   void Numbers(Tagged<Elements> elements, uint32_t start, uint32_t end) {
     size_t length = end - start;

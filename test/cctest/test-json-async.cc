@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <deque>
+#include <limits>
 
 #include "src/api/api-inl.h"
 #include "src/base/platform/condition-variable.h"
@@ -15,6 +17,7 @@
 #include "src/json/json-stringifier-async.h"
 #include "src/json/json-stringifier-escape.h"
 #include "src/json/json-stringifier.h"
+#include "src/numbers/conversions.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
@@ -598,6 +601,64 @@ TEST(JsonStringifyAsyncNativeBounds) {
   data.cancelled.store(true, std::memory_order_relaxed);
   i::EncodeJsonStringify(&data);
   CHECK(!data.result8 && !data.result16);
+}
+
+TEST(JsonStringifyAsyncNativeNumericText) {
+  std::vector<double> values = {0.0, -0.0, 1.25, -1.25, 1e-6, -1e-6,
+                                -0.0000010000000000000002, 1e20, 1e21,
+                                2147483647.0, -2147483648.0, 4294967295.0,
+                                std::numeric_limits<double>::min(),
+                                std::numeric_limits<double>::denorm_min(),
+                                std::numeric_limits<double>::max(),
+                                -std::numeric_limits<double>::max(),
+                                std::numeric_limits<double>::infinity(),
+                                std::numeric_limits<double>::quiet_NaN()};
+  uint64_t bits = 0x123456789abcdef0;
+  for (int i = 0; i < 2000; ++i) {
+    bits = bits * UINT64_C(2862933555777941757) + UINT64_C(3037000493);
+    double value;
+    std::memcpy(&value, &bits, sizeof(value));
+    for (int repeat = 0; repeat < 4; ++repeat) values.push_back(value);
+  }
+  std::string expected = "[";
+  for (size_t index = 0; index < values.size(); ++index) {
+    if (index) expected += ',';
+    char text[100];
+    expected += std::isfinite(values[index])
+                    ? i::DoubleToStringView(values[index], v8::base::VectorOf(text))
+                    : std::string_view("null");
+  }
+  expected += ']';
+  for (bool wide : {false, true}) {
+    i::JsonStringifyData data;
+    data.wide_output = wide;
+    data.numbers = values;
+    data.number_count = values.size();
+    CHECK(data.AddLength(values.size() * 2 + 1));
+    i::JsonStringifyPart part;
+    part.kind = i::JsonStringifyPart::kNumbers;
+    part.prefix_length = 1;
+    part.prefix[0] = '[';
+    part.data.span.length = static_cast<uint32_t>(values.size());
+    data.parts.push_back(part);
+    part = {};
+    part.prefix_length = 1;
+    part.prefix[0] = ']';
+    data.parts.push_back(part);
+    i::EncodeJsonStringify(&data);
+    if (wide) {
+      CHECK(data.result16);
+      CHECK_EQ(expected.size(), data.result16->length());
+      for (size_t i = 0; i < expected.size(); ++i) {
+        CHECK_EQ(static_cast<uint16_t>(expected[i]), data.result16->data()[i]);
+      }
+    } else {
+      CHECK(data.result8);
+      CHECK_EQ(expected.size(), data.result8->length());
+      CHECK_EQ(0, std::memcmp(expected.data(), data.result8->data(),
+                              expected.size()));
+    }
+  }
 }
 
 TEST(JsonStringifyAsyncNativeSurrogateAdoption) {

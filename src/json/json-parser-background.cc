@@ -9,7 +9,11 @@
 #include <cstring>
 #include <limits>
 
+#include "src/base/bits.h"
 #include "src/base/memory.h"
+#if defined(__ARM_NEON)
+#include <arm_neon.h>
+#endif
 #include "src/base/strings.h"
 #include "src/json/json-scanner.h"
 #include "src/numbers/conversions-inl.h"
@@ -17,6 +21,68 @@
 namespace v8 {
 namespace internal {
 namespace {
+
+template <typename Char>
+V8_NOINLINE const Char* ScanBackgroundString(const Char* begin, const Char* end,
+                                            uint32_t* bits) {
+#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+  using Word = uintptr_t;
+  constexpr size_t kWordChars = sizeof(Word) / sizeof(Char);
+  constexpr Word kLow = sizeof(Char) == 1 ? Word(-1) / 0xff
+                                         : Word(-1) / 0xffff;
+  constexpr Word kHigh = kLow * (sizeof(Char) == 1 ? 0x80 : 0x8000);
+  if (static_cast<size_t>(end - begin) >= kWordChars) {
+    Word input = base::ReadUnalignedValue<Word>(
+        reinterpret_cast<base::Address>(begin));
+    Word quote = input ^ (kLow * 0x22);
+    Word slash = input ^ (kLow * 0x5c);
+    Word special = ((input - kLow * 0x20) & ~input & kHigh) |
+                   ((quote - kLow) & ~quote & kHigh) |
+                   ((slash - kLow) & ~slash & kHigh);
+    if (special) {
+      // Borrow propagation can flag later lanes; the first flagged lane is
+      // exact. Only characters before it may contribute to UTF-16 width.
+      size_t count = base::bits::CountTrailingZerosNonZero(special) /
+                     (8 * sizeof(Char));
+      if constexpr (sizeof(Char) == 2) {
+        for (size_t i = 0; i < count; ++i) *bits |= begin[i];
+      }
+      return begin + count;
+    }
+    if constexpr (sizeof(Char) == 2) {
+      if (input & (kLow * 0xff00)) *bits |= 0x100;
+    }
+    begin += kWordChars;
+  }
+  constexpr size_t kVectorChars = 16 / sizeof(Char);
+  while (static_cast<size_t>(end - begin) >= kVectorChars) {
+    uint8x16_t mask;
+    if constexpr (sizeof(Char) == 1) {
+      auto input = vld1q_u8(begin);
+      mask = vorrq_u8(vcltq_u8(input, vdupq_n_u8(0x20)),
+                     vorrq_u8(vceqq_u8(input, vdupq_n_u8(0x22)),
+                              vceqq_u8(input, vdupq_n_u8(0x5c))));
+    } else {
+      auto input = vld1q_u16(begin);
+      auto special = vorrq_u16(vcltq_u16(input, vdupq_n_u16(0x20)),
+                              vorrq_u16(vceqq_u16(input, vdupq_n_u16(0x22)),
+                                        vceqq_u16(input, vdupq_n_u16(0x5c))));
+      mask = vreinterpretq_u8_u16(special);
+      auto merged = vorr_u8(vget_low_u8(mask), vget_high_u8(mask));
+      if (vget_lane_u64(vreinterpret_u64_u8(merged), 0)) break;
+      auto wide = vreinterpretq_u8_u16(vcgtq_u16(input, vdupq_n_u16(0xff)));
+      merged = vorr_u8(vget_low_u8(wide), vget_high_u8(wide));
+      if (vget_lane_u64(vreinterpret_u64_u8(merged), 0)) *bits |= 0x100;
+      begin += kVectorChars;
+      continue;
+    }
+    auto merged = vorr_u8(vget_low_u8(mask), vget_high_u8(mask));
+    if (vget_lane_u64(vreinterpret_u64_u8(merged), 0)) break;
+    begin += kVectorChars;
+  }
+#endif
+  return ScanJsonStringCharacters(begin, end, bits);
+}
 
 template <typename Char>
 class BackgroundJsonParser {
@@ -288,7 +354,6 @@ class BackgroundJsonParser {
 
   template <bool is_key>
   bool ReadString(BackgroundJsonNode* node) {
-    using Node = BackgroundJsonNode;
     ++position_;
     uint32_t key_slot = JsonString::kNoCacheSlot;
     if constexpr (is_key) {
@@ -320,10 +385,39 @@ class BackgroundJsonParser {
         }
       }
     }
-    uint32_t length = 0, bits = 0, index = 0;
-    bool is_index = is_key;
-    bool leading_zero = false;
-    bool escaped = false;
+    if constexpr (!is_key) {
+      // Keep short ordinary values in the parser loop. Longer strings and
+      // escapes use the outlined decoder without enlarging the numeric loop.
+      const Char* begin = input_.begin() + position_;
+      const Char* end = begin + std::min<size_t>(32, input_.size() - position_);
+      uint32_t bits = 0;
+      const Char* stop = ScanJsonStringCharacters(begin, end, &bits);
+      if (stop != end && *stop == '"') {
+        using Node = BackgroundJsonNode;
+        uint32_t length = static_cast<uint32_t>(stop - begin);
+        position_ += length + 1;
+        node->data.string.length = length;
+        bool convert = sizeof(Char) == 1 ? bits > 255 : bits <= 255;
+        node->flags = (convert ? Node::kConvert : 0) |
+                      ((sizeof(Char) == 1 && length < 10)
+                           ? Node::kInternalize
+                           : 0);
+        if (length < 10) CacheShortString(node);
+        return true;
+      }
+    }
+    return ReadStringFallback<is_key>(node, key_slot);
+  }
+
+  template <bool is_key, bool use_vectors = true>
+  V8_NOINLINE bool ReadStringFallback(
+      BackgroundJsonNode* node, uint32_t key_slot, uint32_t length = 0,
+      uint32_t bits = 0, uint32_t index = 0, bool is_index = is_key,
+      bool leading_zero = false, bool escaped = false) {
+    using Node = BackgroundJsonNode;
+    // Value strings never carry property-index state, including a scalar
+    // handoff after an escape. Keep index processing out of that specialization.
+    if constexpr (!is_key) is_index = false;
     auto add_index_char = [&](uint32_t c, uint32_t at) {
       if (!is_index) return;
       if (!Digit(c) || (at != 0 && leading_zero) ||
@@ -339,7 +433,20 @@ class BackgroundJsonParser {
       const Char* begin = input_.begin() + position_;
       const Char* end =
           input_.begin() + std::min<size_t>(position_ + 4096, input_.size());
-      const Char* stop = ScanJsonStringCharacters(begin, end, &bits);
+      const Char* stop;
+#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+      if constexpr (use_vectors) {
+        const Char* prefix_end = begin + std::min<ptrdiff_t>(32, end - begin);
+        stop = ScanJsonStringCharacters(begin, prefix_end, &bits);
+        if (stop == prefix_end && prefix_end != end) {
+          stop = ScanBackgroundString(stop, end, &bits);
+        }
+      } else {
+        stop = ScanJsonStringCharacters(begin, end, &bits);
+      }
+#else
+      stop = ScanJsonStringCharacters(begin, end, &bits);
+#endif
       for (const Char* p = begin; p != stop && is_index; ++p)
         add_index_char(*p, length + static_cast<uint32_t>(p - begin));
       uint32_t count = static_cast<uint32_t>(stop - begin);
@@ -424,6 +531,21 @@ class BackgroundJsonParser {
             Fail(MessageTemplate::kJsonParseBadEscapedCharacter);
             return false;
         }
+#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+        if constexpr (use_vectors) {
+          if (count < 32) {
+            // A dense escape run switches once to a separately compiled scalar
+            // loop. The loop itself has no vector-probing branch.
+            bits |= c;
+            add_index_char(c, length);
+            ++length;
+            ++position_;
+            return ReadStringFallback<is_key, false>(
+                node, key_slot, length, bits, index, is_index, leading_zero,
+                escaped);
+          }
+        }
+#endif
       }
       bits |= c;
       add_index_char(c, length);
