@@ -1,0 +1,637 @@
+// Copyright 2026 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+// This experimental adapter is compiled with exceptions enabled, and catches
+// all dependency exceptions at the boundary. Other V8 sources keep
+// -fno-exceptions.
+#define MSGPACK_NO_BOOST
+#include "src/msgpack/messagepack.h"
+
+#include <cmath>
+#include <cstring>
+#include <limits>
+#include <msgpack.hpp>
+
+#include "mpack.h"
+#include "src/api/api-inl.h"
+#include "src/common/assert-scope.h"
+#include "src/objects/bigint.h"
+#include "src/objects/js-array-inl.h"
+#include "src/objects/js-data-object-builder.h"
+#include "src/objects/keys.h"
+#include "src/objects/lookup-inl.h"
+#include "src/objects/string-inl.h"
+
+namespace v8 {
+namespace internal {
+namespace {
+constexpr uint64_t kMaxSafeInteger = 9007199254740991ULL;
+constexpr size_t kMaxDepth = 256;
+constexpr size_t kMaxOutputBytes = 256 * 1024 * 1024;
+
+bool ValidUtf8(const uint8_t* s, size_t n) {
+  for (size_t i = 0; i < n;) {
+    uint8_t c = s[i++];
+    if (c < 0x80) continue;
+    unsigned follow;
+    uint32_t cp;
+    if (c >= 0xc2 && c <= 0xdf) {
+      follow = 1;
+      cp = c & 31;
+    } else if (c >= 0xe0 && c <= 0xef) {
+      follow = 2;
+      cp = c & 15;
+    } else if (c >= 0xf0 && c <= 0xf4) {
+      follow = 3;
+      cp = c & 7;
+    } else
+      return false;
+    if (follow > n - i) return false;
+    for (unsigned j = 0; j < follow; ++j) {
+      c = s[i++];
+      if ((c & 0xc0) != 0x80) return false;
+      cp = (cp << 6) | (c & 63);
+    }
+    if ((follow == 1 && cp < 0x80) || (follow == 2 && cp < 0x800) ||
+        (follow == 3 && cp < 0x10000) || cp > 0x10ffff ||
+        (cp >= 0xd800 && cp <= 0xdfff))
+      return false;
+  }
+  return true;
+}
+
+struct Property {
+  Handle<String> key;
+  Handle<Object> value;
+};
+class PropertyIterator {
+ public:
+  PropertyIterator(const Property* begin, const Property* end)
+      : begin_(begin), it_(begin), end_(end) {}
+  void Advance() { ++it_; }
+  bool Done() { return it_ == end_; }
+  Handle<String> GetKnownKey() { return it_->key; }
+  Handle<String> GetKey(Handle<String>) { return it_->key; }
+  Handle<Object> GetValue(bool) { return it_->value; }
+  struct ValueIterator {
+    const Property* it;
+    Handle<Object> operator*() { return it->value; }
+    ValueIterator& operator++() {
+      ++it;
+      return *this;
+    }
+  };
+  ValueIterator RevisitValues() { return {begin_}; }
+
+ private:
+  const Property* begin_;
+  const Property* it_;
+  const Property* end_;
+};
+
+class V8Visitor : public msgpack::null_visitor {
+ public:
+  V8Visitor(Isolate* isolate, size_t input_size, std::string* error)
+      : isolate_(isolate), input_size_(input_size), error_(error) {
+    frames_.reserve(16);
+    values_.reserve(64);
+    properties_.reserve(64);
+  }
+  bool Fail(const char* message) {
+    if (error_->empty()) *error_ = message;
+    return false;
+  }
+  bool Add(Handle<Object> value) {
+    if (frames_.empty()) {
+      result_ = value;
+      return true;
+    }
+    Frame& frame = frames_.back();
+    if (frame.map) {
+      if (frame.key) {
+        if (!IsString(*value))
+          return Fail("MessagePack object keys must be strings");
+        frame.pending_key =
+            isolate_->factory()->InternalizeString(Handle<String>::cast(value));
+      } else {
+        properties_.push_back({frame.pending_key, value});
+        ++frame.completed;
+      }
+    } else {
+      values_.push_back(value);
+      ++frame.completed;
+    }
+    return true;
+  }
+  bool visit_nil() { return Add(isolate_->factory()->null_value()); }
+  bool visit_boolean(bool v) { return Add(isolate_->factory()->ToBoolean(v)); }
+  bool visit_positive_integer(uint64_t v) {
+    return Add(v <= kMaxSafeInteger
+                   ? isolate_->factory()->NewNumber(static_cast<double>(v))
+                   : Handle<Object>(BigInt::FromUint64(isolate_, v)));
+  }
+  bool visit_negative_integer(int64_t v) {
+    if (v >= 0) return visit_positive_integer(static_cast<uint64_t>(v));
+    return Add(v >= -static_cast<int64_t>(kMaxSafeInteger)
+                   ? isolate_->factory()->NewNumber(static_cast<double>(v))
+                   : Handle<Object>(BigInt::FromInt64(isolate_, v)));
+  }
+  bool visit_float32(float v) { return visit_float64(v); }
+  bool visit_float64(double v) {
+    return Add(isolate_->factory()->NewNumber(v));
+  }
+  bool visit_str(const char* data, uint32_t size) {
+    const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data);
+    if (size > static_cast<uint32_t>(String::kMaxLength) ||
+        !ValidUtf8(bytes, size))
+      return Fail("Invalid MessagePack UTF-8 string");
+    bool key = !frames_.empty() && frames_.back().map && frames_.back().key;
+    if (key) {
+      Frame& frame = frames_.back();
+      Handle<String> name;
+      if (!frame.feedback.is_null() && !frame.feedback->is_deprecated() &&
+          !frame.feedback->is_dictionary_map() &&
+          frame.completed <
+              static_cast<uint32_t>(frame.feedback->NumberOfOwnDescriptors())) {
+        DisallowGarbageCollection no_gc;
+        Tagged<String> expected =
+            String::cast(frame.feedback->instance_descriptors(isolate_)->GetKey(
+                InternalIndex(frame.completed)));
+        String::FlatContent flat = expected->GetFlatContent(no_gc);
+        if (flat.IsOneByte() &&
+            static_cast<uint32_t>(expected->length()) == size &&
+            String::IsAscii(bytes, static_cast<int>(size)) &&
+            std::memcmp(flat.ToOneByteVector().begin(), data, size) == 0)
+          name = handle(expected, isolate_);
+      }
+      if (name.is_null())
+        name = isolate_->factory()->InternalizeUtf8String(
+            base::Vector<const char>(data, static_cast<int>(size)));
+      frame.pending_key = name;
+      return true;
+    }
+    Handle<String> string;
+    if (size <= 10) {
+      // Match JSON's short-value internalization policy. The bounded cache
+      // additionally avoids repeat decoding/string-table lookups within a file.
+      uint64_t first = 0;
+      uint16_t last = 0;
+      if (size > 0) {
+        std::memcpy(&first, data, std::min<size_t>(size, sizeof(first)));
+      }
+      if (size > sizeof(first)) {
+        std::memcpy(&last, data + sizeof(first), size - sizeof(first));
+      }
+      size_t slot = (first ^ (first >> 32) ^ last ^ size) & 127;
+      ValueCacheEntry& entry = value_cache_[slot];
+      if (!entry.value.is_null() && entry.size == size &&
+          entry.first == first && entry.last == last) {
+        return Add(entry.value);
+      }
+      string = isolate_->factory()->InternalizeUtf8String(
+          base::Vector<const char>(data, static_cast<int>(size)));
+      entry = {first, last, size, string};
+      return Add(string);
+    }
+    if (!isolate_->factory()
+             ->NewStringFromUtf8(
+                 base::Vector<const char>(data, static_cast<int>(size)))
+             .ToHandle(&string))
+      return false;
+    return Add(string);
+  }
+  bool visit_bin(const char*, uint32_t) {
+    return Fail("Binary values are outside the initial JSON-shaped profile");
+  }
+  bool visit_ext(const char*, size_t) {
+    return Fail("Extensions are outside the initial JSON-shaped profile");
+  }
+  bool Start(bool map, uint32_t count) {
+    if (frames_.size() >= kMaxDepth || count > input_size_ / (map ? 2 : 1) ||
+        count > static_cast<uint32_t>(FixedArray::kMaxLength))
+      return Fail("MessagePack container limit exceeded");
+    if (!frames_.empty() && frames_.back().map && frames_.back().key)
+      return Fail("MessagePack object keys must be strings");
+    size_t depth = frames_.size();
+    frames_.push_back({map,
+                       true,
+                       count,
+                       0,
+                       map ? properties_.size() : values_.size(),
+                       {},
+                       feedback_[depth]});
+    return true;
+  }
+  bool start_map(uint32_t n) { return Start(true, n); }
+  bool start_array(uint32_t n) { return Start(false, n); }
+  bool start_map_key() {
+    frames_.back().key = true;
+    return true;
+  }
+  bool start_map_value() {
+    frames_.back().key = false;
+    return true;
+  }
+  bool end_map() {
+    Frame frame = frames_.back();
+    frames_.pop_back();
+    if (frame.completed != frame.count)
+      return Fail("Invalid MessagePack map count");
+    const Property* begin = properties_.data() + frame.start;
+    const Property* end = properties_.data() + properties_.size();
+    bool indexed = false;
+    for (auto it = begin; it != end; ++it) {
+      uint32_t index;
+      indexed |= it->key->AsArrayIndex(&index);
+    }
+    Handle<JSObject> object;
+    if (indexed) {
+      // Keep full own-property semantics for index keys. Optimize this less
+      // common path independently after measuring a representative corpus.
+      object = isolate_->factory()->NewJSObject(isolate_->object_function());
+      for (auto it = begin; it != end; ++it) {
+        PropertyKey property_key(isolate_, Handle<Name>::cast(it->key));
+        LookupIterator lookup(isolate_, object, property_key,
+                              LookupIterator::OWN);
+        if (JSObject::DefineOwnPropertyIgnoreAttributes(&lookup, it->value,
+                                                        NONE)
+                .is_null())
+          return false;
+      }
+    } else {
+      if (!frame.feedback.is_null() && frame.feedback->is_deprecated())
+        frame.feedback = Map::Update(isolate_, frame.feedback);
+      JSDataObjectBuilder builder(
+          isolate_, HOLEY_ELEMENTS, static_cast<int>(frame.count),
+          frame.feedback,
+          JSDataObjectBuilder::kHeapNumbersGuaranteedUniquelyOwned);
+      PropertyIterator it(begin, end);
+      object = builder.BuildFromIterator(it);
+    }
+    feedback_[frames_.size()] = handle(object->map(), isolate_);
+    properties_.resize(frame.start);
+    return Add(object);
+  }
+  bool end_array() {
+    Frame frame = frames_.back();
+    frames_.pop_back();
+    if (frame.completed != frame.count)
+      return Fail("Invalid MessagePack array count");
+    ElementsKind kind = PACKED_SMI_ELEMENTS;
+    for (size_t i = frame.start; i < values_.size(); ++i) {
+      if (IsHeapNumber(*values_[i]))
+        kind = PACKED_DOUBLE_ELEMENTS;
+      else if (!IsSmi(*values_[i])) {
+        kind = PACKED_ELEMENTS;
+        break;
+      }
+    }
+    Handle<JSArray> array =
+        isolate_->factory()->NewJSArray(kind, frame.count, frame.count);
+    {
+      DisallowGarbageCollection no_gc;
+      if (kind == PACKED_DOUBLE_ELEMENTS) {
+        Tagged<FixedDoubleArray> storage =
+            FixedDoubleArray::cast(array->elements());
+        for (uint32_t i = 0; i < frame.count; ++i)
+          storage->set(i, Object::Number(*values_[frame.start + i]));
+      } else {
+        Tagged<FixedArray> storage = FixedArray::cast(array->elements());
+        WriteBarrierMode mode = storage->GetWriteBarrierMode(no_gc);
+        for (uint32_t i = 0; i < frame.count; ++i)
+          storage->set(i, *values_[frame.start + i], mode);
+      }
+    }
+    values_.resize(frame.start);
+    return Add(array);
+  }
+  void parse_error(size_t, size_t) { Fail("Malformed MessagePack input"); }
+  void insufficient_bytes(size_t, size_t) {
+    Fail("Truncated MessagePack input");
+  }
+  MaybeHandle<Object> result() {
+    return error_->empty() ? MaybeHandle<Object>(result_)
+                           : MaybeHandle<Object>();
+  }
+
+ private:
+  struct Frame {
+    bool map, key;
+    uint32_t count, completed;
+    size_t start;
+    Handle<String> pending_key;
+    Handle<Map> feedback;
+  };
+  Isolate* isolate_;
+  size_t input_size_;
+  std::string* error_;
+  std::vector<Frame> frames_;
+  std::vector<Property> properties_;
+  std::vector<Handle<Object>> values_;
+  Handle<Map> feedback_[kMaxDepth];
+  Handle<Object> result_;
+  struct ValueCacheEntry {
+    uint64_t first;
+    uint16_t last;
+    uint32_t size;
+    Handle<String> value;
+  };
+  ValueCacheEntry value_cache_[128]{};
+};
+
+bool VisitTree(const msgpack::object& o, V8Visitor* v, size_t depth = 0) {
+  if (depth > kMaxDepth) return v->Fail("MessagePack container limit exceeded");
+  switch (o.type) {
+    case msgpack::type::NIL:
+      return v->visit_nil();
+    case msgpack::type::BOOLEAN:
+      return v->visit_boolean(o.via.boolean);
+    case msgpack::type::POSITIVE_INTEGER:
+      return v->visit_positive_integer(o.via.u64);
+    case msgpack::type::NEGATIVE_INTEGER:
+      return v->visit_negative_integer(o.via.i64);
+    case msgpack::type::FLOAT32:
+    case msgpack::type::FLOAT64:
+      return v->visit_float64(o.via.f64);
+    case msgpack::type::STR:
+      return v->visit_str(o.via.str.ptr, o.via.str.size);
+    case msgpack::type::ARRAY:
+      if (!v->start_array(o.via.array.size)) return false;
+      for (uint32_t i = 0; i < o.via.array.size; ++i)
+        if (!VisitTree(o.via.array.ptr[i], v, depth + 1)) return false;
+      return v->end_array();
+    case msgpack::type::MAP:
+      if (!v->start_map(o.via.map.size)) return false;
+      for (uint32_t i = 0; i < o.via.map.size; ++i) {
+        if (!v->start_map_key() ||
+            !VisitTree(o.via.map.ptr[i].key, v, depth + 1) ||
+            !v->start_map_value() ||
+            !VisitTree(o.via.map.ptr[i].val, v, depth + 1))
+          return false;
+      }
+      return v->end_map();
+    default:
+      return v->Fail("Unsupported MessagePack value");
+  }
+}
+
+bool ReadMPack(mpack_reader_t* reader, V8Visitor* visitor, size_t depth = 0) {
+  if (depth > kMaxDepth)
+    return visitor->Fail("MessagePack nesting limit exceeded");
+  mpack_tag_t tag = mpack_read_tag(reader);
+  if (mpack_reader_error(reader) != mpack_ok)
+    return visitor->Fail("Malformed or truncated MessagePack input");
+  switch (mpack_tag_type(&tag)) {
+    case mpack_type_nil:
+      return visitor->visit_nil();
+    case mpack_type_bool:
+      return visitor->visit_boolean(mpack_tag_bool_value(&tag));
+    case mpack_type_uint:
+      return visitor->visit_positive_integer(mpack_tag_uint_value(&tag));
+    case mpack_type_int:
+      return visitor->visit_negative_integer(mpack_tag_int_value(&tag));
+    case mpack_type_float:
+      return visitor->visit_float32(mpack_tag_float_value(&tag));
+    case mpack_type_double:
+      return visitor->visit_float64(mpack_tag_double_value(&tag));
+    case mpack_type_str: {
+      uint32_t size = mpack_tag_str_length(&tag);
+      const char* bytes = mpack_read_bytes_inplace(reader, size);
+      if (mpack_reader_error(reader) != mpack_ok)
+        return visitor->Fail("Truncated MessagePack string");
+      bool ok = visitor->visit_str(bytes, size);
+      mpack_done_str(reader);
+      return ok;
+    }
+    case mpack_type_array: {
+      uint32_t n = mpack_tag_array_count(&tag);
+      if (!visitor->start_array(n)) return false;
+      for (uint32_t i = 0; i < n; ++i)
+        if (!ReadMPack(reader, visitor, depth + 1)) return false;
+      mpack_done_array(reader);
+      return visitor->end_array();
+    }
+    case mpack_type_map: {
+      uint32_t n = mpack_tag_map_count(&tag);
+      if (!visitor->start_map(n)) return false;
+      for (uint32_t i = 0; i < n; ++i) {
+        if (!visitor->start_map_key() ||
+            !ReadMPack(reader, visitor, depth + 1) ||
+            !visitor->start_map_value() ||
+            !ReadMPack(reader, visitor, depth + 1))
+          return false;
+      }
+      mpack_done_map(reader);
+      return visitor->end_map();
+    }
+    default:
+      return visitor->Fail("Unsupported MessagePack value");
+  }
+}
+
+class ByteWriter {
+ public:
+  explicit ByteWriter(std::vector<uint8_t>* output) : output_(output) {}
+  void write(const char* bytes, size_t n) {
+    if (n > kMaxOutputBytes - output_->size())
+      throw std::length_error("MessagePack output limit exceeded");
+    output_->insert(output_->end(), reinterpret_cast<const uint8_t*>(bytes),
+                    reinterpret_cast<const uint8_t*>(bytes) + n);
+  }
+
+ private:
+  std::vector<uint8_t>* output_;
+};
+
+class Encoder {
+ public:
+  Encoder(Isolate* isolate, std::vector<uint8_t>* output, std::string* error)
+      : isolate_(isolate), writer_(output), packer_(writer_), error_(error) {}
+  bool Fail(const char* s) {
+    *error_ = s;
+    return false;
+  }
+  bool Number(double n) {
+    if (std::isfinite(n) && !(n == 0 && std::signbit(n)) &&
+        std::trunc(n) == n && n >= -static_cast<double>(kMaxSafeInteger) &&
+        n <= static_cast<double>(kMaxSafeInteger)) {
+      if (n >= 0)
+        packer_.pack_uint64(static_cast<uint64_t>(n));
+      else
+        packer_.pack_int64(static_cast<int64_t>(n));
+    } else
+      packer_.pack_double(n);
+    return true;
+  }
+  bool StringValue(Handle<String> string) {
+    string = String::Flatten(isolate_, string);
+    if (!String::IsWellFormedUnicode(isolate_, string))
+      return Fail("Unpaired UTF-16 surrogate is outside the UTF-8 profile");
+    int length;
+    auto bytes = string->ToCString(ALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
+    packer_.pack_str(length);
+    packer_.pack_str_body(bytes.get(), length);
+    return true;
+  }
+  bool Value(Handle<Object> value, size_t depth = 0) {
+    if (depth > kMaxDepth) return Fail("MessagePack nesting limit exceeded");
+    if (IsSmi(*value) || IsHeapNumber(*value))
+      return Number(Object::Number(*value));
+    if (IsNull(*value, isolate_)) {
+      packer_.pack_nil();
+      return true;
+    }
+    if (IsBoolean(*value, isolate_)) {
+      if (IsTrue(*value, isolate_))
+        packer_.pack_true();
+      else
+        packer_.pack_false();
+      return true;
+    }
+    if (IsString(*value)) return StringValue(Handle<String>::cast(value));
+    if (IsBigInt(*value)) {
+      auto integer = Handle<BigInt>::cast(value);
+      bool lossless;
+      int64_t signed_value = integer->AsInt64(&lossless);
+      if (lossless)
+        packer_.pack_int64(signed_value);
+      else {
+        uint64_t n = integer->AsUint64(&lossless);
+        if (!lossless) return Fail("BigInt exceeds MessagePack 64-bit range");
+        packer_.pack_uint64(n);
+      }
+      return true;
+    }
+    if (!IsJSObject(*value) ||
+        (JSObject::cast(*value)->map()->instance_type() != JS_OBJECT_TYPE &&
+         !IsJSArray(*value)))
+      return Fail("Only data objects and dense arrays are supported");
+    if (depth >= kMaxDepth) return Fail("MessagePack nesting limit exceeded");
+    for (auto ancestor : ancestors_)
+      if (*ancestor == *value)
+        return Fail("Cyclic objects cannot be encoded as MessagePack trees");
+    ancestors_.push_back(value);
+    bool ok = true;
+    Handle<JSObject> object = Handle<JSObject>::cast(value);
+    if (IsJSArray(*object)) {
+      Handle<JSArray> array = Handle<JSArray>::cast(object);
+      uint32_t length = static_cast<uint32_t>(Object::Number(array->length()));
+      packer_.pack_array(length);
+      for (uint32_t i = 0; i < length && ok; ++i) {
+        HandleScope scope(isolate_);
+        LookupIterator lookup(isolate_, object, i, object, LookupIterator::OWN);
+        if (lookup.state() != LookupIterator::DATA)
+          ok = Fail("Sparse arrays and accessors are unsupported");
+        else
+          ok = Value(lookup.GetDataValue(), depth + 1);
+      }
+    } else {
+      Handle<FixedArray> keys;
+      if (!KeyAccumulator::GetKeys(
+               isolate_, object, KeyCollectionMode::kOwnOnly,
+               ENUMERABLE_STRINGS, GetKeysConversion::kConvertToString)
+               .ToHandle(&keys))
+        return false;
+      packer_.pack_map(keys->length());
+      for (int i = 0; i < keys->length() && ok; ++i) {
+        HandleScope scope(isolate_);
+        Handle<String> key(handle(String::cast(keys->get(i)), isolate_));
+        PropertyKey property_key(isolate_, Handle<Name>::cast(key));
+        LookupIterator lookup(isolate_, object, property_key,
+                              LookupIterator::OWN);
+        if (lookup.state() != LookupIterator::DATA)
+          ok = Fail("Accessors are unsupported");
+        else
+          ok = StringValue(key) && Value(lookup.GetDataValue(), depth + 1);
+      }
+    }
+    ancestors_.pop_back();
+    return ok;
+  }
+
+ private:
+  Isolate* isolate_;
+  ByteWriter writer_;
+  msgpack::packer<ByteWriter> packer_;
+  std::string* error_;
+  std::vector<Handle<Object>> ancestors_;
+};
+}  // namespace
+
+MaybeHandle<Object> DecodeMessagePack(Isolate* isolate,
+                                      base::Vector<const uint8_t> input,
+                                      std::string* error,
+                                      MessagePackDecodeMode mode) {
+  error->clear();
+  if (input.empty() || input.size() > kMaxOutputBytes) {
+    *error = "Invalid MessagePack input size";
+    return {};
+  }
+  DisallowJavascriptExecution no_js(isolate);
+  try {
+    V8Visitor visitor(isolate, input.size(), error);
+    size_t offset = 0;
+    if (mode == MessagePackDecodeMode::kVisitor) {
+      if (!msgpack::parse(reinterpret_cast<const char*>(input.begin()),
+                          input.size(), offset, visitor)) {
+        if (error->empty()) *error = "MessagePack parse failed";
+        return {};
+      }
+    } else if (mode == MessagePackDecodeMode::kMPackReader) {
+      mpack_reader_t reader;
+      mpack_reader_init_data(
+          &reader, reinterpret_cast<const char*>(input.begin()), input.size());
+      bool ok = ReadMPack(&reader, &visitor);
+      if (ok && mpack_reader_remaining(&reader, nullptr) != 0)
+        ok = visitor.Fail("Trailing bytes after MessagePack value");
+      if (!ok) mpack_reader_flag_error(&reader, mpack_error_data);
+      mpack_error_t status = mpack_reader_destroy(&reader);
+      if (!ok || status != mpack_ok) {
+        if (error->empty()) *error = "MPack reader failed";
+        return {};
+      }
+      offset = input.size();
+    } else {
+      auto tree = msgpack::unpack(
+          reinterpret_cast<const char*>(input.begin()), input.size(), offset,
+          nullptr, nullptr,
+          msgpack::unpack_limit(input.size(), input.size() / 2, input.size(),
+                                input.size(), input.size(), kMaxDepth));
+      if (!VisitTree(tree.get(), &visitor)) return {};
+    }
+    if (offset != input.size()) {
+      *error = "Trailing bytes after MessagePack value";
+      return {};
+    }
+    return visitor.result();
+  } catch (const std::exception& e) {
+    *error = e.what();
+    return {};
+  } catch (...) {
+    *error = "Native MessagePack exception";
+    return {};
+  }
+}
+
+bool EncodeMessagePack(Isolate* isolate, Handle<Object> value,
+                       std::vector<uint8_t>* output, std::string* error) {
+  error->clear();
+  output->clear();
+  DisallowJavascriptExecution no_js(isolate);
+  try {
+    Encoder encoder(isolate, output, error);
+    bool ok = encoder.Value(value);
+    if (!ok) output->clear();
+    return ok;
+  } catch (const std::exception& e) {
+    *error = e.what();
+    output->clear();
+    return false;
+  } catch (...) {
+    *error = "Native MessagePack exception";
+    output->clear();
+    return false;
+  }
+}
+}  // namespace internal
+}  // namespace v8
