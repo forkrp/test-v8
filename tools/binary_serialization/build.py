@@ -25,6 +25,10 @@ def main():
     p.add_argument('--ndk',type=Path,default=Path('/Users/james/software/android/sdk/ndk/27.3.13750724'))
     args = p.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
+    sources = ['src/json/json-parser.cc','src/msgpack/messagepack.cc','tools/binary_serialization/benchmark.cc']
+    source_hashes = {s:digest(ROOT/s) for s in sources}
+    header_hashes = {s:digest(ROOT/s) for s in
+        ['src/msgpack/messagepack.h','src/objects/js-data-object-builder.h']}
     ninja = (args.v8_build/'obj/v8_base_without_compiler.ninja').read_text()
     variables = dict(line.split(' = ',1) for line in ninja.splitlines() if ' = ' in line and not line.startswith(' '))
     flags = shlex.split(variables['defines']+' '+variables['cflags']+' '+variables['cflags_cc'])
@@ -45,7 +49,6 @@ def main():
             flags[i]='--sysroot='+str((args.v8_build/flag.split('=',1)[1]).resolve())
     android=args.platform.startswith('android')
     compiler = str(args.ndk/'toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++') if android else '/Library/Developer/CommandLineTools/usr/bin/clang++'
-    sources = ['src/json/json-parser.cc','src/msgpack/messagepack.cc','tools/binary_serialization/benchmark.cc']
     replacement = {}
     commands = []
     mpack_objects=[]
@@ -84,12 +87,14 @@ def main():
             '-mmacos-version-min=11.0','-o',str(binary),*[str(x) for x in objects],'-framework','Foundation']
     commands.append(command)
     subprocess.run(command,check=True,cwd=ROOT)
+    if any(digest(ROOT/s)!=expected for s,expected in {**source_hashes,**header_hashes}.items()):
+        raise RuntimeError('Experiment source changed during build; do not use this binary. Rebuild with frozen sources.')
     manifest = {'v8BaseCommit': subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
         'msgpackCommit':subprocess.check_output(['git','rev-parse','cpp_master'],cwd=args.msgpack,text=True).strip(),
         'msgpackCCommit':subprocess.check_output(['git','rev-parse','c_master'],cwd=args.msgpack,text=True).strip(),
         'mpackCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=args.mpack,text=True).strip(),
         'platform':args.platform,'v8Build':str(args.v8_build),'binary':str(binary),'binarySha256':digest(binary),
-        'sources':{s:digest(ROOT/s) for s in sources},
+        'sources':source_hashes,'headers':header_hashes,
         'builderSha256':digest(ROOT/'src/objects/js-data-object-builder.h'),
         'reusedLinkInputs':{str(x):digest(x) for x in objects},'commands':commands,
         'note':'Native prototype linked with existing V8 core objects. Only listed experiment sources recompiled. No reference checkout mutation or GN production integration.'}

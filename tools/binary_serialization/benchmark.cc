@@ -163,7 +163,24 @@ void SelfTest(v8::Isolate* isolate, v8::Local<v8::Context> context) {
       "\"4294967294\":4}')",
       "Array.from({length:4000},(_,i)=>({id:i,name:'记录'+i,score:i/"
       "8,child:{value:i%2?1:'x'},tags:[i,null]}))",
-      "[{x:1,y:2},{x:1.25,y:3},{x:'changed'},{z:4},{x:null,y:2}]"};
+      "[{x:1,y:2},{x:1.25,y:3},{x:'changed'},{z:4},{x:null,y:2}]",
+      "''",
+      "'\\u0000\\u007f\\u0080\\u00ff\\u0100\\u07ff\\u0800\\ud7ff\\ue000\\uffff"
+      "'",
+      "String.fromCodePoint(0x10000,0x10ffff,0x1f30f)",
+      "Array.from({length:4096},(_,i)=>String.fromCodePoint(i<2048?i:"
+      "0x10000+(i-2048)*511)).join('')",
+      "Array.from({length:65536},(_,i)=>i>=0xd800&&i<=0xdfff?'':"
+      "String.fromCodePoint(i)).join('')",
+      "String.fromCodePoint(...Array.from({length:256},(_,i)=>i)).repeat(32)",
+      "['a'.repeat(64), 'a'.repeat(10)+'b'+'a'.repeat(53)]",
+      "Array.from({length:6000},(_,i)=>i/10).concat(9007199254740992n)",
+      "({numbers:Array.from({length:6000},(_,i)=>i/10)})",
+      "[{'标题':'中文文本🌏'.repeat(100)}, {'标题':'中文文本🌏'.repeat(100)}]",
+      "Array.from({length:2000},(_,i)=>({left:{x:i,y:i/8},"
+      "right:{name:'different',ok:i%2===0},tags:[i,null]}))",
+      "[{a:[1.5,-0,NaN,Infinity]}, {a:[1.5,'late',-0,NaN]},"
+      "{a:[1,2,9007199254740991,9007199254740992n]}]"};
   auto equal =
       Evaluate(isolate, context,
                "(function eq(a,b){if(Object.is(a,b))return "
@@ -218,6 +235,13 @@ void SelfTest(v8::Isolate* isolate, v8::Local<v8::Context> context) {
       {0xc1},
       {0xa1, 0xff},
       {0xa3, 0xed, 0xa0, 0x80},
+      {0xa2, 0xc0, 0xaf},
+      {0xa2, 0xc2, 0x20},
+      {0xa3, 0xe0, 0x80, 0x80},
+      {0xa4, 0xf0, 0x80, 0x80, 0x80},
+      {0xa4, 0xf4, 0x90, 0x80, 0x80},
+      {0xa4, 0xf5, 0x80, 0x80, 0x80},
+      {0xa1, 0xc2},
       {0x81, 0x01, 0xc0},
       {0xdd, 0xff, 0xff, 0xff, 0xff},
       {0xdf, 0xff, 0xff, 0xff, 0xff},
@@ -227,6 +251,16 @@ void SelfTest(v8::Isolate* isolate, v8::Local<v8::Context> context) {
   auto deep = std::vector<uint8_t>(257, 0x91);
   deep.push_back(0xc0);
   malformed.push_back(deep);
+  // Both strings have the same cache fingerprint, but the second differs in
+  // an unsampled byte and contains invalid UTF-8. A hash hit must still check
+  // the complete input before reusing a validated string.
+  std::vector<uint8_t> collision = {0x92, 0xd9, 64};
+  collision.insert(collision.end(), 64, 'a');
+  collision.push_back(0xd9);
+  collision.push_back(64);
+  collision.insert(collision.end(), 64, 'a');
+  collision[3 + 64 + 2 + 10] = 0xff;
+  malformed.push_back(collision);
   for (const auto& bytes : malformed) {
     for (auto mode : {i::MessagePackDecodeMode::kVisitor,
                       i::MessagePackDecodeMode::kNativeTree,

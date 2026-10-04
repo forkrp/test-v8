@@ -38,6 +38,17 @@ def corpus():
       'integers':[i%65536 for i in range(120000)],
       'text_heavy':[{'id':i,'body':f'Document {i}. '+'Native platforms load configuration and content as JavaScript objects. '*6} for i in range(2500)],
       'unicode':[{'id':i,'标题':f'内容-{i}','body':'中文文本 🌏 café Ελληνικά '*12} for i in range(2500)],
+      'unicode_unique':[{'id':i,'标题':f'内容-{i}',
+          'body':(f'{i}: 中文文本 🌏 café Ελληνικά ')*12} for i in range(2500)],
+      'ascii_unique':[{'id':i,'body':(f'{i}: Native configuration content. ')*24}
+          for i in range(2500)],
+      'latin1_unique':[{'id':i,'body':(f'{i}: Native configuration content. ')*24+' café'}
+          for i in range(2500)],
+      'alternating_roles':[{'left':{'x':i,'y':i/8},
+          'right':{'name':f'entry-{i}','active':i%2==0},'tags':[i,None]}
+          for i in range(5000)],
+      'mixed_late':[ ((i%1000)-500)/10 for i in range(120000)] + ['tail',None],
+      'nested_numeric':{'numbers':[ ((i%1000)-500)/10 for i in range(120000)]},
       'varying_shapes':[{f'key_{i%127}':i, 'label' if i%2 else 'title':f'entry {i}',
           f'extra_{i%31}':{f'nested_{i%7}':i%11},'flag':i%2==0,
           'optional':None if i%3 else [i,i+1]} for i in range(5000)]}

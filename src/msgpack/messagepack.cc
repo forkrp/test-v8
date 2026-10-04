@@ -21,6 +21,7 @@
 #include "src/objects/keys.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/string-inl.h"
+#include "src/utils/memcopy.h"
 
 namespace v8 {
 namespace internal {
@@ -29,10 +30,35 @@ constexpr uint64_t kMaxSafeInteger = 9007199254740991ULL;
 constexpr size_t kMaxDepth = 256;
 constexpr size_t kMaxOutputBytes = 256 * 1024 * 1024;
 
-bool ValidUtf8(const uint8_t* s, size_t n) {
+struct Utf8Info {
+  int length = 0;
+  int ascii_prefix = 0;
+  bool ascii = true;
+  bool one_byte = true;
+};
+
+// Validate and determine the final V8 representation in one pass. Word loads
+// use memcpy, so unaligned input is safe on both ARM32 and ARM64.
+bool ScanUtf8(const uint8_t* s, size_t n, Utf8Info* info) {
+  constexpr uintptr_t kHighBits =
+      (std::numeric_limits<uintptr_t>::max() / 255) * 128;
   for (size_t i = 0; i < n;) {
+    if (n - i >= sizeof(uintptr_t)) {
+      uintptr_t word;
+      std::memcpy(&word, s + i, sizeof(word));
+      if ((word & kHighBits) == 0) {
+        info->length += sizeof(word);
+        i += sizeof(word);
+        continue;
+      }
+    }
     uint8_t c = s[i++];
-    if (c < 0x80) continue;
+    if (c < 0x80) {
+      ++info->length;
+      continue;
+    }
+    if (info->ascii) info->ascii_prefix = static_cast<int>(i - 1);
+    info->ascii = false;
     unsigned follow;
     uint32_t cp;
     if (c >= 0xc2 && c <= 0xdf) {
@@ -56,8 +82,83 @@ bool ValidUtf8(const uint8_t* s, size_t n) {
         (follow == 3 && cp < 0x10000) || cp > 0x10ffff ||
         (cp >= 0xd800 && cp <= 0xdfff))
       return false;
+    info->one_byte &= cp <= 0xff;
+    info->length += cp > 0xffff ? 2 : 1;
   }
   return true;
+}
+
+// Input has passed ScanUtf8 and remains immutable throughout this call. Decode
+// complete code points rather than running V8's lossy DFA for each input byte.
+template <typename Char>
+void DecodeUtf8(const uint8_t* s, size_t n, int ascii_prefix, Char* out) {
+  CopyChars(out, s, ascii_prefix);
+  out += ascii_prefix;
+  for (size_t i = ascii_prefix; i < n;) {
+    uint32_t cp = s[i++];
+    if (cp >= 0x80) {
+      if (cp < 0xe0) {
+        cp = ((cp & 31) << 6) | (s[i++] & 63);
+      } else if (cp < 0xf0) {
+        cp = ((cp & 15) << 12) | ((s[i] & 63) << 6) | (s[i + 1] & 63);
+        i += 2;
+      } else {
+        cp = ((cp & 7) << 18) | ((s[i] & 63) << 12) | ((s[i + 1] & 63) << 6) |
+             (s[i + 2] & 63);
+        i += 3;
+      }
+    }
+    if constexpr (sizeof(Char) == 2) {
+      if (cp > 0xffff) {
+        *out++ = static_cast<Char>(0xd800 + ((cp - 0x10000) >> 10));
+        *out++ = static_cast<Char>(0xdc00 + ((cp - 0x10000) & 1023));
+        continue;
+      }
+    }
+    *out++ = static_cast<Char>(cp);
+  }
+}
+
+MaybeHandle<String> MakeUtf8String(Isolate* isolate, const uint8_t* bytes,
+                                   uint32_t size, const Utf8Info& info) {
+  if (info.ascii) {
+    return isolate->factory()->NewStringFromOneByte(
+        base::Vector<const uint8_t>(bytes, static_cast<int>(size)));
+  }
+  if (info.one_byte) {
+    Handle<SeqOneByteString> result;
+    if (!isolate->factory()->NewRawOneByteString(info.length).ToHandle(&result))
+      return {};
+    DisallowGarbageCollection no_gc;
+    DecodeUtf8(bytes, size, info.ascii_prefix, result->GetChars(no_gc));
+    return result;
+  }
+  Handle<SeqTwoByteString> result;
+  if (!isolate->factory()->NewRawTwoByteString(info.length).ToHandle(&result))
+    return {};
+  DisallowGarbageCollection no_gc;
+  DecodeUtf8(bytes, size, info.ascii_prefix, result->GetChars(no_gc));
+  return result;
+}
+
+// A cheap sampled hash chooses a cache slot. It is never sufficient to accept
+// a cache hit: length and every byte must also match a previously validated
+// input span. Cache input pointers refer only to caller-owned immutable bytes.
+uint32_t StringCacheHash(const uint8_t* data, uint32_t size) {
+  uint32_t first = 0, middle = 0, last = 0;
+  if (size <= 4) {
+    if (size) std::memcpy(&first, data, size);
+  } else {
+    std::memcpy(&first, data, 4);
+    std::memcpy(&middle, data + (size - 4) / 2, 4);
+    std::memcpy(&last, data + size - 4, 4);
+  }
+  uint32_t hash = first ^ (middle << 11) ^ (middle >> 21) ^ (last << 22) ^
+                  (last >> 10) ^ size;
+  hash ^= hash >> 16;
+  hash *= 0x7feb352d;
+  hash ^= hash >> 15;
+  return hash;
 }
 
 struct Property {
@@ -113,6 +214,8 @@ class V8Visitor : public msgpack::null_visitor {
           return Fail("MessagePack object keys must be strings");
         frame.pending_key =
             isolate_->factory()->InternalizeString(Handle<String>::cast(value));
+        uint32_t index;
+        frame.indexed |= frame.pending_key->AsArrayIndex(&index);
       } else {
         properties_.push_back({frame.pending_key, value});
         ++frame.completed;
@@ -142,62 +245,44 @@ class V8Visitor : public msgpack::null_visitor {
   }
   bool visit_str(const char* data, uint32_t size) {
     const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data);
-    if (size > static_cast<uint32_t>(String::kMaxLength) ||
-        !ValidUtf8(bytes, size))
+    if (size > static_cast<uint32_t>(String::kMaxLength))
       return Fail("Invalid MessagePack UTF-8 string");
     bool key = !frames_.empty() && frames_.back().map && frames_.back().key;
-    if (key) {
-      Frame& frame = frames_.back();
-      Handle<String> name;
-      if (!frame.feedback.is_null() && !frame.feedback->is_deprecated() &&
-          !frame.feedback->is_dictionary_map() &&
-          frame.completed <
-              static_cast<uint32_t>(frame.feedback->NumberOfOwnDescriptors())) {
-        DisallowGarbageCollection no_gc;
-        Tagged<String> expected =
-            String::cast(frame.feedback->instance_descriptors(isolate_)->GetKey(
-                InternalIndex(frame.completed)));
-        String::FlatContent flat = expected->GetFlatContent(no_gc);
-        if (flat.IsOneByte() &&
-            static_cast<uint32_t>(expected->length()) == size &&
-            String::IsAscii(bytes, static_cast<int>(size)) &&
-            std::memcmp(flat.ToOneByteVector().begin(), data, size) == 0)
-          name = handle(expected, isolate_);
+    StringCacheEntry* cached = nullptr;
+    if (size <= kMaxCachedStringBytes) {
+      uint32_t hash = StringCacheHash(bytes, size);
+      cached = key ? &key_cache_[hash & 255] : &value_cache_[hash & 127];
+      if (!cached->value.is_null() && cached->size == size &&
+          (!size || std::memcmp(cached->bytes, bytes, size) == 0)) {
+        if (key) {
+          frames_.back().pending_key = cached->value;
+          frames_.back().indexed |= cached->indexed;
+          return true;
+        }
+        return Add(cached->value);
       }
-      if (name.is_null())
-        name = isolate_->factory()->InternalizeUtf8String(
-            base::Vector<const char>(data, static_cast<int>(size)));
-      frame.pending_key = name;
+    }
+    Utf8Info info;
+    if (!ScanUtf8(bytes, size, &info))
+      return Fail("Invalid MessagePack UTF-8 string");
+    Handle<String> string;
+    bool internalize = key || size <= 10;
+    if (internalize && info.ascii) {
+      string = isolate_->factory()->InternalizeString(
+          base::Vector<const uint8_t>(bytes, static_cast<int>(size)));
+    } else if (!MakeUtf8String(isolate_, bytes, size, info).ToHandle(&string)) {
+      return false;
+    } else if (internalize) {
+      string = isolate_->factory()->InternalizeString(string);
+    }
+    uint32_t index;
+    bool indexed = key && string->AsArrayIndex(&index);
+    if (cached) *cached = {bytes, size, string, indexed};
+    if (key) {
+      frames_.back().pending_key = string;
+      frames_.back().indexed |= indexed;
       return true;
     }
-    Handle<String> string;
-    if (size <= 10) {
-      // Match JSON's short-value internalization policy. The bounded cache
-      // additionally avoids repeat decoding/string-table lookups within a file.
-      uint64_t first = 0;
-      uint16_t last = 0;
-      if (size > 0) {
-        std::memcpy(&first, data, std::min<size_t>(size, sizeof(first)));
-      }
-      if (size > sizeof(first)) {
-        std::memcpy(&last, data + sizeof(first), size - sizeof(first));
-      }
-      size_t slot = (first ^ (first >> 32) ^ last ^ size) & 127;
-      ValueCacheEntry& entry = value_cache_[slot];
-      if (!entry.value.is_null() && entry.size == size &&
-          entry.first == first && entry.last == last) {
-        return Add(entry.value);
-      }
-      string = isolate_->factory()->InternalizeUtf8String(
-          base::Vector<const char>(data, static_cast<int>(size)));
-      entry = {first, last, size, string};
-      return Add(string);
-    }
-    if (!isolate_->factory()
-             ->NewStringFromUtf8(
-                 base::Vector<const char>(data, static_cast<int>(size)))
-             .ToHandle(&string))
-      return false;
     return Add(string);
   }
   bool visit_bin(const char*, uint32_t) {
@@ -213,13 +298,29 @@ class V8Visitor : public msgpack::null_visitor {
     if (!frames_.empty() && frames_.back().map && frames_.back().key)
       return Fail("MessagePack object keys must be strings");
     size_t depth = frames_.size();
+    Handle<String> role;
+    if (!frames_.empty()) {
+      const Frame& parent = frames_.back();
+      role = parent.map ? parent.pending_key : parent.role;
+    }
+    size_t feedback_slot =
+        (depth * 17 + (role.is_null() ? 0 : role->EnsureHash())) & 63;
+    const MapFeedback& cached = feedback_[feedback_slot];
+    bool same_role = role.is_null()
+                         ? cached.role.is_null()
+                         : !cached.role.is_null() && *role == *cached.role;
+    Handle<Map> feedback =
+        map && same_role && cached.depth == depth ? cached.map : Handle<Map>();
     frames_.push_back({map,
                        true,
                        count,
                        0,
                        map ? properties_.size() : values_.size(),
                        {},
-                       feedback_[depth]});
+                       feedback,
+                       role,
+                       feedback_slot,
+                       false});
     return true;
   }
   bool start_map(uint32_t n) { return Start(true, n); }
@@ -239,13 +340,8 @@ class V8Visitor : public msgpack::null_visitor {
       return Fail("Invalid MessagePack map count");
     const Property* begin = properties_.data() + frame.start;
     const Property* end = properties_.data() + properties_.size();
-    bool indexed = false;
-    for (auto it = begin; it != end; ++it) {
-      uint32_t index;
-      indexed |= it->key->AsArrayIndex(&index);
-    }
     Handle<JSObject> object;
-    if (indexed) {
+    if (frame.indexed) {
       // Keep full own-property semantics for index keys. Optimize this less
       // common path independently after measuring a representative corpus.
       object = isolate_->factory()->NewJSObject(isolate_->object_function());
@@ -268,7 +364,8 @@ class V8Visitor : public msgpack::null_visitor {
       PropertyIterator it(begin, end);
       object = builder.BuildFromIterator(it);
     }
-    feedback_[frames_.size()] = handle(object->map(), isolate_);
+    feedback_[frame.feedback_slot] = {frames_.size(), frame.role,
+                                      handle(object->map(), isolate_)};
     properties_.resize(frame.start);
     return Add(object);
   }
@@ -298,8 +395,9 @@ class V8Visitor : public msgpack::null_visitor {
       } else {
         Tagged<FixedArray> storage = FixedArray::cast(array->elements());
         WriteBarrierMode mode = storage->GetWriteBarrierMode(no_gc);
-        for (uint32_t i = 0; i < frame.count; ++i)
+        for (uint32_t i = 0; i < frame.count; ++i) {
           storage->set(i, *values_[frame.start + i], mode);
+        }
       }
     }
     values_.resize(frame.start);
@@ -321,6 +419,9 @@ class V8Visitor : public msgpack::null_visitor {
     size_t start;
     Handle<String> pending_key;
     Handle<Map> feedback;
+    Handle<String> role;
+    size_t feedback_slot;
+    bool indexed;
   };
   Isolate* isolate_;
   size_t input_size_;
@@ -328,15 +429,22 @@ class V8Visitor : public msgpack::null_visitor {
   std::vector<Frame> frames_;
   std::vector<Property> properties_;
   std::vector<Handle<Object>> values_;
-  Handle<Map> feedback_[kMaxDepth];
+  struct MapFeedback {
+    size_t depth = 0;
+    Handle<String> role;
+    Handle<Map> map;
+  };
+  MapFeedback feedback_[64]{};
   Handle<Object> result_;
-  struct ValueCacheEntry {
-    uint64_t first;
-    uint16_t last;
+  static constexpr uint32_t kMaxCachedStringBytes = 4096;
+  struct StringCacheEntry {
+    const uint8_t* bytes;
     uint32_t size;
     Handle<String> value;
+    bool indexed;
   };
-  ValueCacheEntry value_cache_[128]{};
+  StringCacheEntry key_cache_[256]{};
+  StringCacheEntry value_cache_[128]{};
 };
 
 bool VisitTree(const msgpack::object& o, V8Visitor* v, size_t depth = 0) {
