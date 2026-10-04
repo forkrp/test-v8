@@ -1,5 +1,11 @@
 # Native binary serialization investigation
 
+The decoder now includes the 2026-10-05 optimization pass described below.
+The original nine-workload measurements are preserved under **Original Android
+results (frozen baseline)**; they describe commit `fe97eae01`, before the
+decoder optimizations. The paired optimization evidence compares that exact
+native executable with the updated decoder on the same device and core objects.
+
 This experiment decodes caller-owned native bytes directly into ordinary V8
 objects and arrays. It also encodes those graphs into owned native byte buffers.
 There is no third-party JavaScript codec in either measured path. The target is
@@ -57,6 +63,51 @@ an intermediate UTF-8 buffer. The adapter translation unit enables C++
 exceptions and catches dependency exceptions at its boundary; other V8
 translation units retain their existing exception configuration. A production
 integration must account for that build-system requirement.
+
+## Decoder optimization pass
+
+The optimized decoder validates UTF-8 and computes UTF-16 length and the
+one-byte/two-byte representation in a combined preflight. It then allocates the
+final V8 string and decodes complete code points directly into it. ASCII word
+scanning and bulk copying of the ASCII prefix are safe on unaligned ARM32 and
+ARM64 input. This removes the separate validation pass followed by V8's lossy
+DFA preflight and conversion, while retaining strict malformed-input rejection.
+
+Per-decode caches contain 256 key entries and 128 value entries, with a maximum
+of 4,096 UTF-8 bytes per cached string. The sampled hash selects a slot; length
+and every byte must match a previously validated input before a cached V8
+string can be reused. Input references stay within caller-owned immutable bytes
+for the synchronous call, and all V8 references remain rooted handles. Keys are
+internalized; equal long primitive string values can share storage without
+changing their JavaScript value semantics. Unique-string controls separate
+transcoding gains from gains due to repeated values.
+
+Key cache entries also retain array-index classification, eliminating repeated
+classification when an object closes. Expected-map feedback is scoped by
+nesting depth and the surrounding property role, with 64 bounded entries.
+This distinguishes different object roles at the same depth. Arrays did not
+write maps into the original feedback table; the optimization addresses sharing
+between object roles, not array-map pollution.
+
+An experimental unboxed numeric staging path was excluded after mixed-array
+fallback and additional probing produced regressions. The final implementation
+retains the established numeric-array construction path. The late-mixed and
+nested-numeric controls remain in the corpus to guard that decision.
+
+`compare_decode.py` compares the frozen and updated native executables using
+identical payloads, V8 core object fingerprints, CPU affinity, and iteration
+counts per codec. Shared counts avoid comparing different GC averaging windows.
+Each ABI uses two independently shuffled five-round batches. The extended
+corpus has 15 workloads: the original nine plus unique Unicode, unique ASCII,
+unique Latin1 with an ASCII prefix, alternating nested roles, a late mixed
+array, and a numeric array nested inside an object. The independent C checker
+and all three native decoder backends validate every prepared corpus.
+
+The current optimized correctness suite has 43 expression fixtures, 18
+malformed-input cases, incomplete prefixes, and 2,000 deterministic random byte
+inputs. It additionally covers all non-surrogate BMP code points, Latin1,
+supplementary code-point samples and boundaries, and cache-fingerprint
+collisions with both valid and invalid strings.
 
 ## Data contract
 
@@ -129,7 +180,62 @@ files and build manifests remain under `out/binary-serialization/`. The
 aggregator verifies source, builder, binary, runner, manifest, device-binary,
 payload, and independent C checker results before emitting the summary.
 
-## Android results
+## Optimized Android results
+
+These are medians of ten samples from the validated paired batches. The before
+executable is frozen at `fe97eae01`; the optimized native source is
+`e6f93a891`. Both use the same V8 core objects and JSON builder. All timings
+are milliseconds per complete byte-input decode, including GC in the timed loop.
+
+| Workload | ARM64 before | ARM64 optimized | ARM64 JSON | ARM32 before | ARM32 optimized | ARM32 JSON |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| records_250 | 0.406 | 0.324 | 0.386 | 0.434 | 0.331 | 0.432 |
+| records_2500 | 4.093 | 3.264 | 4.123 | 4.461 | 3.638 | 4.588 |
+| records_25000 | 57.951 | 47.888 | 51.418 | 63.562 | 55.346 | 57.760 |
+| short_decimals | 7.698 | 7.697 | 13.768 | 7.705 | 7.636 | 15.956 |
+| integers | 3.882 | 3.833 | 4.917 | 4.307 | 4.314 | 5.712 |
+| text_heavy | 3.079 | 1.887 | 2.997 | 3.337 | 2.095 | 3.780 |
+| unicode | 16.573 | 1.739 | 13.836 | 16.564 | 2.089 | 14.584 |
+| unicode_unique | 17.610 | 9.848 | 14.732 | 17.399 | 9.884 | 15.307 |
+| ascii_unique | 5.280 | 3.360 | 5.076 | 5.868 | 3.654 | 6.283 |
+| latin1_unique | 5.417 | 3.444 | 9.674 | 6.039 | 3.742 | 10.086 |
+| alternating_roles | 9.465 | 6.658 | 7.391 | 10.459 | 7.433 | 7.471 |
+| mixed_late | 7.287 | 7.147 | 13.180 | 7.120 | 7.078 | 14.657 |
+| nested_numeric | 7.745 | 7.588 | 13.892 | 7.798 | 7.672 | 15.966 |
+| varying_shapes | 13.426 | 11.821 | 9.037 | 15.187 | 14.512 | 11.557 |
+| protocol_fixture | 0.531 | 0.380 | 0.423 | 0.569 | 0.410 | 0.502 |
+
+Unique Unicode strings improve by about 1.8x on both ABIs. The repeated
+Unicode case improves by 9.5x on ARM64 and 7.9x on ARM32 because it also
+shares repeated long strings. These are distinct effects; the repeated case
+must not be used as the general Unicode throughput claim. Highly varying
+object shapes still decode faster with JSON. Numeric and late-mixed controls
+remain close to the original native decoder.
+
+| Retained heap per graph | Before native | Optimized native | JSON |
+| --- | ---: | ---: | ---: |
+| records_25000 | 3,419,370 B | 3,419,370 B | 3,707,370 B |
+| unicode | 1,466,860 B | 127,121 B | 1,486,030 B |
+| unicode_unique | 1,800,220 B | 1,800,220 B | 1,819,390 B |
+| short_decimals | 960,024 B | 960,024 B | 960,024 B |
+| integers | 480,024 B | 480,024 B | 480,024 B |
+
+The repeated-Unicode retained heap falls from 1,466,860 to 127,121 bytes per
+graph, approximately 91.3%, with the same values and ordinary JS access.
+The unique-string and repeated-record retained heaps do not materially
+change. The table uses the five-graph incremental retention measurement;
+it does not measure peak memory of one load.
+
+All serialized JSON, MessagePack, exact-float32 MessagePack, and V8 payload
+bytes are identical before and after this optimization. Standard payloads
+also match across both ABIs. This pass improves decoding and string sharing;
+it introduces no new wire profile or file-size reduction.
+
+The full aggregate, fingerprints, batch references, heap and peak-RSS metrics
+are in `evidence/optimization-summary.json`. Final normal/moving-GC results
+and independent C checker provenance are in `evidence/optimization-validation.json`.
+
+## Original Android results (frozen baseline)
 
 All latency values below are milliseconds per operation, medians of ten samples.
 MessagePack means the C++ visitor path. The JSON timing starts with native UTF-8
@@ -214,7 +320,7 @@ MPack's independent reader and node APIs are described in its
 
 ## Validation and reproduction
 
-The self-test checks 31 expression fixtures against three native decoder
+The original self-test checked 31 expression fixtures against three native decoder
 backends and both float profiles. It checks full values, property order,
 prototypes, safe/unsafe integers, BigInt boundaries, negative zero, Unicode,
 mixed/dense arrays, duplicate keys, changing shapes, ten malformed-input
@@ -227,7 +333,8 @@ independent C-branch wire checker.
 The final six normal/stress runs, executable fingerprints, and independent
 C checker provenance are saved in `evidence/validation.json`. The full V8
 test suite and a production GN build of a published codec target are outside
-this prototype validation.
+this prototype validation. That file records the original investigation; the
+optimization pass has separate evidence and a larger correctness suite.
 
 The build script intentionally reuses fingerprinted V8 core objects. It
 recompiles the relocated JSON parser, native adapter, and harness, and links
@@ -265,6 +372,30 @@ with seed 20261005 and a fresh `batch-b` output directory. For ARM32, use
 and distinct ARM32 output/device directories. Run device batches sequentially.
 The scripts do not reconstruct a full V8 core build from an arbitrary source
 checkout; the supplied core objects and build flags must match the source.
+
+For the paired optimization comparison, keep the original executable and its
+manifest at the frozen source commit. Build the updated executable into a new
+directory, then run:
+
+```sh
+python3 tools/binary_serialization/compare_decode.py \
+  --before out/binary-serialization/android-arm64-optimized/native-binary-benchmark \
+  --after out/binary-serialization/optimization-final-arm64/native-binary-benchmark \
+  --output out/binary-serialization/optimization-final-arm64/paired-a \
+  --rounds 5 --seed 20261005 --target-ms 120 \
+  --c-peer out/binary-serialization/c-peer \
+  --adb-serial 885841c1 \
+  --remote-dir /data/local/tmp/codex-msgpack-opt-arm64
+```
+
+Repeat with seed 20261006 and a fresh `paired-b` directory. Run equivalent
+ARM32 batches sequentially. `analyze_decode.py` consumes the four results with
+`--arm64-a`, `--arm64-b`, `--arm32-a`, `--arm32-b`, and `--output`. It requires
+two completed five-round, 15-workload batches per ABI, identical source/binary
+fingerprints, unchanged standard payloads across both ABIs, and shared before/
+after iteration counts. It verifies all prepared payload files and the C-peer
+results before reporting combined ten-sample medians. The build script also
+rejects a build if experiment source or headers change while compiling/linking.
 
 To exercise moving GC separately, run the executable with
 `--self-test --stress` on each ABI. To aggregate the four final batches, run

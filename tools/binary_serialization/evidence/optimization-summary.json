@@ -1,0 +1,2125 @@
+{
+  "createdUtc": "2026-10-04T21:47:59.600045+00:00",
+  "reportCommit": "378fad8ad22db8cec0733cec7dd20e05265679fe",
+  "methodology": "Two independently shuffled five-round paired batches per ABI. Shared iteration counts for before/after per codec. Warm native byte-input decoding, GC in timed loop included. Fully materialized plain JS graphs. Same V8 core objects and unchanged wire bytes.",
+  "architectures": {
+    "arm64": {
+      "workers": {
+        "before": {
+          "binary": "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/android-arm64-optimized/native-binary-benchmark",
+          "binarySha256": "6614cea5dde6cb3cf3a1178e397e170c43dc436282434230a3157c212e4de7cb",
+          "buildManifest": "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/android-arm64-optimized/build-manifest.json",
+          "buildManifestSha256": "a26eff5405f28bd39a4247b5ec865c0b2abeb1334a67d7db9ea52ca5015a4d46",
+          "sourceSha256": {
+            "src/json/json-parser.cc": "d2a6e52a833cbda75c04a8bdb51c7a33db69f5c80ff89175a8256eb9e29aa797",
+            "src/msgpack/messagepack.cc": "79b52983d387a9cfcf5ac7fdb3ede6796db1f02fd74071c90ef4507354005436",
+            "tools/binary_serialization/benchmark.cc": "ae6b443f1744e9ff14cedae753ce7577b271fe48cc8c9065f943356c5b199d9a"
+          },
+          "selfTest": {
+            "selfTest": "PASS",
+            "roundTrips": 31,
+            "backends": 3,
+            "malformedCases": 10,
+            "differentialByteInputs": 2000
+          }
+        },
+        "after": {
+          "binary": "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/optimization-final-arm64/native-binary-benchmark",
+          "binarySha256": "996d4d8056915a7563726ec50659e63c9425154f423c2f91601209d4079c1f6e",
+          "buildManifest": "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/optimization-final-arm64/build-manifest.json",
+          "buildManifestSha256": "9d183fa54d1378c2ed424b0c240f54db2800ca507975d1116dc99395264c2a35",
+          "sourceSha256": {
+            "src/json/json-parser.cc": "d2a6e52a833cbda75c04a8bdb51c7a33db69f5c80ff89175a8256eb9e29aa797",
+            "src/msgpack/messagepack.cc": "798c2808464303176a97857d47796e51c5631df7dab43aec482f702d6db2b6f9",
+            "tools/binary_serialization/benchmark.cc": "e491f685d331ec1d0a2a5a45e1dff83c9c83f885e03dced95b74dfb9fdc4359e"
+          },
+          "selfTest": {
+            "selfTest": "PASS",
+            "roundTrips": 43,
+            "backends": 3,
+            "malformedCases": 18,
+            "differentialByteInputs": 2000
+          }
+        }
+      },
+      "nativeCodeCommit": "e6f93a891df4169d32ec06567ac7c9da455f6016",
+      "sourceSha256": {
+        "src/json/json-parser.cc": "d2a6e52a833cbda75c04a8bdb51c7a33db69f5c80ff89175a8256eb9e29aa797",
+        "src/msgpack/messagepack.cc": "798c2808464303176a97857d47796e51c5631df7dab43aec482f702d6db2b6f9",
+        "tools/binary_serialization/benchmark.cc": "e491f685d331ec1d0a2a5a45e1dff83c9c83f885e03dced95b74dfb9fdc4359e"
+      },
+      "headerSha256": {
+        "src/msgpack/messagepack.h": "4663cce95c8cd05485903fd8c89c90b93b14970cd94c9eaff6e8b6d697e7d560",
+        "src/objects/js-data-object-builder.h": "c9f51da54c0ea59dfbab4f0021b2af4ba0da9be7fd68fb778ad1d6cdb81b5b7c"
+      },
+      "batchFiles": [
+        "out/binary-serialization/optimization-final-arm64/paired-a/results.json",
+        "out/binary-serialization/optimization-final-arm64/paired-b/results.json"
+      ],
+      "batchSha256": [
+        "ff9342af2db8dcd4fa3c5147a03854069dfa3e14ab374dc91b6183022ecfc814",
+        "5cd788018743faa3b69c8383b2aa11ad9fae8f8e6e5a0fbf199e8cbd9b1df299"
+      ],
+      "seeds": [
+        20261005,
+        20261006
+      ],
+      "samplesPerCodec": 10,
+      "workloads": [
+        {
+          "name": "records_250",
+          "sizes": {
+            "json": {
+              "bytes": 31547,
+              "sha256": "53db6e41b274c45c2c4181349a0b1342ccbd56cffe7b2010e895189d73acdedc"
+            },
+            "msgpack": {
+              "bytes": 25047,
+              "sha256": "591268f9c7bc977e9528d8b6448e4a42ab859388900d1bd63c59ae72b8e5e402"
+            },
+            "msgpack32": {
+              "bytes": 23331,
+              "sha256": "d91f63bf6f24635ebb9afcafc06eefd9e33c2f49a9a74b9980d20cf03b539650"
+            },
+            "v8": {
+              "bytes": 31335,
+              "sha256": "5477dc36f6f3302ef8aa20091ab97a8d7450a384f96aae30527fadcdc74c1b2f"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 0.386398,
+              "retainedHeapBytesPerGraph": 34169.6,
+              "peakRssBytes": 12539904.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 0.4057375,
+              "retainedHeapBytesPerGraph": 34169.6,
+              "peakRssBytes": 12523520.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 0.407968,
+              "retainedHeapBytesPerGraph": 34169.6,
+              "peakRssBytes": 12593152.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 0.38633850000000003,
+              "retainedHeapBytesPerGraph": 34169.6,
+              "peakRssBytes": 12533760.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 0.32388649999999997,
+              "retainedHeapBytesPerGraph": 34169.6,
+              "peakRssBytes": 12662784.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 0.3265735,
+              "retainedHeapBytesPerGraph": 34169.6,
+              "peakRssBytes": 12511232.0
+            }
+          },
+          "nativeSpeedup": 1.2527150714833746,
+          "speedupVersusJson": 1.1928206331538982,
+          "jsonControlRatio": 1.0001540100197106,
+          "batchNativeMs": {
+            "before": [
+              0.406354,
+              0.405121
+            ],
+            "after": [
+              0.326818,
+              0.323686
+            ]
+          }
+        },
+        {
+          "name": "records_2500",
+          "sizes": {
+            "json": {
+              "bytes": 323733,
+              "sha256": "a8500df9e851000c5df4c4d1eadb7e263df7c20b99c6dddd454bbba058e197cc"
+            },
+            "msgpack": {
+              "bytes": 256595,
+              "sha256": "6bf875e867130422095cc489ccc3e10bd1ca1d5238e8492fb4ecddc7bc9abc6a"
+            },
+            "msgpack32": {
+              "bytes": 239423,
+              "sha256": "ad6ffa82987d5f0a65f3bf887c40a9484db98d96baada12ac56fd5f6addb62b4"
+            },
+            "v8": {
+              "bytes": 316335,
+              "sha256": "59cf40d86660157e12f8c3c9859c48f4d25030b77e517be06167a8081aa9e78b"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 4.1134699999999995,
+              "retainedHeapBytesPerGraph": 341370.0,
+              "peakRssBytes": 15413248.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 4.09337,
+              "retainedHeapBytesPerGraph": 341370.0,
+              "peakRssBytes": 15235072.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 4.14602,
+              "retainedHeapBytesPerGraph": 341370.0,
+              "peakRssBytes": 15233024.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 4.12263,
+              "retainedHeapBytesPerGraph": 341370.0,
+              "peakRssBytes": 15433728.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 3.26386,
+              "retainedHeapBytesPerGraph": 341370.0,
+              "peakRssBytes": 14997504.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 3.314495,
+              "retainedHeapBytesPerGraph": 341370.0,
+              "peakRssBytes": 14974976.0
+            }
+          },
+          "nativeSpeedup": 1.2541499941786718,
+          "speedupVersusJson": 1.2631148394845366,
+          "jsonControlRatio": 0.9977781173668264,
+          "batchNativeMs": {
+            "before": [
+              4.09377,
+              4.08751
+            ],
+            "after": [
+              3.25336,
+              3.26957
+            ]
+          }
+        },
+        {
+          "name": "records_25000",
+          "sizes": {
+            "json": {
+              "bytes": 3312808,
+              "sha256": "6e786d5a3f519419077e2c7d979b7b72ef42ae6ea6bad8b9398dec7a41ca73c7"
+            },
+            "msgpack": {
+              "bytes": 2597831,
+              "sha256": "9a1f7530e28036105ae8709d25bdf0cfd30618918726905b12f22bda2f2aa28d"
+            },
+            "msgpack32": {
+              "bytes": 2426103,
+              "sha256": "993ca93addaacac9c65e3b18f8b8aa8fa203b371952cec72011c90202ba66325"
+            },
+            "v8": {
+              "bytes": 3205645,
+              "sha256": "09a597538a1d97aae50f80f02189bc2c6bb87afd5dc5edfc29ebaad81e5bbdcb"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 51.03365,
+              "retainedHeapBytesPerGraph": 3707370.0,
+              "peakRssBytes": 75083776.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 57.9514,
+              "retainedHeapBytesPerGraph": 3419370.0,
+              "peakRssBytes": 51335168.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 58.638400000000004,
+              "retainedHeapBytesPerGraph": 3419370.0,
+              "peakRssBytes": 51259392.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 51.417699999999996,
+              "retainedHeapBytesPerGraph": 3707370.0,
+              "peakRssBytes": 74682368.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 47.88835,
+              "retainedHeapBytesPerGraph": 3419370.0,
+              "peakRssBytes": 49569792.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 48.606899999999996,
+              "retainedHeapBytesPerGraph": 3419370.0,
+              "peakRssBytes": 49162240.0
+            }
+          },
+          "nativeSpeedup": 1.2101356592991823,
+          "speedupVersusJson": 1.0736995532316314,
+          "jsonControlRatio": 0.99253078220146,
+          "batchNativeMs": {
+            "before": [
+              57.9444,
+              57.9584
+            ],
+            "after": [
+              47.5051,
+              48.0291
+            ]
+          }
+        },
+        {
+          "name": "short_decimals",
+          "sizes": {
+            "json": {
+              "bytes": 612121,
+              "sha256": "a58635024d6c12ebc4fc5dfa2c9c51e2b422dd2c89175621aecf0d3034c03690"
+            },
+            "msgpack": {
+              "bytes": 986165,
+              "sha256": "5e4ef45ebc95ec1bee1118cff7bc6195bd9689752e59f73e29f8f0c1d33af703"
+            },
+            "msgpack32": {
+              "bytes": 938165,
+              "sha256": "431fa174d259bfaf187449d5cada69ac441cd9ae70fdb27c1cc0e454bfa5766a"
+            },
+            "v8": {
+              "bytes": 1080011,
+              "sha256": "d725fe320bd92aef1850cdfa624cf6f069ec7ceb13ec23130591dabd738a94ff"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 13.74865,
+              "retainedHeapBytesPerGraph": 960024.0,
+              "peakRssBytes": 35119104.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 7.69774,
+              "retainedHeapBytesPerGraph": 960024.0,
+              "peakRssBytes": 25899008.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 7.913925,
+              "retainedHeapBytesPerGraph": 960024.0,
+              "peakRssBytes": 25808896.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 13.76755,
+              "retainedHeapBytesPerGraph": 960024.0,
+              "peakRssBytes": 35190784.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 7.696595,
+              "retainedHeapBytesPerGraph": 960024.0,
+              "peakRssBytes": 25870336.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 7.834375,
+              "retainedHeapBytesPerGraph": 960024.0,
+              "peakRssBytes": 25827328.0
+            }
+          },
+          "nativeSpeedup": 1.0001487670846654,
+          "speedupVersusJson": 1.78878452094725,
+          "jsonControlRatio": 0.9986272067288661,
+          "batchNativeMs": {
+            "before": [
+              7.7825,
+              7.66079
+            ],
+            "after": [
+              7.66168,
+              7.73151
+            ]
+          }
+        },
+        {
+          "name": "integers",
+          "sizes": {
+            "json": {
+              "bytes": 697781,
+              "sha256": "12683031fb4dc41c2d9d8b4cfb5966c19abe0005249658f9fd2b35d0444c7e0a"
+            },
+            "msgpack": {
+              "bytes": 359237,
+              "sha256": "dee3d1788acff9aedbec101190b92ff054ec28a46c0e51541ba7d96746272703"
+            },
+            "msgpack32": {
+              "bytes": 359237,
+              "sha256": "dee3d1788acff9aedbec101190b92ff054ec28a46c0e51541ba7d96746272703"
+            },
+            "v8": {
+              "bytes": 463499,
+              "sha256": "5e223c8eaa54d7f61c11d306b7c791f01dc552a0048bfa46e9f36521c2c9005f"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 5.0370550000000005,
+              "retainedHeapBytesPerGraph": 480024.0,
+              "peakRssBytes": 20807680.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 3.88209,
+              "retainedHeapBytesPerGraph": 480024.0,
+              "peakRssBytes": 14284800.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 3.87052,
+              "retainedHeapBytesPerGraph": 480024.0,
+              "peakRssBytes": 14272512.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 4.9167749999999995,
+              "retainedHeapBytesPerGraph": 480024.0,
+              "peakRssBytes": 20779008.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 3.833075,
+              "retainedHeapBytesPerGraph": 480024.0,
+              "peakRssBytes": 14270464.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 3.826385,
+              "retainedHeapBytesPerGraph": 480024.0,
+              "peakRssBytes": 14278656.0
+            }
+          },
+          "nativeSpeedup": 1.0127873834975836,
+          "speedupVersusJson": 1.2827234009248447,
+          "jsonControlRatio": 1.0244631897941234,
+          "batchNativeMs": {
+            "before": [
+              3.89994,
+              3.86424
+            ],
+            "after": [
+              3.8183,
+              3.84785
+            ]
+          }
+        },
+        {
+          "name": "text_heavy",
+          "sizes": {
+            "json": {
+              "bytes": 1155281,
+              "sha256": "ecae31dd1bfe3309a30e09517bc4cf64e8305b6b1d7f4ffae7937320247155b2"
+            },
+            "msgpack": {
+              "bytes": 1138509,
+              "sha256": "8e3afd8abfd93927f1c889f25aa0a0efa274eb6910039ed4cb3825d53feb617b"
+            },
+            "msgpack32": {
+              "bytes": 1138509,
+              "sha256": "8e3afd8abfd93927f1c889f25aa0a0efa274eb6910039ed4cb3825d53feb617b"
+            },
+            "v8": {
+              "bytes": 1148835,
+              "sha256": "9d104f43b9c7e090e1d88f38e6c3a3438aef24717993d21d2dfa974515a1b856"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 2.961545,
+              "retainedHeapBytesPerGraph": 1196060.0,
+              "peakRssBytes": 25358336.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 3.07867,
+              "retainedHeapBytesPerGraph": 1196060.0,
+              "peakRssBytes": 32172032.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 3.0730250000000003,
+              "retainedHeapBytesPerGraph": 1196060.0,
+              "peakRssBytes": 30869504.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 2.99658,
+              "retainedHeapBytesPerGraph": 1196060.0,
+              "peakRssBytes": 25667584.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 1.887175,
+              "retainedHeapBytesPerGraph": 1196060.0,
+              "peakRssBytes": 32030720.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 1.8793549999999999,
+              "retainedHeapBytesPerGraph": 1196060.0,
+              "peakRssBytes": 31651840.0
+            }
+          },
+          "nativeSpeedup": 1.6313643408798864,
+          "speedupVersusJson": 1.5878654602779285,
+          "jsonControlRatio": 0.988308338172183,
+          "batchNativeMs": {
+            "before": [
+              3.0756,
+              3.08039
+            ],
+            "after": [
+              1.8708,
+              1.88943
+            ]
+          }
+        },
+        {
+          "name": "unicode",
+          "sizes": {
+            "json": {
+              "bytes": 1340281,
+              "sha256": "ae2b3cdce36f9eac05352fe9b37f2b2a9f1f4565d896aa91d6a42d4c72c4eea0"
+            },
+            "msgpack": {
+              "bytes": 1313509,
+              "sha256": "7c6464c1c718084ab3ddbaa452fff38f97dbab2102cd0e46d2ca218fa5cb1050"
+            },
+            "msgpack32": {
+              "bytes": 1313509,
+              "sha256": "7c6464c1c718084ab3ddbaa452fff38f97dbab2102cd0e46d2ca218fa5cb1050"
+            },
+            "v8": {
+              "bytes": 1422788,
+              "sha256": "a072a1261a254e5d40bf867f3fae0bd0b7a5cf4ec909e520e83b07c6c6955667"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 13.8109,
+              "retainedHeapBytesPerGraph": 1486030.0,
+              "peakRssBytes": 31160320.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 16.57265,
+              "retainedHeapBytesPerGraph": 1466860.0,
+              "peakRssBytes": 31469568.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 16.52705,
+              "retainedHeapBytesPerGraph": 1466860.0,
+              "peakRssBytes": 30963712.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 13.8357,
+              "retainedHeapBytesPerGraph": 1486030.0,
+              "peakRssBytes": 30605312.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 1.7389000000000001,
+              "retainedHeapBytesPerGraph": 127121.0,
+              "peakRssBytes": 14807040.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 1.738485,
+              "retainedHeapBytesPerGraph": 127121.0,
+              "peakRssBytes": 14827520.0
+            }
+          },
+          "nativeSpeedup": 9.530536546092357,
+          "speedupVersusJson": 7.956581747081487,
+          "jsonControlRatio": 0.9982075355782505,
+          "batchNativeMs": {
+            "before": [
+              16.5692,
+              16.5761
+            ],
+            "after": [
+              1.74156,
+              1.73822
+            ]
+          }
+        },
+        {
+          "name": "unicode_unique",
+          "sizes": {
+            "json": {
+              "bytes": 1506961,
+              "sha256": "6016e5e21fd90c71b678f6a140a296a45701068d64e6377cb6a5d0f5b5255a4e"
+            },
+            "msgpack": {
+              "bytes": 1480189,
+              "sha256": "b0a93534c0d8d899b7895d3a410951bbf306d425546748b9e450dcc9f7533bf0"
+            },
+            "msgpack32": {
+              "bytes": 1480189,
+              "sha256": "b0a93534c0d8d899b7895d3a410951bbf306d425546748b9e450dcc9f7533bf0"
+            },
+            "v8": {
+              "bytes": 1756148,
+              "sha256": "e4584d4a2d8626991ac968bb25e7cc31515501b572a9698fbc2dc0c7c3217141"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 14.718499999999999,
+              "retainedHeapBytesPerGraph": 1819390.0,
+              "peakRssBytes": 47691776.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 17.6099,
+              "retainedHeapBytesPerGraph": 1800220.0,
+              "peakRssBytes": 25782272.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 17.6331,
+              "retainedHeapBytesPerGraph": 1800220.0,
+              "peakRssBytes": 25995264.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 14.732050000000001,
+              "retainedHeapBytesPerGraph": 1819390.0,
+              "peakRssBytes": 47765504.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 9.848275000000001,
+              "retainedHeapBytesPerGraph": 1800220.0,
+              "peakRssBytes": 26576896.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 9.835625,
+              "retainedHeapBytesPerGraph": 1800220.0,
+              "peakRssBytes": 26413056.0
+            }
+          },
+          "nativeSpeedup": 1.788120254562347,
+          "speedupVersusJson": 1.4959015665179942,
+          "jsonControlRatio": 0.9990802366269459,
+          "batchNativeMs": {
+            "before": [
+              17.6065,
+              17.6133
+            ],
+            "after": [
+              9.88108,
+              9.83616
+            ]
+          }
+        },
+        {
+          "name": "ascii_unique",
+          "sizes": {
+            "json": {
+              "bytes": 2187251,
+              "sha256": "8cde3e5bd2d28a6d215b5cf09b23dfd2deef7da5c01ce19a494033a28c18365c"
+            },
+            "msgpack": {
+              "bytes": 2170479,
+              "sha256": "d316a5337ecf95ed43b1717c557cea8bff2c9d53b60dc816808333075e8caa27"
+            },
+            "msgpack32": {
+              "bytes": 2170479,
+              "sha256": "d316a5337ecf95ed43b1717c557cea8bff2c9d53b60dc816808333075e8caa27"
+            },
+            "v8": {
+              "bytes": 2180805,
+              "sha256": "401b4c7147aa1ff69daa234746658c9aaecc3db2361cc20b6e10ebb10223ac69"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 5.14246,
+              "retainedHeapBytesPerGraph": 2223420.0,
+              "peakRssBytes": 37404672.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 5.28005,
+              "retainedHeapBytesPerGraph": 2223420.0,
+              "peakRssBytes": 36825088.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 5.27717,
+              "retainedHeapBytesPerGraph": 2223420.0,
+              "peakRssBytes": 35878912.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 5.075704999999999,
+              "retainedHeapBytesPerGraph": 2223420.0,
+              "peakRssBytes": 36986880.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 3.360355,
+              "retainedHeapBytesPerGraph": 2223420.0,
+              "peakRssBytes": 35643392.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 3.341245,
+              "retainedHeapBytesPerGraph": 2223420.0,
+              "peakRssBytes": 35899392.0
+            }
+          },
+          "nativeSpeedup": 1.5712774394372022,
+          "speedupVersusJson": 1.5104669000745454,
+          "jsonControlRatio": 1.0131518675730762,
+          "batchNativeMs": {
+            "before": [
+              5.28369,
+              5.27431
+            ],
+            "after": [
+              3.38512,
+              3.35327
+            ]
+          }
+        },
+        {
+          "name": "latin1_unique",
+          "sizes": {
+            "json": {
+              "bytes": 2202251,
+              "sha256": "079bffb5af8f64bafac05e26afad60afd305c909c34606fb795a776317c58c2a"
+            },
+            "msgpack": {
+              "bytes": 2185479,
+              "sha256": "dbf53857050329ca6de39ed222749836324ea27628fb728749dac4938ecd733a"
+            },
+            "msgpack32": {
+              "bytes": 2185479,
+              "sha256": "dbf53857050329ca6de39ed222749836324ea27628fb728749dac4938ecd733a"
+            },
+            "v8": {
+              "bytes": 2193305,
+              "sha256": "bfcdc214d6972644671e8c3bb7dead9068e9ee3c418cb1d47d9d1a5d61df28da"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 9.64423,
+              "retainedHeapBytesPerGraph": 2243420.0,
+              "peakRssBytes": 36673536.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 5.416650000000001,
+              "retainedHeapBytesPerGraph": 2243420.0,
+              "peakRssBytes": 35645440.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 5.38167,
+              "retainedHeapBytesPerGraph": 2243420.0,
+              "peakRssBytes": 36188160.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 9.67404,
+              "retainedHeapBytesPerGraph": 2243420.0,
+              "peakRssBytes": 38000640.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 3.44429,
+              "retainedHeapBytesPerGraph": 2243420.0,
+              "peakRssBytes": 36816896.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 3.4304699999999997,
+              "retainedHeapBytesPerGraph": 2243420.0,
+              "peakRssBytes": 36657152.0
+            }
+          },
+          "nativeSpeedup": 1.5726463218834652,
+          "speedupVersusJson": 2.808718197364333,
+          "jsonControlRatio": 0.9969185572935403,
+          "batchNativeMs": {
+            "before": [
+              5.42916,
+              5.36759
+            ],
+            "after": [
+              3.44923,
+              3.41367
+            ]
+          }
+        },
+        {
+          "name": "alternating_roles",
+          "sizes": {
+            "json": {
+              "bytes": 468291,
+              "sha256": "19b4b973831cb9953a3767ba090635dabbb6a2243b43b8d112ce5e810de59796"
+            },
+            "msgpack": {
+              "bytes": 313991,
+              "sha256": "ebdaf7681ec10612ae79b601be38af9c8df00d290c8a81dd582f171d32322ede"
+            },
+            "msgpack32": {
+              "bytes": 296491,
+              "sha256": "44b6986d29dbe5e7d2c53f0cd9fec7c1a4ce5e4667eed59a0f94341ac3b3727c"
+            },
+            "v8": {
+              "bytes": 408771,
+              "sha256": "af2b7efff4f7df090c86870f3c6d217d3d1bf652016103202c4134a6a09ab807"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 7.36152,
+              "retainedHeapBytesPerGraph": 660850.0,
+              "peakRssBytes": 25499648.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 9.464965,
+              "retainedHeapBytesPerGraph": 584050.0,
+              "peakRssBytes": 19537920.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 9.48209,
+              "retainedHeapBytesPerGraph": 584050.0,
+              "peakRssBytes": 19535872.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 7.3914100000000005,
+              "retainedHeapBytesPerGraph": 660850.0,
+              "peakRssBytes": 25503744.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 6.658205,
+              "retainedHeapBytesPerGraph": 584050.0,
+              "peakRssBytes": 18814976.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 6.71746,
+              "retainedHeapBytesPerGraph": 584050.0,
+              "peakRssBytes": 18806784.0
+            }
+          },
+          "nativeSpeedup": 1.4215490511331508,
+          "speedupVersusJson": 1.1101205204706075,
+          "jsonControlRatio": 0.995956116627274,
+          "batchNativeMs": {
+            "before": [
+              9.45569,
+              9.48773
+            ],
+            "after": [
+              6.64685,
+              6.66956
+            ]
+          }
+        },
+        {
+          "name": "mixed_late",
+          "sizes": {
+            "json": {
+              "bytes": 612133,
+              "sha256": "7a75e846b0231646bd4508b8d124da5e4b5ccc021a7103201bf4a75182dafac5"
+            },
+            "msgpack": {
+              "bytes": 986171,
+              "sha256": "3371eea77533ddf7b937124eb57a0af3a26c83cc79f938d16e5b3b470f955052"
+            },
+            "msgpack32": {
+              "bytes": 938171,
+              "sha256": "e6afffe9952ba502a0d6696e8c38cc9acf14c03ec94f3465f1b5b992afbe264f"
+            },
+            "v8": {
+              "bytes": 996018,
+              "sha256": "7545410cbebbdfcd549ee74ecd6435dc8f1c2e4e52dba36a523b0cbbcdc85b38"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 13.12025,
+              "retainedHeapBytesPerGraph": 1776040.0,
+              "peakRssBytes": 34568192.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 7.286875,
+              "retainedHeapBytesPerGraph": 1776040.0,
+              "peakRssBytes": 31567872.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 7.4258299999999995,
+              "retainedHeapBytesPerGraph": 1776040.0,
+              "peakRssBytes": 31700992.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 13.1795,
+              "retainedHeapBytesPerGraph": 1776040.0,
+              "peakRssBytes": 35031040.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 7.146755000000001,
+              "retainedHeapBytesPerGraph": 1776040.0,
+              "peakRssBytes": 31520768.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 7.45841,
+              "retainedHeapBytesPerGraph": 1776040.0,
+              "peakRssBytes": 31709184.0
+            }
+          },
+          "nativeSpeedup": 1.0196061009507111,
+          "speedupVersusJson": 1.8441236617178005,
+          "jsonControlRatio": 0.995504381805076,
+          "batchNativeMs": {
+            "before": [
+              7.2323,
+              7.2874
+            ],
+            "after": [
+              7.13421,
+              7.15645
+            ]
+          }
+        },
+        {
+          "name": "nested_numeric",
+          "sizes": {
+            "json": {
+              "bytes": 612133,
+              "sha256": "e3363f7d845cb7c346996912cd786576c1fab928aa3a55ac1ed24942a2836c2f"
+            },
+            "msgpack": {
+              "bytes": 986174,
+              "sha256": "cf0a6795cfe367d0197925795838c2bffb31b5e78df1e4c40bc21cd564b25108"
+            },
+            "msgpack32": {
+              "bytes": 938174,
+              "sha256": "cf569bbe3d4d871fa75d78733d99446a261118f9ea36af21c4de4613d2255642"
+            },
+            "v8": {
+              "bytes": 1080023,
+              "sha256": "8c7b0d9d1d37bad477f6aca456f30aa3e86c2ca590ba66b3b09b83203c6e93ba"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 13.96195,
+              "retainedHeapBytesPerGraph": 960066.0,
+              "peakRssBytes": 35201024.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 7.7452749999999995,
+              "retainedHeapBytesPerGraph": 960066.0,
+              "peakRssBytes": 25946112.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 7.936055,
+              "retainedHeapBytesPerGraph": 960066.0,
+              "peakRssBytes": 25907200.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 13.891549999999999,
+              "retainedHeapBytesPerGraph": 960066.0,
+              "peakRssBytes": 35147776.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 7.58841,
+              "retainedHeapBytesPerGraph": 960066.0,
+              "peakRssBytes": 25905152.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 7.850405,
+              "retainedHeapBytesPerGraph": 960066.0,
+              "peakRssBytes": 25860096.0
+            }
+          },
+          "nativeSpeedup": 1.020671655854125,
+          "speedupVersusJson": 1.8306272328458792,
+          "jsonControlRatio": 1.005067829003963,
+          "batchNativeMs": {
+            "before": [
+              7.6062,
+              7.77349
+            ],
+            "after": [
+              7.59891,
+              7.55535
+            ]
+          }
+        },
+        {
+          "name": "varying_shapes",
+          "sizes": {
+            "json": {
+              "bytes": 465697,
+              "sha256": "ab7f2aaae36d3fc0f418053316ab3a2fae5ad87d6c56fe58d4a84ac9ff989eb7"
+            },
+            "msgpack": {
+              "bytes": 327288,
+              "sha256": "ca7c1cb245ec48abd6b7886d110e0a79609b0dd3781674b2e21a104dd621418f"
+            },
+            "msgpack32": {
+              "bytes": 327288,
+              "sha256": "ca7c1cb245ec48abd6b7886d110e0a79609b0dd3781674b2e21a104dd621418f"
+            },
+            "v8": {
+              "bytes": 394496,
+              "sha256": "99032d080d15adee1ab6f03de853b3c7324deafac8b711745bfc79881ae686d6"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 9.00396,
+              "retainedHeapBytesPerGraph": 629155.0,
+              "peakRssBytes": 19800064.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 13.426449999999999,
+              "retainedHeapBytesPerGraph": 552355.0,
+              "peakRssBytes": 20742144.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 13.32395,
+              "retainedHeapBytesPerGraph": 552355.0,
+              "peakRssBytes": 20629504.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 9.03735,
+              "retainedHeapBytesPerGraph": 629155.0,
+              "peakRssBytes": 20109312.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 11.8209,
+              "retainedHeapBytesPerGraph": 552355.0,
+              "peakRssBytes": 20183040.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 11.7751,
+              "retainedHeapBytesPerGraph": 552355.0,
+              "peakRssBytes": 20215808.0
+            }
+          },
+          "nativeSpeedup": 1.13582299148119,
+          "speedupVersusJson": 0.7645230058624978,
+          "jsonControlRatio": 0.9963053328685952,
+          "batchNativeMs": {
+            "before": [
+              13.4167,
+              13.4362
+            ],
+            "after": [
+              11.7847,
+              11.8344
+            ]
+          }
+        },
+        {
+          "name": "protocol_fixture",
+          "sizes": {
+            "json": {
+              "bytes": 56495,
+              "sha256": "3e53a0ba6888397cdeeeafcc0cef68e24bf04ae20adfe0df70b9135d90c643b7"
+            },
+            "msgpack": {
+              "bytes": 49315,
+              "sha256": "a130a6213759bb71fb23583a3b526a6b1be6fca5e99ad295f00a45341a2c9081"
+            },
+            "msgpack32": {
+              "bytes": 49315,
+              "sha256": "a130a6213759bb71fb23583a3b526a6b1be6fca5e99ad295f00a45341a2c9081"
+            },
+            "v8": {
+              "bytes": 53701,
+              "sha256": "e22c69165e34670a66b4a84cf6a82de1ef6c28870938112adf99c3a2da45c8a6"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 0.4224235,
+              "retainedHeapBytesPerGraph": 62688.0,
+              "peakRssBytes": 12709888.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 0.5306150000000001,
+              "retainedHeapBytesPerGraph": 62711.2,
+              "peakRssBytes": 12933120.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 0.531656,
+              "retainedHeapBytesPerGraph": 62711.2,
+              "peakRssBytes": 12922880.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 0.4227075,
+              "retainedHeapBytesPerGraph": 62688.0,
+              "peakRssBytes": 12716032.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 0.380089,
+              "retainedHeapBytesPerGraph": 55964.0,
+              "peakRssBytes": 12933120.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 0.381465,
+              "retainedHeapBytesPerGraph": 55964.0,
+              "peakRssBytes": 12941312.0
+            }
+          },
+          "nativeSpeedup": 1.3960282986353196,
+          "speedupVersusJson": 1.1121276858840956,
+          "jsonControlRatio": 0.9993281406173299,
+          "batchNativeMs": {
+            "before": [
+              0.53058,
+              0.53073
+            ],
+            "after": [
+              0.380178,
+              0.38
+            ]
+          }
+        }
+      ]
+    },
+    "arm32": {
+      "workers": {
+        "before": {
+          "binary": "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/android-arm32-optimized/native-binary-benchmark",
+          "binarySha256": "e86b2c515dc0e9a91659e86ab41f62d5f0fdd0c7d05c2192d53cb01c20009413",
+          "buildManifest": "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/android-arm32-optimized/build-manifest.json",
+          "buildManifestSha256": "f7d473e00b0e544d2ae81cd1066167ea32a8524f3d2818e31c2928adf0cc8736",
+          "sourceSha256": {
+            "src/json/json-parser.cc": "d2a6e52a833cbda75c04a8bdb51c7a33db69f5c80ff89175a8256eb9e29aa797",
+            "src/msgpack/messagepack.cc": "79b52983d387a9cfcf5ac7fdb3ede6796db1f02fd74071c90ef4507354005436",
+            "tools/binary_serialization/benchmark.cc": "ae6b443f1744e9ff14cedae753ce7577b271fe48cc8c9065f943356c5b199d9a"
+          },
+          "selfTest": {
+            "selfTest": "PASS",
+            "roundTrips": 31,
+            "backends": 3,
+            "malformedCases": 10,
+            "differentialByteInputs": 2000
+          }
+        },
+        "after": {
+          "binary": "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/optimization-final-arm32/native-binary-benchmark",
+          "binarySha256": "9e6e4bb17185a55a3907f1c05cb4b3421f9515c1c4663de0a6610b7795262043",
+          "buildManifest": "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/optimization-final-arm32/build-manifest.json",
+          "buildManifestSha256": "5a2005ff6edcb2d50348798ad59d52b77caeeb4d32c4293e15ed35dda0643420",
+          "sourceSha256": {
+            "src/json/json-parser.cc": "d2a6e52a833cbda75c04a8bdb51c7a33db69f5c80ff89175a8256eb9e29aa797",
+            "src/msgpack/messagepack.cc": "798c2808464303176a97857d47796e51c5631df7dab43aec482f702d6db2b6f9",
+            "tools/binary_serialization/benchmark.cc": "e491f685d331ec1d0a2a5a45e1dff83c9c83f885e03dced95b74dfb9fdc4359e"
+          },
+          "selfTest": {
+            "selfTest": "PASS",
+            "roundTrips": 43,
+            "backends": 3,
+            "malformedCases": 18,
+            "differentialByteInputs": 2000
+          }
+        }
+      },
+      "nativeCodeCommit": "e6f93a891df4169d32ec06567ac7c9da455f6016",
+      "sourceSha256": {
+        "src/json/json-parser.cc": "d2a6e52a833cbda75c04a8bdb51c7a33db69f5c80ff89175a8256eb9e29aa797",
+        "src/msgpack/messagepack.cc": "798c2808464303176a97857d47796e51c5631df7dab43aec482f702d6db2b6f9",
+        "tools/binary_serialization/benchmark.cc": "e491f685d331ec1d0a2a5a45e1dff83c9c83f885e03dced95b74dfb9fdc4359e"
+      },
+      "headerSha256": {
+        "src/msgpack/messagepack.h": "4663cce95c8cd05485903fd8c89c90b93b14970cd94c9eaff6e8b6d697e7d560",
+        "src/objects/js-data-object-builder.h": "c9f51da54c0ea59dfbab4f0021b2af4ba0da9be7fd68fb778ad1d6cdb81b5b7c"
+      },
+      "batchFiles": [
+        "out/binary-serialization/optimization-final-arm32/paired-a/results.json",
+        "out/binary-serialization/optimization-final-arm32/paired-b/results.json"
+      ],
+      "batchSha256": [
+        "cea42bf17f6ecdd5c5b4e9adcd3407e622d80c732ad64b8b8bc8a09599ea3ae4",
+        "02757dad1082c6e45f7f060a27294f58239afdfdde28c9623b2afa8416b57cf9"
+      ],
+      "seeds": [
+        20261005,
+        20261006
+      ],
+      "samplesPerCodec": 10,
+      "workloads": [
+        {
+          "name": "records_250",
+          "sizes": {
+            "json": {
+              "bytes": 31547,
+              "sha256": "53db6e41b274c45c2c4181349a0b1342ccbd56cffe7b2010e895189d73acdedc"
+            },
+            "msgpack": {
+              "bytes": 25047,
+              "sha256": "591268f9c7bc977e9528d8b6448e4a42ab859388900d1bd63c59ae72b8e5e402"
+            },
+            "msgpack32": {
+              "bytes": 23331,
+              "sha256": "d91f63bf6f24635ebb9afcafc06eefd9e33c2f49a9a74b9980d20cf03b539650"
+            },
+            "v8": {
+              "bytes": 31335,
+              "sha256": "5477dc36f6f3302ef8aa20091ab97a8d7450a384f96aae30527fadcdc74c1b2f"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 0.433703,
+              "retainedHeapBytesPerGraph": 34169.6,
+              "peakRssBytes": 10266624.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 0.43357999999999997,
+              "retainedHeapBytesPerGraph": 34169.6,
+              "peakRssBytes": 10395648.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 0.4340355,
+              "retainedHeapBytesPerGraph": 34169.6,
+              "peakRssBytes": 10211328.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 0.432191,
+              "retainedHeapBytesPerGraph": 34169.6,
+              "peakRssBytes": 10317824.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 0.330866,
+              "retainedHeapBytesPerGraph": 34169.6,
+              "peakRssBytes": 10409984.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 0.33455999999999997,
+              "retainedHeapBytesPerGraph": 34169.6,
+              "peakRssBytes": 10428416.0
+            }
+          },
+          "nativeSpeedup": 1.3104398759618696,
+          "speedupVersusJson": 1.3062418018170499,
+          "jsonControlRatio": 1.0034984532301692,
+          "batchNativeMs": {
+            "before": [
+              0.433646,
+              0.433514
+            ],
+            "after": [
+              0.33063,
+              0.331062
+            ]
+          }
+        },
+        {
+          "name": "records_2500",
+          "sizes": {
+            "json": {
+              "bytes": 323733,
+              "sha256": "a8500df9e851000c5df4c4d1eadb7e263df7c20b99c6dddd454bbba058e197cc"
+            },
+            "msgpack": {
+              "bytes": 256595,
+              "sha256": "6bf875e867130422095cc489ccc3e10bd1ca1d5238e8492fb4ecddc7bc9abc6a"
+            },
+            "msgpack32": {
+              "bytes": 239423,
+              "sha256": "ad6ffa82987d5f0a65f3bf887c40a9484db98d96baada12ac56fd5f6addb62b4"
+            },
+            "v8": {
+              "bytes": 316335,
+              "sha256": "59cf40d86660157e12f8c3c9859c48f4d25030b77e517be06167a8081aa9e78b"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 4.605195,
+              "retainedHeapBytesPerGraph": 341370.0,
+              "peakRssBytes": 12699648.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 4.461205,
+              "retainedHeapBytesPerGraph": 341370.0,
+              "peakRssBytes": 12240896.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 4.50886,
+              "retainedHeapBytesPerGraph": 341370.0,
+              "peakRssBytes": 12369920.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 4.5878049999999995,
+              "retainedHeapBytesPerGraph": 341370.0,
+              "peakRssBytes": 12517376.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 3.637525,
+              "retainedHeapBytesPerGraph": 341370.0,
+              "peakRssBytes": 12263424.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 3.706825,
+              "retainedHeapBytesPerGraph": 341370.0,
+              "peakRssBytes": 12351488.0
+            }
+          },
+          "nativeSpeedup": 1.2264396808269358,
+          "speedupVersusJson": 1.2612435653363205,
+          "jsonControlRatio": 1.0037904836844636,
+          "batchNativeMs": {
+            "before": [
+              4.47071,
+              4.45242
+            ],
+            "after": [
+              3.63549,
+              3.65086
+            ]
+          }
+        },
+        {
+          "name": "records_25000",
+          "sizes": {
+            "json": {
+              "bytes": 3312808,
+              "sha256": "6e786d5a3f519419077e2c7d979b7b72ef42ae6ea6bad8b9398dec7a41ca73c7"
+            },
+            "msgpack": {
+              "bytes": 2597831,
+              "sha256": "9a1f7530e28036105ae8709d25bdf0cfd30618918726905b12f22bda2f2aa28d"
+            },
+            "msgpack32": {
+              "bytes": 2426103,
+              "sha256": "993ca93addaacac9c65e3b18f8b8aa8fa203b371952cec72011c90202ba66325"
+            },
+            "v8": {
+              "bytes": 3205645,
+              "sha256": "09a597538a1d97aae50f80f02189bc2c6bb87afd5dc5edfc29ebaad81e5bbdcb"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 57.70825,
+              "retainedHeapBytesPerGraph": 3707370.0,
+              "peakRssBytes": 73005056.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 63.5621,
+              "retainedHeapBytesPerGraph": 3419370.0,
+              "peakRssBytes": 44945408.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 64.28545,
+              "retainedHeapBytesPerGraph": 3419370.0,
+              "peakRssBytes": 44877824.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 57.76025,
+              "retainedHeapBytesPerGraph": 3707370.0,
+              "peakRssBytes": 73443328.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 55.346149999999994,
+              "retainedHeapBytesPerGraph": 3419370.0,
+              "peakRssBytes": 45017088.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 56.0473,
+              "retainedHeapBytesPerGraph": 3419370.0,
+              "peakRssBytes": 44642304.0
+            }
+          },
+          "nativeSpeedup": 1.14844663991985,
+          "speedupVersusJson": 1.0436182101194031,
+          "jsonControlRatio": 0.9990997268883012,
+          "batchNativeMs": {
+            "before": [
+              63.316,
+              63.7829
+            ],
+            "after": [
+              55.2762,
+              55.6207
+            ]
+          }
+        },
+        {
+          "name": "short_decimals",
+          "sizes": {
+            "json": {
+              "bytes": 612121,
+              "sha256": "a58635024d6c12ebc4fc5dfa2c9c51e2b422dd2c89175621aecf0d3034c03690"
+            },
+            "msgpack": {
+              "bytes": 986165,
+              "sha256": "5e4ef45ebc95ec1bee1118cff7bc6195bd9689752e59f73e29f8f0c1d33af703"
+            },
+            "msgpack32": {
+              "bytes": 938165,
+              "sha256": "431fa174d259bfaf187449d5cada69ac441cd9ae70fdb27c1cc0e454bfa5766a"
+            },
+            "v8": {
+              "bytes": 1080011,
+              "sha256": "d725fe320bd92aef1850cdfa624cf6f069ec7ceb13ec23130591dabd738a94ff"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 16.02145,
+              "retainedHeapBytesPerGraph": 960024.0,
+              "peakRssBytes": 32899072.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 7.704955,
+              "retainedHeapBytesPerGraph": 960024.0,
+              "peakRssBytes": 23066624.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 7.92828,
+              "retainedHeapBytesPerGraph": 960024.0,
+              "peakRssBytes": 23191552.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 15.9561,
+              "retainedHeapBytesPerGraph": 960024.0,
+              "peakRssBytes": 32772096.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 7.635655,
+              "retainedHeapBytesPerGraph": 960024.0,
+              "peakRssBytes": 23087104.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 7.81781,
+              "retainedHeapBytesPerGraph": 960024.0,
+              "peakRssBytes": 23142400.0
+            }
+          },
+          "nativeSpeedup": 1.0090758422165487,
+          "speedupVersusJson": 2.0896832033401194,
+          "jsonControlRatio": 1.004095612336348,
+          "batchNativeMs": {
+            "before": [
+              7.70353,
+              7.70638
+            ],
+            "after": [
+              7.60652,
+              7.66479
+            ]
+          }
+        },
+        {
+          "name": "integers",
+          "sizes": {
+            "json": {
+              "bytes": 697781,
+              "sha256": "12683031fb4dc41c2d9d8b4cfb5966c19abe0005249658f9fd2b35d0444c7e0a"
+            },
+            "msgpack": {
+              "bytes": 359237,
+              "sha256": "dee3d1788acff9aedbec101190b92ff054ec28a46c0e51541ba7d96746272703"
+            },
+            "msgpack32": {
+              "bytes": 359237,
+              "sha256": "dee3d1788acff9aedbec101190b92ff054ec28a46c0e51541ba7d96746272703"
+            },
+            "v8": {
+              "bytes": 463499,
+              "sha256": "5e223c8eaa54d7f61c11d306b7c791f01dc552a0048bfa46e9f36521c2c9005f"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 5.705985,
+              "retainedHeapBytesPerGraph": 480024.0,
+              "peakRssBytes": 19021824.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 4.307365000000001,
+              "retainedHeapBytesPerGraph": 480024.0,
+              "peakRssBytes": 11450368.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 4.357445,
+              "retainedHeapBytesPerGraph": 480024.0,
+              "peakRssBytes": 11374592.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 5.71231,
+              "retainedHeapBytesPerGraph": 480024.0,
+              "peakRssBytes": 19038208.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 4.313924999999999,
+              "retainedHeapBytesPerGraph": 480024.0,
+              "peakRssBytes": 11433984.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 4.322685,
+              "retainedHeapBytesPerGraph": 480024.0,
+              "peakRssBytes": 11417600.0
+            }
+          },
+          "nativeSpeedup": 0.9984793430576566,
+          "speedupVersusJson": 1.324156075963305,
+          "jsonControlRatio": 0.9988927421656036,
+          "batchNativeMs": {
+            "before": [
+              4.3116,
+              4.30313
+            ],
+            "after": [
+              4.29634,
+              4.33151
+            ]
+          }
+        },
+        {
+          "name": "text_heavy",
+          "sizes": {
+            "json": {
+              "bytes": 1155281,
+              "sha256": "ecae31dd1bfe3309a30e09517bc4cf64e8305b6b1d7f4ffae7937320247155b2"
+            },
+            "msgpack": {
+              "bytes": 1138509,
+              "sha256": "8e3afd8abfd93927f1c889f25aa0a0efa274eb6910039ed4cb3825d53feb617b"
+            },
+            "msgpack32": {
+              "bytes": 1138509,
+              "sha256": "8e3afd8abfd93927f1c889f25aa0a0efa274eb6910039ed4cb3825d53feb617b"
+            },
+            "v8": {
+              "bytes": 1148835,
+              "sha256": "9d104f43b9c7e090e1d88f38e6c3a3438aef24717993d21d2dfa974515a1b856"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 3.7384,
+              "retainedHeapBytesPerGraph": 1196060.0,
+              "peakRssBytes": 24221696.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 3.33702,
+              "retainedHeapBytesPerGraph": 1196060.0,
+              "peakRssBytes": 31137792.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 3.32704,
+              "retainedHeapBytesPerGraph": 1196060.0,
+              "peakRssBytes": 30881792.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 3.780165,
+              "retainedHeapBytesPerGraph": 1196060.0,
+              "peakRssBytes": 23824384.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 2.0945,
+              "retainedHeapBytesPerGraph": 1196060.0,
+              "peakRssBytes": 31150080.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 2.0792200000000003,
+              "retainedHeapBytesPerGraph": 1196060.0,
+              "peakRssBytes": 30978048.0
+            }
+          },
+          "nativeSpeedup": 1.5932298878013844,
+          "speedupVersusJson": 1.8048054428264504,
+          "jsonControlRatio": 0.988951540475085,
+          "batchNativeMs": {
+            "before": [
+              3.34054,
+              3.33623
+            ],
+            "after": [
+              2.11581,
+              2.08066
+            ]
+          }
+        },
+        {
+          "name": "unicode",
+          "sizes": {
+            "json": {
+              "bytes": 1340281,
+              "sha256": "ae2b3cdce36f9eac05352fe9b37f2b2a9f1f4565d896aa91d6a42d4c72c4eea0"
+            },
+            "msgpack": {
+              "bytes": 1313509,
+              "sha256": "7c6464c1c718084ab3ddbaa452fff38f97dbab2102cd0e46d2ca218fa5cb1050"
+            },
+            "msgpack32": {
+              "bytes": 1313509,
+              "sha256": "7c6464c1c718084ab3ddbaa452fff38f97dbab2102cd0e46d2ca218fa5cb1050"
+            },
+            "v8": {
+              "bytes": 1422788,
+              "sha256": "a072a1261a254e5d40bf867f3fae0bd0b7a5cf4ec909e520e83b07c6c6955667"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 14.55995,
+              "retainedHeapBytesPerGraph": 1486030.0,
+              "peakRssBytes": 29124608.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 16.56445,
+              "retainedHeapBytesPerGraph": 1466860.0,
+              "peakRssBytes": 30855168.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 16.594250000000002,
+              "retainedHeapBytesPerGraph": 1466860.0,
+              "peakRssBytes": 31440896.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 14.58435,
+              "retainedHeapBytesPerGraph": 1486030.0,
+              "peakRssBytes": 29286400.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 2.088755,
+              "retainedHeapBytesPerGraph": 127121.0,
+              "peakRssBytes": 12201984.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 2.096755,
+              "retainedHeapBytesPerGraph": 127121.0,
+              "peakRssBytes": 12320768.0
+            }
+          },
+          "nativeSpeedup": 7.9302981919851785,
+          "speedupVersusJson": 6.982317217672729,
+          "jsonControlRatio": 0.9983269737766853,
+          "batchNativeMs": {
+            "before": [
+              16.446,
+              16.5816
+            ],
+            "after": [
+              2.08525,
+              2.10508
+            ]
+          }
+        },
+        {
+          "name": "unicode_unique",
+          "sizes": {
+            "json": {
+              "bytes": 1506961,
+              "sha256": "6016e5e21fd90c71b678f6a140a296a45701068d64e6377cb6a5d0f5b5255a4e"
+            },
+            "msgpack": {
+              "bytes": 1480189,
+              "sha256": "b0a93534c0d8d899b7895d3a410951bbf306d425546748b9e450dcc9f7533bf0"
+            },
+            "msgpack32": {
+              "bytes": 1480189,
+              "sha256": "b0a93534c0d8d899b7895d3a410951bbf306d425546748b9e450dcc9f7533bf0"
+            },
+            "v8": {
+              "bytes": 1756148,
+              "sha256": "e4584d4a2d8626991ac968bb25e7cc31515501b572a9698fbc2dc0c7c3217141"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 15.527000000000001,
+              "retainedHeapBytesPerGraph": 1819390.0,
+              "peakRssBytes": 45469696.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 17.399050000000003,
+              "retainedHeapBytesPerGraph": 1800220.0,
+              "peakRssBytes": 26228736.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 17.28525,
+              "retainedHeapBytesPerGraph": 1800220.0,
+              "peakRssBytes": 25821184.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 15.306550000000001,
+              "retainedHeapBytesPerGraph": 1819390.0,
+              "peakRssBytes": 45443072.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 9.884335,
+              "retainedHeapBytesPerGraph": 1800220.0,
+              "peakRssBytes": 25475072.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 9.90868,
+              "retainedHeapBytesPerGraph": 1800220.0,
+              "peakRssBytes": 25743360.0
+            }
+          },
+          "nativeSpeedup": 1.760265106352628,
+          "speedupVersusJson": 1.5485664943569801,
+          "jsonControlRatio": 1.01440233102822,
+          "batchNativeMs": {
+            "before": [
+              17.3988,
+              17.4228
+            ],
+            "after": [
+              9.86276,
+              9.93289
+            ]
+          }
+        },
+        {
+          "name": "ascii_unique",
+          "sizes": {
+            "json": {
+              "bytes": 2187251,
+              "sha256": "8cde3e5bd2d28a6d215b5cf09b23dfd2deef7da5c01ce19a494033a28c18365c"
+            },
+            "msgpack": {
+              "bytes": 2170479,
+              "sha256": "d316a5337ecf95ed43b1717c557cea8bff2c9d53b60dc816808333075e8caa27"
+            },
+            "msgpack32": {
+              "bytes": 2170479,
+              "sha256": "d316a5337ecf95ed43b1717c557cea8bff2c9d53b60dc816808333075e8caa27"
+            },
+            "v8": {
+              "bytes": 2180805,
+              "sha256": "401b4c7147aa1ff69daa234746658c9aaecc3db2361cc20b6e10ebb10223ac69"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 6.34063,
+              "retainedHeapBytesPerGraph": 2223420.0,
+              "peakRssBytes": 38174720.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 5.86803,
+              "retainedHeapBytesPerGraph": 2223420.0,
+              "peakRssBytes": 35397632.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 5.841749999999999,
+              "retainedHeapBytesPerGraph": 2223420.0,
+              "peakRssBytes": 36134912.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 6.28299,
+              "retainedHeapBytesPerGraph": 2223420.0,
+              "peakRssBytes": 38936576.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 3.65355,
+              "retainedHeapBytesPerGraph": 2223420.0,
+              "peakRssBytes": 34785280.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 3.63524,
+              "retainedHeapBytesPerGraph": 2223420.0,
+              "peakRssBytes": 36182016.0
+            }
+          },
+          "nativeSpeedup": 1.6061173379316007,
+          "speedupVersusJson": 1.7196945436630127,
+          "jsonControlRatio": 1.009173976084635,
+          "batchNativeMs": {
+            "before": [
+              5.88011,
+              5.86752
+            ],
+            "after": [
+              3.65656,
+              3.65054
+            ]
+          }
+        },
+        {
+          "name": "latin1_unique",
+          "sizes": {
+            "json": {
+              "bytes": 2202251,
+              "sha256": "079bffb5af8f64bafac05e26afad60afd305c909c34606fb795a776317c58c2a"
+            },
+            "msgpack": {
+              "bytes": 2185479,
+              "sha256": "dbf53857050329ca6de39ed222749836324ea27628fb728749dac4938ecd733a"
+            },
+            "msgpack32": {
+              "bytes": 2185479,
+              "sha256": "dbf53857050329ca6de39ed222749836324ea27628fb728749dac4938ecd733a"
+            },
+            "v8": {
+              "bytes": 2193305,
+              "sha256": "bfcdc214d6972644671e8c3bb7dead9068e9ee3c418cb1d47d9d1a5d61df28da"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 10.0498,
+              "retainedHeapBytesPerGraph": 2243420.0,
+              "peakRssBytes": 37748736.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 6.03869,
+              "retainedHeapBytesPerGraph": 2243420.0,
+              "peakRssBytes": 35035136.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 6.080845,
+              "retainedHeapBytesPerGraph": 2243420.0,
+              "peakRssBytes": 35055616.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 10.0861,
+              "retainedHeapBytesPerGraph": 2243420.0,
+              "peakRssBytes": 37947392.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 3.742325,
+              "retainedHeapBytesPerGraph": 2243420.0,
+              "peakRssBytes": 34850816.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 3.7747599999999997,
+              "retainedHeapBytesPerGraph": 2243420.0,
+              "peakRssBytes": 35565568.0
+            }
+          },
+          "nativeSpeedup": 1.6136198753448725,
+          "speedupVersusJson": 2.6951427254447435,
+          "jsonControlRatio": 0.9964009874976452,
+          "batchNativeMs": {
+            "before": [
+              6.04728,
+              6.0379
+            ],
+            "after": [
+              3.74921,
+              3.73972
+            ]
+          }
+        },
+        {
+          "name": "alternating_roles",
+          "sizes": {
+            "json": {
+              "bytes": 468291,
+              "sha256": "19b4b973831cb9953a3767ba090635dabbb6a2243b43b8d112ce5e810de59796"
+            },
+            "msgpack": {
+              "bytes": 313991,
+              "sha256": "ebdaf7681ec10612ae79b601be38af9c8df00d290c8a81dd582f171d32322ede"
+            },
+            "msgpack32": {
+              "bytes": 296491,
+              "sha256": "44b6986d29dbe5e7d2c53f0cd9fec7c1a4ce5e4667eed59a0f94341ac3b3727c"
+            },
+            "v8": {
+              "bytes": 408771,
+              "sha256": "af2b7efff4f7df090c86870f3c6d217d3d1bf652016103202c4134a6a09ab807"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 7.5206,
+              "retainedHeapBytesPerGraph": 660850.0,
+              "peakRssBytes": 20817920.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 10.459399999999999,
+              "retainedHeapBytesPerGraph": 584050.0,
+              "peakRssBytes": 15282176.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 10.49225,
+              "retainedHeapBytesPerGraph": 584050.0,
+              "peakRssBytes": 15245312.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 7.470610000000001,
+              "retainedHeapBytesPerGraph": 660850.0,
+              "peakRssBytes": 20666368.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 7.43292,
+              "retainedHeapBytesPerGraph": 584050.0,
+              "peakRssBytes": 15183872.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 7.398054999999999,
+              "retainedHeapBytesPerGraph": 584050.0,
+              "peakRssBytes": 15249408.0
+            }
+          },
+          "nativeSpeedup": 1.4071724167621875,
+          "speedupVersusJson": 1.0050706855448466,
+          "jsonControlRatio": 1.006691555308067,
+          "batchNativeMs": {
+            "before": [
+              10.4168,
+              10.481
+            ],
+            "after": [
+              7.32154,
+              7.44055
+            ]
+          }
+        },
+        {
+          "name": "mixed_late",
+          "sizes": {
+            "json": {
+              "bytes": 612133,
+              "sha256": "7a75e846b0231646bd4508b8d124da5e4b5ccc021a7103201bf4a75182dafac5"
+            },
+            "msgpack": {
+              "bytes": 986171,
+              "sha256": "3371eea77533ddf7b937124eb57a0af3a26c83cc79f938d16e5b3b470f955052"
+            },
+            "msgpack32": {
+              "bytes": 938171,
+              "sha256": "e6afffe9952ba502a0d6696e8c38cc9acf14c03ec94f3465f1b5b992afbe264f"
+            },
+            "v8": {
+              "bytes": 996018,
+              "sha256": "7545410cbebbdfcd549ee74ecd6435dc8f1c2e4e52dba36a523b0cbbcdc85b38"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 14.62705,
+              "retainedHeapBytesPerGraph": 1776040.0,
+              "peakRssBytes": 29661184.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 7.120469999999999,
+              "retainedHeapBytesPerGraph": 1776040.0,
+              "peakRssBytes": 26796032.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 7.373614999999999,
+              "retainedHeapBytesPerGraph": 1776040.0,
+              "peakRssBytes": 27209728.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 14.65705,
+              "retainedHeapBytesPerGraph": 1776040.0,
+              "peakRssBytes": 30005248.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 7.077745,
+              "retainedHeapBytesPerGraph": 1776040.0,
+              "peakRssBytes": 27316224.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 7.23368,
+              "retainedHeapBytesPerGraph": 1776040.0,
+              "peakRssBytes": 27244544.0
+            }
+          },
+          "nativeSpeedup": 1.00603652717073,
+          "speedupVersusJson": 2.0708643784143113,
+          "jsonControlRatio": 0.9979532034072341,
+          "batchNativeMs": {
+            "before": [
+              7.0962,
+              7.14474
+            ],
+            "after": [
+              7.05918,
+              7.09001
+            ]
+          }
+        },
+        {
+          "name": "nested_numeric",
+          "sizes": {
+            "json": {
+              "bytes": 612133,
+              "sha256": "e3363f7d845cb7c346996912cd786576c1fab928aa3a55ac1ed24942a2836c2f"
+            },
+            "msgpack": {
+              "bytes": 986174,
+              "sha256": "cf0a6795cfe367d0197925795838c2bffb31b5e78df1e4c40bc21cd564b25108"
+            },
+            "msgpack32": {
+              "bytes": 938174,
+              "sha256": "cf569bbe3d4d871fa75d78733d99446a261118f9ea36af21c4de4613d2255642"
+            },
+            "v8": {
+              "bytes": 1080023,
+              "sha256": "8c7b0d9d1d37bad477f6aca456f30aa3e86c2ca590ba66b3b09b83203c6e93ba"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 15.958950000000002,
+              "retainedHeapBytesPerGraph": 960066.0,
+              "peakRssBytes": 32892928.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 7.79832,
+              "retainedHeapBytesPerGraph": 960066.0,
+              "peakRssBytes": 23085056.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 7.852505,
+              "retainedHeapBytesPerGraph": 960066.0,
+              "peakRssBytes": 23048192.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 15.9656,
+              "retainedHeapBytesPerGraph": 960066.0,
+              "peakRssBytes": 32878592.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 7.671565,
+              "retainedHeapBytesPerGraph": 960066.0,
+              "peakRssBytes": 23103488.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 7.869835,
+              "retainedHeapBytesPerGraph": 960066.0,
+              "peakRssBytes": 23003136.0
+            }
+          },
+          "nativeSpeedup": 1.0165227042982756,
+          "speedupVersusJson": 2.0811398977913895,
+          "jsonControlRatio": 0.999583479480884,
+          "batchNativeMs": {
+            "before": [
+              7.79892,
+              7.79772
+            ],
+            "after": [
+              7.74199,
+              7.63799
+            ]
+          }
+        },
+        {
+          "name": "varying_shapes",
+          "sizes": {
+            "json": {
+              "bytes": 465697,
+              "sha256": "ab7f2aaae36d3fc0f418053316ab3a2fae5ad87d6c56fe58d4a84ac9ff989eb7"
+            },
+            "msgpack": {
+              "bytes": 327288,
+              "sha256": "ca7c1cb245ec48abd6b7886d110e0a79609b0dd3781674b2e21a104dd621418f"
+            },
+            "msgpack32": {
+              "bytes": 327288,
+              "sha256": "ca7c1cb245ec48abd6b7886d110e0a79609b0dd3781674b2e21a104dd621418f"
+            },
+            "v8": {
+              "bytes": 394496,
+              "sha256": "99032d080d15adee1ab6f03de853b3c7324deafac8b711745bfc79881ae686d6"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 11.51165,
+              "retainedHeapBytesPerGraph": 629155.0,
+              "peakRssBytes": 18069504.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 15.187249999999999,
+              "retainedHeapBytesPerGraph": 552355.0,
+              "peakRssBytes": 15798272.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 15.272950000000002,
+              "retainedHeapBytesPerGraph": 552355.0,
+              "peakRssBytes": 15828992.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 11.556550000000001,
+              "retainedHeapBytesPerGraph": 629155.0,
+              "peakRssBytes": 18411520.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 14.511800000000001,
+              "retainedHeapBytesPerGraph": 552355.0,
+              "peakRssBytes": 15912960.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 14.46415,
+              "retainedHeapBytesPerGraph": 552355.0,
+              "peakRssBytes": 15738880.0
+            }
+          },
+          "nativeSpeedup": 1.0465448807177606,
+          "speedupVersusJson": 0.7963553797599195,
+          "jsonControlRatio": 0.9961147574319323,
+          "batchNativeMs": {
+            "before": [
+              15.1747,
+              15.1938
+            ],
+            "after": [
+              14.4915,
+              14.5321
+            ]
+          }
+        },
+        {
+          "name": "protocol_fixture",
+          "sizes": {
+            "json": {
+              "bytes": 56495,
+              "sha256": "3e53a0ba6888397cdeeeafcc0cef68e24bf04ae20adfe0df70b9135d90c643b7"
+            },
+            "msgpack": {
+              "bytes": 49315,
+              "sha256": "a130a6213759bb71fb23583a3b526a6b1be6fca5e99ad295f00a45341a2c9081"
+            },
+            "msgpack32": {
+              "bytes": 49315,
+              "sha256": "a130a6213759bb71fb23583a3b526a6b1be6fca5e99ad295f00a45341a2c9081"
+            },
+            "v8": {
+              "bytes": 53701,
+              "sha256": "e22c69165e34670a66b4a84cf6a82de1ef6c28870938112adf99c3a2da45c8a6"
+            }
+          },
+          "medians": {
+            "before:json": {
+              "millisecondsPerOperation": 0.50373,
+              "retainedHeapBytesPerGraph": 62688.0,
+              "peakRssBytes": 10229760.0
+            },
+            "before:msgpack": {
+              "millisecondsPerOperation": 0.569168,
+              "retainedHeapBytesPerGraph": 62711.2,
+              "peakRssBytes": 10428416.0
+            },
+            "before:msgpack32": {
+              "millisecondsPerOperation": 0.565579,
+              "retainedHeapBytesPerGraph": 62711.2,
+              "peakRssBytes": 10393600.0
+            },
+            "after:json": {
+              "millisecondsPerOperation": 0.502374,
+              "retainedHeapBytesPerGraph": 62688.0,
+              "peakRssBytes": 10248192.0
+            },
+            "after:msgpack": {
+              "millisecondsPerOperation": 0.40956000000000004,
+              "retainedHeapBytesPerGraph": 55964.0,
+              "peakRssBytes": 10270720.0
+            },
+            "after:msgpack32": {
+              "millisecondsPerOperation": 0.4107775,
+              "retainedHeapBytesPerGraph": 55964.0,
+              "peakRssBytes": 10446848.0
+            }
+          },
+          "nativeSpeedup": 1.3897060259790994,
+          "speedupVersusJson": 1.226618810430706,
+          "jsonControlRatio": 1.0026991842730715,
+          "batchNativeMs": {
+            "before": [
+              0.569394,
+              0.565533
+            ],
+            "after": [
+              0.409913,
+              0.409081
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "limits": "One physical OnePlus 6, Android API35, CPU mask f0. Synthetic corpora plus V8 protocol fixture. Retained heap is five-graph incremental delta/5. Peak RSS includes initialization, warmup, timing and retained graphs.",
+  "validation": {
+    "sameNativeCodeAcrossBatches": true,
+    "sameCoreAndBuilder": true,
+    "sameWireBeforeAfterAndAcrossAbis": true,
+    "pairedIterationCounts": true,
+    "allCorpusRoundTripsAndCPeerChecksPassed": true
+  }
+}
