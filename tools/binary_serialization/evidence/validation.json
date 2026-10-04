@@ -1,0 +1,156 @@
+{
+  "completedUtc": "2026-10-04T16:13:38.626490+00:00",
+  "codeCommit": "254a7f76dafb7e2f006ec7628d26dd686476991d",
+  "checks": {
+    "macos": {
+      "binary": "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/native-binary-benchmark",
+      "binarySha256": "9d3bdb6ab731151745e90e9ab4b488099fa14ab59a06539a8aed465a36cfcc05",
+      "buildManifestSha256": "b13ac7e2bcbfa1a144049cb111dc55485542430c62fcb57a6e49f46d5b09f9ba",
+      "runs": [
+        {
+          "command": [
+            "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/native-binary-benchmark",
+            "--self-test"
+          ],
+          "stress": false,
+          "result": {
+            "selfTest": "PASS",
+            "roundTrips": 31,
+            "backends": 3,
+            "malformedCases": 10,
+            "differentialByteInputs": 2000
+          },
+          "stderr": ""
+        },
+        {
+          "command": [
+            "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/native-binary-benchmark",
+            "--self-test",
+            "--stress"
+          ],
+          "stress": true,
+          "result": {
+            "selfTest": "PASS",
+            "roundTrips": 31,
+            "backends": 3,
+            "malformedCases": 10,
+            "differentialByteInputs": 2000
+          },
+          "stderr": ""
+        }
+      ]
+    },
+    "android-arm64": {
+      "binary": "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/android-arm64-optimized/native-binary-benchmark",
+      "binarySha256": "6614cea5dde6cb3cf3a1178e397e170c43dc436282434230a3157c212e4de7cb",
+      "buildManifestSha256": "a26eff5405f28bd39a4247b5ec865c0b2abeb1334a67d7db9ea52ca5015a4d46",
+      "runs": [
+        {
+          "command": [
+            "adb",
+            "-s",
+            "885841c1",
+            "shell",
+            "taskset f0 /data/local/tmp/codex-binary-arm64/native-binary-benchmark --self-test"
+          ],
+          "stress": false,
+          "result": {
+            "selfTest": "PASS",
+            "roundTrips": 31,
+            "backends": 3,
+            "malformedCases": 10,
+            "differentialByteInputs": 2000
+          },
+          "stderr": ""
+        },
+        {
+          "command": [
+            "adb",
+            "-s",
+            "885841c1",
+            "shell",
+            "taskset f0 /data/local/tmp/codex-binary-arm64/native-binary-benchmark --self-test --stress"
+          ],
+          "stress": true,
+          "result": {
+            "selfTest": "PASS",
+            "roundTrips": 31,
+            "backends": 3,
+            "malformedCases": 10,
+            "differentialByteInputs": 2000
+          },
+          "stderr": ""
+        }
+      ]
+    },
+    "android-arm32": {
+      "binary": "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/android-arm32-optimized/native-binary-benchmark",
+      "binarySha256": "e86b2c515dc0e9a91659e86ab41f62d5f0fdd0c7d05c2192d53cb01c20009413",
+      "buildManifestSha256": "f7d473e00b0e544d2ae81cd1066167ea32a8524f3d2818e31c2928adf0cc8736",
+      "runs": [
+        {
+          "command": [
+            "adb",
+            "-s",
+            "885841c1",
+            "shell",
+            "taskset f0 /data/local/tmp/codex-binary-arm32/native-binary-benchmark --self-test"
+          ],
+          "stress": false,
+          "result": {
+            "selfTest": "PASS",
+            "roundTrips": 31,
+            "backends": 3,
+            "malformedCases": 10,
+            "differentialByteInputs": 2000
+          },
+          "stderr": ""
+        },
+        {
+          "command": [
+            "adb",
+            "-s",
+            "885841c1",
+            "shell",
+            "taskset f0 /data/local/tmp/codex-binary-arm32/native-binary-benchmark --self-test --stress"
+          ],
+          "stress": true,
+          "result": {
+            "selfTest": "PASS",
+            "roundTrips": 31,
+            "backends": 3,
+            "malformedCases": 10,
+            "differentialByteInputs": 2000
+          },
+          "stderr": ""
+        }
+      ]
+    }
+  },
+  "independentCPeer": {
+    "buildManifest": {
+      "commit": "dbc7bfbbff2a54c0b41a78187f92667e0ca6413f",
+      "archiveSha256": "fd41da1356f7cbcc98e3d84801d5f2ac3d51871e45663493681beedbbd388512",
+      "binarySha256": "8202dde185d37dfa10989a2e70b103dabe5fd1198e53d8c450c56224ea6fd695",
+      "command": [
+        "/Library/Developer/CommandLineTools/usr/bin/clang",
+        "-O3",
+        "-DNDEBUG",
+        "-isysroot",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        "-I/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/msgpack-c-source/include",
+        "-I/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/msgpack-c-build/include",
+        "-I/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/msgpack-c-build/include/msgpack",
+        "/Users/james/.codex/worktrees/21d0/v8-standalone/tools/binary_serialization/c_peer.c",
+        "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/msgpack-c-source/src/unpack.c",
+        "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/msgpack-c-source/src/zone.c",
+        "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/msgpack-c-source/src/objectc.c",
+        "-o",
+        "/Users/james/.codex/worktrees/21d0/v8-standalone/out/binary-serialization/c-peer"
+      ]
+    },
+    "checkerSourceSha256": "6fd959a281af93c63207f42a02af89fe6937f42734892f5006e491c17e3a30e6"
+  },
+  "aggregateReportSha256": "58d8341885cf1b079b9fd05272cd16492032755215c1280f13865ded38ab0965",
+  "allNormalAndMovingGCChecksPassed": true
+}
