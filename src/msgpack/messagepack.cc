@@ -445,8 +445,13 @@ class ByteWriter {
 
 class Encoder {
  public:
-  Encoder(Isolate* isolate, std::vector<uint8_t>* output, std::string* error)
-      : isolate_(isolate), writer_(output), packer_(writer_), error_(error) {}
+  Encoder(Isolate* isolate, std::vector<uint8_t>* output, std::string* error,
+          bool lossless_float32)
+      : isolate_(isolate),
+        writer_(output),
+        packer_(writer_),
+        error_(error),
+        lossless_float32_(lossless_float32) {}
   bool Fail(const char* s) {
     *error_ = s;
     return false;
@@ -459,12 +464,31 @@ class Encoder {
         packer_.pack_uint64(static_cast<uint64_t>(n));
       else
         packer_.pack_int64(static_cast<int64_t>(n));
+    } else if (lossless_float32_ && std::isfinite(n) &&
+               std::fabs(n) <= std::numeric_limits<float>::max() &&
+               static_cast<double>(static_cast<float>(n)) == n) {
+      // IEEE float32 is selected only if widening reproduces the JS Number
+      // exactly. Negative zero retains its sign; all other values use float64.
+      packer_.pack_float(static_cast<float>(n));
     } else
       packer_.pack_double(n);
     return true;
   }
   bool StringValue(Handle<String> string) {
     string = String::Flatten(isolate_, string);
+    {
+      DisallowGarbageCollection no_gc;
+      String::FlatContent flat = string->GetFlatContent(no_gc);
+      if (flat.IsOneByte()) {
+        auto bytes = flat.ToOneByteVector();
+        if (String::IsAscii(bytes.begin(), bytes.length())) {
+          packer_.pack_str(bytes.length());
+          packer_.pack_str_body(reinterpret_cast<const char*>(bytes.begin()),
+                                bytes.length());
+          return true;
+        }
+      }
+    }
     if (!String::IsWellFormedUnicode(isolate_, string))
       return Fail("Unpaired UTF-16 surrogate is outside the UTF-8 profile");
     int length;
@@ -517,13 +541,68 @@ class Encoder {
       Handle<JSArray> array = Handle<JSArray>::cast(object);
       uint32_t length = static_cast<uint32_t>(Object::Number(array->length()));
       packer_.pack_array(length);
-      for (uint32_t i = 0; i < length && ok; ++i) {
+      ElementsKind kind = array->GetElementsKind();
+      if (length > 0 && kind == PACKED_DOUBLE_ELEMENTS) {
+        Handle<FixedDoubleArray> storage(
+            FixedDoubleArray::cast(array->elements()), isolate_);
+        for (uint32_t i = 0; i < length && ok; ++i)
+          ok = Number(storage->get_scalar(i));
+      } else if (length > 0 &&
+                 (kind == PACKED_SMI_ELEMENTS || kind == PACKED_ELEMENTS)) {
+        Handle<FixedArray> storage(FixedArray::cast(array->elements()),
+                                   isolate_);
+        for (uint32_t i = 0; i < length && ok; ++i) {
+          HandleScope scope(isolate_);
+          ok = Value(handle(storage->get(i), isolate_), depth + 1);
+        }
+      } else
+        for (uint32_t i = 0; i < length && ok; ++i) {
+          HandleScope scope(isolate_);
+          LookupIterator lookup(isolate_, object, i, object,
+                                LookupIterator::OWN);
+          if (lookup.state() != LookupIterator::DATA)
+            ok = Fail("Sparse arrays and accessors are unsupported");
+          else
+            ok = Value(lookup.GetDataValue(), depth + 1);
+        }
+    } else if (object->HasFastProperties(isolate_) &&
+               object->elements()->length() == 0) {
+      Handle<Map> map(object->map(), isolate_);
+      uint32_t count = 0;
+      for (InternalIndex i : map->IterateOwnDescriptors()) {
+        Tagged<DescriptorArray> descriptors =
+            map->instance_descriptors(isolate_);
+        if (!IsString(descriptors->GetKey(i))) continue;
+        PropertyDetails details = descriptors->GetDetails(i);
+        if (details.IsDontEnum()) continue;
+        if (details.kind() != PropertyKind::kData) {
+          ok = Fail("Accessors are unsupported");
+          break;
+        }
+        ++count;
+      }
+      if (ok) packer_.pack_map(count);
+      for (InternalIndex i : map->IterateOwnDescriptors()) {
+        if (!ok) break;
         HandleScope scope(isolate_);
-        LookupIterator lookup(isolate_, object, i, object, LookupIterator::OWN);
-        if (lookup.state() != LookupIterator::DATA)
-          ok = Fail("Sparse arrays and accessors are unsupported");
-        else
-          ok = Value(lookup.GetDataValue(), depth + 1);
+        if (*map != object->map()) {
+          ok = Fail("Object changed during encoding");
+          break;
+        }
+        Tagged<DescriptorArray> descriptors =
+            map->instance_descriptors(isolate_);
+        if (!IsString(descriptors->GetKey(i))) continue;
+        PropertyDetails details = descriptors->GetDetails(i);
+        if (details.IsDontEnum()) continue;
+        Handle<String> key(
+            handle(String::cast(descriptors->GetKey(i)), isolate_));
+        Handle<Object> field =
+            details.location() == PropertyLocation::kField
+                ? handle(object->RawFastPropertyAt(
+                             FieldIndex::ForDetails(*map, details)),
+                         isolate_)
+                : handle(descriptors->GetStrongValue(i), isolate_);
+        ok = StringValue(key) && Value(field, depth + 1);
       }
     } else {
       Handle<FixedArray> keys;
@@ -555,6 +634,7 @@ class Encoder {
   msgpack::packer<ByteWriter> packer_;
   std::string* error_;
   std::vector<Handle<Object>> ancestors_;
+  bool lossless_float32_;
 };
 }  // namespace
 
@@ -614,12 +694,13 @@ MaybeHandle<Object> DecodeMessagePack(Isolate* isolate,
 }
 
 bool EncodeMessagePack(Isolate* isolate, Handle<Object> value,
-                       std::vector<uint8_t>* output, std::string* error) {
+                       std::vector<uint8_t>* output, std::string* error,
+                       bool lossless_float32) {
   error->clear();
   output->clear();
   DisallowJavascriptExecution no_js(isolate);
   try {
-    Encoder encoder(isolate, output, error);
+    Encoder encoder(isolate, output, error, lossless_float32);
     bool ok = encoder.Value(value);
     if (!ok) output->clear();
     return ok;

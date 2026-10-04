@@ -114,7 +114,8 @@ std::vector<uint8_t> Encode(v8::Isolate* isolate,
   std::vector<uint8_t> result;
   std::string error;
   Check(i::EncodeMessagePack(reinterpret_cast<i::Isolate*>(isolate),
-                             v8::Utils::OpenHandle(*value), &result, &error),
+                             v8::Utils::OpenHandle(*value), &result, &error,
+                             codec == "msgpack32"),
         error);
   return result;
 }
@@ -177,37 +178,39 @@ void SelfTest(v8::Isolate* isolate, v8::Local<v8::Context> context) {
   for (const auto& expression : expressions) {
     v8::HandleScope scope(isolate);
     auto original = Evaluate(isolate, context, expression);
-    auto bytes = Encode(isolate, context, "msgpack", original);
-    for (const auto& codec : {"msgpack", "msgpack_tree", "mpack"}) {
-      auto decoded = Decode(isolate, context, codec, bytes);
-      if (decoded->IsObject() && !decoded->IsArray()) {
-        auto object =
-            i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*decoded));
-        Check(object->HasFastProperties(),
-              "Small decoded object uses dictionary properties");
+    for (const auto& encoder : {"msgpack", "msgpack32"}) {
+      auto bytes = Encode(isolate, context, encoder, original);
+      for (const auto& codec : {"msgpack", "msgpack_tree", "mpack"}) {
+        auto decoded = Decode(isolate, context, codec, bytes);
+        if (decoded->IsObject() && !decoded->IsArray()) {
+          auto object =
+              i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*decoded));
+          Check(object->HasFastProperties(),
+                "Small decoded object uses dictionary properties");
+        }
+        v8::Local<v8::Value> args[] = {original, decoded};
+        Check(equal->Call(context, context->Global(), 2, args)
+                  .ToLocalChecked()
+                  ->IsTrue(),
+              "Mismatch: " + expression);
+        isolate->LowMemoryNotification();
+        Check(equal->Call(context, context->Global(), 2, args)
+                  .ToLocalChecked()
+                  ->IsTrue(),
+              "GC mismatch: " + expression);
       }
-      v8::Local<v8::Value> args[] = {original, decoded};
-      Check(equal->Call(context, context->Global(), 2, args)
-                .ToLocalChecked()
-                ->IsTrue(),
-            "Mismatch: " + expression);
-      isolate->LowMemoryNotification();
-      Check(equal->Call(context, context->Global(), 2, args)
-                .ToLocalChecked()
-                ->IsTrue(),
-            "GC mismatch: " + expression);
-    }
-    // Every incomplete prefix must fail. Bound large test cost.
-    for (size_t n = 0; n < bytes.size() && n < 96; ++n) {
-      for (auto mode : {i::MessagePackDecodeMode::kVisitor,
-                        i::MessagePackDecodeMode::kNativeTree,
-                        i::MessagePackDecodeMode::kMPackReader}) {
-        v8::HandleScope prefix_scope(isolate);
-        std::string error;
-        auto result = i::DecodeMessagePack(
-            reinterpret_cast<i::Isolate*>(isolate),
-            base::Vector<const uint8_t>(bytes.data(), n), &error, mode);
-        Check(result.is_null(), "Truncated prefix accepted");
+      // Every incomplete prefix must fail. Bound large test cost.
+      for (size_t n = 0; n < bytes.size() && n < 96; ++n) {
+        for (auto mode : {i::MessagePackDecodeMode::kVisitor,
+                          i::MessagePackDecodeMode::kNativeTree,
+                          i::MessagePackDecodeMode::kMPackReader}) {
+          v8::HandleScope prefix_scope(isolate);
+          std::string error;
+          auto result = i::DecodeMessagePack(
+              reinterpret_cast<i::Isolate*>(isolate),
+              base::Vector<const uint8_t>(bytes.data(), n), &error, mode);
+          Check(result.is_null(), "Truncated prefix accepted");
+        }
       }
     }
   }
@@ -343,12 +346,18 @@ int main(int argc, char** argv) {
       Check(argc == 4, "Prepare args");
       auto value = ParseJson(isolate, context, Read(argv[2]));
       std::string canonical = Json(isolate, context, value);
-      for (const auto& codec : {"json", "msgpack", "v8"}) {
+      // All encoders receive the exact graph representable by the JSON baseline
+      // (JSON.stringify normalizes negative zero and non-finite numbers).
+      value =
+          ParseJson(isolate, context,
+                    std::vector<uint8_t>(canonical.begin(), canonical.end()));
+      for (const auto& codec : {"json", "msgpack", "msgpack32", "v8"}) {
         auto bytes = Encode(isolate, context, codec, value);
         Check(Json(isolate, context, Decode(isolate, context, codec, bytes)) ==
                   canonical,
               "Fixture mismatch");
-        if (std::string(codec) == "msgpack") {
+        if (std::string(codec) == "msgpack" ||
+            std::string(codec) == "msgpack32") {
           Check(Json(isolate, context,
                      Decode(isolate, context, "msgpack_tree", bytes)) ==
                     canonical,

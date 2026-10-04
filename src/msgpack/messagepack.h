@@ -22,7 +22,8 @@ MaybeHandle<Object> DecodeMessagePack(
     Isolate* isolate, base::Vector<const uint8_t> input, std::string* error,
     MessagePackDecodeMode mode = MessagePackDecodeMode::kVisitor);
 bool EncodeMessagePack(Isolate* isolate, Handle<Object> value,
-                       std::vector<uint8_t>* output, std::string* error);
+                       std::vector<uint8_t>* output, std::string* error,
+                       bool lossless_float32 = false);
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_MSGPACK_MESSAGEPACK_H_

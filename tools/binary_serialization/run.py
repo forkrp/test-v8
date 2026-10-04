@@ -32,7 +32,7 @@ def corpus():
     def records(count):
         return [{'id':i,'name':f'item-{i}','enabled':i%2==0,'score':(i%1000)/10,
                  'tags':['native',f'group-{i%8}','enabled'],
-                 'position':{'x':i/8,'y':-(i%97)/4}} for i in range(count)]
+                 'position':{'x':i/8,'y':0 if i%97==0 else -(i%97)/4}} for i in range(count)]
     return {'records_250':records(250),'records_2500':records(2500),'records_25000':records(25000),
       'short_decimals':[ ((i%1000)-500)/10 for i in range(120000)],
       'integers':[i%65536 for i in range(120000)],
@@ -71,10 +71,13 @@ def main():
           'timing':'Per-codec calibration then shuffled fresh-process rounds. GC within timed loop included. Median across rounds.',
           'json':'json includes UTF-8-to-V8-string conversion; json_string measures parsing a retained source string.',
           'encoding':'Produces owned native byte buffers; includes UTF-8 conversion and output ownership copy where applicable.',
+          'numberWidth':'msgpack32 emits float32 only if it exactly reproduces the JS Number; otherwise it emits float64. No decimal rounding or lossy precision policy.',
           'memory':'Five decoded graphs retained after timing/GC; heap delta per graph. Peak RSS includes initialization, warmup, timing, and five retained graphs; it is not a one-decode peak measurement.',
           'compression':'gzip level 6 byte counts only; no decompression time measured.',
           'scope':'macOS ARM64 native V8 prototype. Not Android/iOS acceptance. Reuses fingerprinted core build objects.'},
-        'selfTest':invoke(args.binary,'--self-test'),'workloads':[]}
+        'selfTest':invoke(args.binary,'--self-test'),'workloads':[],
+        'buildManifestSha256':digest(args.binary.parent/'build-manifest.json')}
+    report['measurementPlatform']=json.loads((args.binary.parent/'build-manifest.json').read_text()).get('platform','macos')
     if DEVICE:
         report['device']={'serial':DEVICE,'remoteDir':str(REMOTE),'cpuMask':CPU_MASK,
           'properties':subprocess.check_output(['adb','-s',DEVICE,'shell','getprop'],text=True),
@@ -91,18 +94,20 @@ def main():
         prefix=args.output/name
         invoke(args.binary,'--prepare',source,prefix)
         if DEVICE:
-            for codec in ['json','msgpack','v8']:
+            for codec in ['json','msgpack','msgpack32','v8']:
                 file=Path(str(prefix)+'.'+codec)
                 subprocess.run(['adb','-s',DEVICE,'pull',str(REMOTE/file.name),str(file)],check=True,capture_output=True)
         if args.c_peer:
-            peer=subprocess.run([str(args.c_peer),str(Path(str(prefix)+'.msgpack'))],text=True,capture_output=True,check=True)
-            interoperability=json.loads(peer.stdout)
+            interoperability={}
+            for codec in ['msgpack','msgpack32']:
+                peer=subprocess.run([str(args.c_peer),str(Path(str(prefix)+'.'+codec))],text=True,capture_output=True,check=True)
+                interoperability[codec]=json.loads(peer.stdout)
         else:interoperability=None
         sizes={codec:{'bytes':(f:=Path(str(prefix)+'.'+codec)).stat().st_size,
               'gzipBytes':len(gzip.compress(f.read_bytes(),compresslevel=6,mtime=0)),
-              'sha256':digest(f)} for codec in ['json','msgpack','v8']}
-        tasks=[('decode',c) for c in ['json','json_string','msgpack','msgpack_tree','mpack','v8']]
-        tasks += [('encode',c) for c in ['json','msgpack','v8']]
+              'sha256':digest(f)} for codec in ['json','msgpack','msgpack32','v8']}
+        tasks=[('decode',c) for c in ['json','json_string','msgpack','msgpack32','msgpack_tree','mpack','v8']]
+        tasks += [('encode',c) for c in ['json','msgpack','msgpack32','v8']]
         counts={};samples={f'{op}:{codec}':[] for op,codec in tasks}
         for op,codec in tasks:
             file=Path(str(prefix)+'.'+('json' if op=='encode' or codec=='json_string' else 'msgpack' if codec in ['msgpack_tree','mpack'] else codec))
@@ -126,7 +131,7 @@ def main():
         report['workloads'].append(item)
         (args.output/'results.json').write_text(json.dumps(report,indent=2)+'\n')
         print(json.dumps({'workload':name,'sizes':{c:s['bytes'] for c,s in sizes.items()},
-          'decodeMs':{c:medians['decode:'+c]['millisecondsPerOperation'] for c in ['json','msgpack','msgpack_tree','mpack','v8']}}),flush=True)
+          'decodeMs':{c:medians['decode:'+c]['millisecondsPerOperation'] for c in ['json','msgpack','msgpack32','msgpack_tree','mpack','v8']}}),flush=True)
     report['completedUtc']=datetime.now(timezone.utc).isoformat()
     (args.output/'results.json').write_text(json.dumps(report,indent=2)+'\n')
 
