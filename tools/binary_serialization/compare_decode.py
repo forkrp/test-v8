@@ -106,6 +106,8 @@ def main():
               'scriptSha256': digest(__file__), 'corpusScriptSha256': digest(ROOT / 'tools/binary_serialization/run.py'),
               'methodology': 'Identical payloads, paired shuffled fresh-process workers. '
                              '20 warmups, GC before timed loop, GC within timing included. '
+                             'Before/after share the same iteration count per codec, chosen '
+                             'from the faster calibration to avoid different GC averaging windows. '
                              'JSON includes UTF-8 conversion. Retained heap is five-graph delta/5; '
                              'peak RSS includes bootstrap, warmup, timing and retained graphs.',
               'workers': {label: worker.metadata() for label, worker in workers.items()},
@@ -146,6 +148,10 @@ def main():
             payload = args.output / (name + '.' + label + '.' + codec)
             result = workers[label].invoke('--measure', codec, payload, 3)
             counts[(label, codec)] = max(3, min(5000, int(args.target_ms / max(result['millisecondsPerOperation'], .00001))))
+        for codec in ['json', 'msgpack', 'msgpack32']:
+            shared = max(counts[(label, codec)] for label in workers)
+            for label in workers:
+                counts[(label, codec)] = shared
         orders = []
         for _ in range(args.rounds):
             order = tasks.copy()
