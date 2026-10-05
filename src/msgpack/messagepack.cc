@@ -523,7 +523,9 @@ class Encoder {
     return WriteString(chars.begin(), chars.length());
   }
   template <typename Char>
-  bool WriteString(const Char* chars, size_t count) {
+  // Keep Unicode conversion and its register spills out of the common ASCII
+  // StringValue path, including compiler-vectorized scalar conversion.
+  V8_NOINLINE bool WriteString(const Char* chars, size_t count) {
     if (messagepack_strings::UseSimdForEncoding(chars, count))
       return WriteStringImpl<Char, true>(chars, count);
     return WriteStringImpl<Char, false>(chars, count);
