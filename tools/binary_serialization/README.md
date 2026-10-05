@@ -1,10 +1,13 @@
 # Native binary serialization investigation
 
-The decoder now includes the 2026-10-05 optimization pass described below.
+The encoder and decoder now include the 2026-10-05 native NEON pass described
+under **SIMD string processing** below, following the earlier decoder pass.
 The original nine-workload measurements are preserved under **Original Android
 results (frozen baseline)**; they describe commit `fe97eae01`, before the
-decoder optimizations. The paired optimization evidence compares that exact
-native executable with the updated decoder on the same device and core objects.
+decoder optimizations. The earlier paired decoder evidence compares that exact
+native executable with `e6f93a891` on the same device and core objects. The SIMD
+comparison starts from that optimized implementation and includes a scalar
+control for the new encoder and decoder code.
 
 This experiment decodes caller-owned native bytes directly into ordinary V8
 objects and arrays. It also encodes those graphs into owned native byte buffers.
@@ -109,6 +112,170 @@ inputs. It additionally covers all non-surrogate BMP code points, Latin1,
 supplementary code-point samples and boundaries, and cache-fingerprint
 collisions with both valid and invalid strings.
 
+## SIMD string processing
+
+`src/msgpack/messagepack-string.h` contains the native string kernels. They use
+intrinsics shared by AArch64 and ARMv7 NEON; other targets retain scalar paths.
+The adapter does not depend on a third-party JavaScript library or add a Unicode
+library dependency. MessagePack token dispatch and V8 object construction remain
+scalar. SIMD changes neither the MessagePack format nor the resulting graph.
+
+For strings of at least 64 UTF-8 bytes, the decoder scans the ASCII prefix in
+64-byte blocks, then validates general UTF-8 in 16-byte blocks. Vector masks
+check byte classes, required continuation positions, overlong encodings,
+surrogate encodings, and the maximum code point. State crosses block boundaries.
+The same pass counts UTF-16 code units and selects V8's one-byte or two-byte
+representation. A final incomplete code point is rewound and validated by the
+scalar tail; it is never silently accepted. Conversion handles ASCII and
+regular two/three-byte runs with SIMD, with scalar handling for mixed widths,
+supplementary characters, and tails. Every load and store stays within its span.
+Short ASCII strings keep a compact inline word scan rather than entering the
+larger outlined vector validator.
+
+The encoder retains its direct one-byte ASCII path. Other strings are validated
+and sized before UTF-8 is written into the final native output buffer. This
+removes `ToCString`'s intermediate buffer and its subsequent copy. SIMD sizing
+and interleaved UTF-8 stores handle regular character-width runs. Two bounded
+eight-unit samples select that strategy for strings of at least 64 code units;
+Short strings and strings whose samples contain mixed widths or surrogates use
+scalar conversion.
+The samples only choose a strategy: both paths validate the entire string,
+including every surrogate pair. Failed SIMD conversion attempts fall back for
+their window rather than probing each overlapping mixed-width window.
+
+Flat V8 string pointers are used only inside `DisallowGarbageCollection`, after
+flattening the rooted string. The output buffer uses native allocations;
+conversion performs no V8 allocations. All existing decode caches and
+object-builder roots are retained. Unicode conversion is outlined to avoid
+vector-register saves on the common ASCII encoder path. Scalar and SIMD writer
+functions are compiled separately so the scalar fallback keeps the same code
+generation as the scalar control.
+
+`build.py --disable-msgpack-simd` builds an otherwise identical scalar control.
+It disables explicit adapter NEON, while retaining compiler vectorization and
+existing V8 copy helpers. The new scalar encoder also writes directly to the
+output, so the control separates conversion/copy improvements from explicit
+SIMD improvements. `compare_simd.py` compares that control, the SIMD variant,
+and the preceding optimized implementation. It checks source and binary
+fingerprints, shared V8 core objects, identical wire bytes, independent C wire
+round trips, and shared iteration counts per operation and codec.
+
+The expanded correctness suite has 48 graph fixtures across both float policies
+and all three decoder backends. Normal and moving-GC runs pass on the host and
+on both Android ABIs. `string_simd_test.cc` checks 106,400 string inputs against
+the retained scalar kernels, including 20,000 random byte strings, all SIMD
+boundary offsets, incomplete prefixes, malformed UTF-8, and 160 unpaired
+surrogate placements. It passes with host AddressSanitizer/UndefinedBehaviorSanitizer
+and on both Android ABIs. `evidence/simd-validation.json` records fingerprints
+and disassembly examples confirming NEON in the validator and converters.
+
+## SIMD Android results
+
+The final native code is `eb331d2c2`, following the decoder-only source
+`e6f93a891`. These results are medians of ten fresh-process samples per
+variant, operation, and workload: two independently shuffled five-round
+batches on physical OnePlus 6 serial `885841c1`, Android API 35, cores 4–7.
+The V8 core and JSON parser object files are identical between variants.
+All workers use 20 warmups, GC before timing, and shared iteration counts;
+GC during timing is included. File I/O, decompression, and cold startup are
+excluded. Decode creates complete ordinary JS graphs; encode returns an owned
+native buffer. `SIMD` denotes the enabled native adapter; `scalar` denotes
+the new direct writer with explicit adapter NEON disabled.
+
+`evidence/simd-summary.json` contains all medians and fingerprints. Only the
+four completed `measured-a` / `measured-b` reports contribute. The aggregator
+verified all prepared payloads, independent C checks, and standard wire
+identity before/after, against the scalar control, and across both ABIs.
+
+### Android ARM64
+
+| Workload | Decode before | Decode SIMD | Decode scalar | Encode before | Encode SIMD | Encode scalar |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| records_250 | 0.324 | 0.320 | 0.323 | 0.265 | 0.262 | 0.260 |
+| records_2500 | 3.257 | 3.217 | 3.247 | 2.652 | 2.680 | 2.669 |
+| records_25000 | 47.902 | 48.072 | 48.077 | 29.381 | 29.725 | 29.783 |
+| short_decimals | 8.011 | 7.923 | 8.065 | 3.068 | 3.092 | 3.056 |
+| integers | 3.811 | 3.928 | 3.955 | 3.903 | 3.944 | 3.901 |
+| text_heavy | 1.922 | 1.837 | 1.940 | 2.542 | 2.443 | 2.510 |
+| unicode | 1.748 | 1.750 | 1.764 | 13.183 | 8.064 | 7.995 |
+| unicode_unique | 9.864 | 8.325 | 9.471 | 14.929 | 9.746 | 9.615 |
+| ascii_unique | 3.427 | 3.207 | 3.430 | 5.316 | 5.204 | 5.292 |
+| latin1_unique | 3.483 | 3.310 | 3.510 | 20.385 | 6.428 | 8.633 |
+| alternating_roles | 6.765 | 6.763 | 6.729 | 4.199 | 4.298 | 4.242 |
+| mixed_late | 7.467 | 7.473 | 7.506 | 4.590 | 4.601 | 4.671 |
+| nested_numeric | 8.070 | 8.000 | 7.956 | 2.938 | 2.987 | 2.904 |
+| varying_shapes | 12.000 | 11.998 | 12.008 | 3.751 | 3.785 | 3.754 |
+| protocol_fixture | 0.382 | 0.378 | 0.386 | 0.282 | 0.286 | 0.280 |
+| cjk_unique | 18.973 | 9.596 | 18.970 | 19.453 | 9.376 | 13.948 |
+| greek_unique | 20.149 | 8.633 | 20.234 | 21.199 | 9.080 | 14.198 |
+| emoji_unique | 8.968 | 7.132 | 8.884 | 13.576 | 6.974 | 6.859 |
+
+All times are milliseconds per complete operation.
+
+### Android ARM32 / ARMv7 NEON
+
+| Workload | Decode before | Decode SIMD | Decode scalar | Encode before | Encode SIMD | Encode scalar |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| records_250 | 0.332 | 0.333 | 0.338 | 0.337 | 0.329 | 0.329 |
+| records_2500 | 3.689 | 3.707 | 3.782 | 3.531 | 3.447 | 3.469 |
+| records_25000 | 56.416 | 55.871 | 56.701 | 38.294 | 37.401 | 37.402 |
+| short_decimals | 7.869 | 7.979 | 7.926 | 4.604 | 4.648 | 4.650 |
+| integers | 4.309 | 4.269 | 4.366 | 6.189 | 6.167 | 6.177 |
+| text_heavy | 2.107 | 1.860 | 2.166 | 3.114 | 3.056 | 3.065 |
+| unicode | 2.111 | 2.131 | 2.164 | 13.731 | 7.357 | 7.163 |
+| unicode_unique | 9.990 | 8.725 | 9.895 | 15.937 | 8.390 | 8.327 |
+| ascii_unique | 3.701 | 3.235 | 3.760 | 5.971 | 5.925 | 6.023 |
+| latin1_unique | 3.814 | 3.331 | 3.903 | 24.424 | 7.037 | 9.715 |
+| alternating_roles | 7.666 | 7.754 | 7.726 | 5.607 | 5.429 | 5.439 |
+| mixed_late | 7.325 | 7.429 | 7.440 | 6.072 | 6.078 | 6.091 |
+| nested_numeric | 7.858 | 7.905 | 7.884 | 4.516 | 4.562 | 4.550 |
+| varying_shapes | 15.102 | 15.409 | 15.231 | 5.007 | 4.831 | 4.841 |
+| protocol_fixture | 0.410 | 0.406 | 0.409 | 0.357 | 0.349 | 0.349 |
+| cjk_unique | 20.383 | 9.522 | 20.143 | 22.136 | 9.333 | 13.829 |
+| greek_unique | 22.435 | 8.741 | 22.067 | 23.549 | 9.482 | 14.002 |
+| emoji_unique | 9.124 | 7.167 | 9.045 | 14.762 | 7.218 | 7.194 |
+
+All times are milliseconds per complete operation.
+
+### Explicit SIMD contribution
+
+These ratios compare the SIMD variant with the new scalar control, separating
+NEON from the encoder's removal of intermediate conversion buffers. A ratio
+above 1 is faster. The scalar writer functions have identical disassembly in
+both binaries on each ABI.
+
+| Workload | ARM64 decode | ARM32 decode | ARM64 encode | ARM32 encode |
+| --- | ---: | ---: | ---: | ---: |
+| ascii_unique | 1.07× | 1.16× | 1.02× | 1.02× |
+| unicode_unique | 1.14× | 1.13× | 0.99× | 0.99× |
+| latin1_unique | 1.06× | 1.17× | 1.34× | 1.38× |
+| cjk_unique | 1.98× | 2.12× | 1.49× | 1.48× |
+| greek_unique | 2.34× | 2.52× | 1.56× | 1.48× |
+| emoji_unique | 1.25× | 1.26× | 0.98× | 1.00× |
+
+Long Chinese and Greek decoding improves 1.98–2.57× over the preceding
+implementation. Encoding those workloads improves 2.07–2.48× overall, with
+explicit SIMD contributing 1.48–1.56× relative to the new scalar writer.
+Long Latin1 encoding improves 3.17× on ARM64 and 3.47× on ARM32 overall;
+its explicit SIMD contribution is 1.34× and 1.38×, respectively.
+
+Mixed Unicode and emoji encoding primarily benefit from the direct native
+writer; their sampled scalar conversion remains close to the scalar control.
+Cached repeated Unicode decoding is essentially unchanged because the earlier
+cache already avoids most conversion. Numeric and shape-heavy workloads show
+no broad improvement. Across the ten-sample medians, JSON control differences
+are at most 1.87% / 2.16% for decode and 3.25% / 3.64% for encode on ARM64 /
+ARM32. Small changes in controls should not be treated as strong performance
+claims. These synthetic results do not replace production-asset measurements.
+
+Standard MessagePack and optional float32 payload sizes are unchanged. The
+linked benchmark grows by 17,840 bytes on ARM64 and 5,520 bytes on ARM32;
+that includes expanded self-tests and is not a stripped production code-size
+measurement. The SIMD pass keeps the existing cache-sharing policy and final
+graph representation; the encoder removes its intermediate UTF-8 buffer.
+Measured retained heap per decoded graph is identical before and after for
+all 18 workloads on both ABIs.
+
 ## Data contract
 
 The implemented profile supports null, booleans, numbers, strings, dense
@@ -180,7 +347,7 @@ files and build manifests remain under `out/binary-serialization/`. The
 aggregator verifies source, builder, binary, runner, manifest, device-binary,
 payload, and independent C checker results before emitting the summary.
 
-## Optimized Android results
+## Earlier decoder optimization results (before SIMD)
 
 These are medians of ten samples from the validated paired batches. The before
 executable is frozen at `fe97eae01`; the optimized native source is
@@ -373,7 +540,9 @@ and distinct ARM32 output/device directories. Run device batches sequentially.
 The scripts do not reconstruct a full V8 core build from an arbitrary source
 checkout; the supplied core objects and build flags must match the source.
 
-For the paired optimization comparison, keep the original executable and its
+The following paired decoder commands describe the earlier pass. Reproducing
+or validating its source fingerprints requires the `e6f93a891` source state.
+For that comparison, keep the original executable and its
 manifest at the frozen source commit. Build the updated executable into a new
 directory, then run:
 
@@ -397,6 +566,44 @@ after iteration counts. It verifies all prepared payload files and the C-peer
 results before reporting combined ten-sample medians. The build script also
 rejects a build if experiment source or headers change while compiling/linking.
 
+For the current SIMD comparison, build both new variants from the same frozen
+source. ARM64 uses `--platform android-arm64` and
+`--v8-build /Users/james/projects/v8/v8-standalone/out/json-review-arm64`:
+
+```sh
+python3 tools/binary_serialization/build.py \
+  --platform android-arm64 \
+  --v8-build /Users/james/projects/v8/v8-standalone/out/json-review-arm64 \
+  --msgpack /Users/james/projects/serialization/msgpack-c \
+  --output out/binary-serialization/simd-arm64
+
+python3 tools/binary_serialization/build.py \
+  --platform android-arm64 --disable-msgpack-simd \
+  --v8-build /Users/james/projects/v8/v8-standalone/out/json-review-arm64 \
+  --msgpack /Users/james/projects/serialization/msgpack-c \
+  --output out/binary-serialization/simd-scalar-arm64
+
+python3 tools/binary_serialization/compare_simd.py \
+  --before out/binary-serialization/optimization-final-arm64/native-binary-benchmark \
+  --after out/binary-serialization/simd-arm64/native-binary-benchmark \
+  --scalar out/binary-serialization/simd-scalar-arm64/native-binary-benchmark \
+  --output out/binary-serialization/simd-arm64/reproduction-a \
+  --rounds 5 --seed 20261005 --target-ms 100 \
+  --c-peer out/binary-serialization/c-peer \
+  --adb-serial 885841c1 \
+  --remote-dir /data/local/tmp/msgpack-simd-reproduction-arm64-a
+```
+
+The before executable is the preceding optimized decoder, with native source
+`e6f93a891`; the driver's baseline source check uses `7f8f26f07`, whose native
+sources are identical. Repeat with seed 20261006 and fresh local/device
+directories. Repeat sequentially for ARM32 using its core build and distinct
+SIMD/scalar output directories. `analyze_simd.py` accepts the same four batch
+arguments as `analyze_decode.py`, and requires two completed five-round,
+18-workload batches per ABI. Only the final source-matched `measured-a` and
+`measured-b` batches contribute to the SIMD report; pilot and superseded runs
+are excluded.
+
 To exercise moving GC separately, run the executable with
 `--self-test --stress` on each ABI. To aggregate the four final batches, run
 `analyze.py` with `--arm64-a`, `--arm64-b`, `--arm32-a`, `--arm32-b` pointing to
@@ -405,5 +612,5 @@ their `results.json` files and `--output` pointing to a summary file.
 Production work after this investigation consists of pinning/licensing the
 dependency in the build, adding the actual embedder binding and backing-store
 lifetime contract, integrating the chosen API/error profile, and exercising
-production assets and sanitizer/fuzz coverage. The measured codec prototype
+production assets with broader binding-level sanitizer/fuzz coverage. The measured codec prototype
 and this evidence are reviewable inputs to that work.
