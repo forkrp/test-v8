@@ -45,7 +45,7 @@ inline unsigned Count(uint16x8_t mask) {
 }
 #endif
 
-inline bool ScanUtf8(const uint8_t* s, size_t n, Utf8Info* info) {
+inline bool ScanUtf8Body(const uint8_t* s, size_t n, Utf8Info* info) {
   size_t i = 0;
 #ifdef V8_MSGPACK_NEON
   // For long strings, validate all UTF-8 byte classes and their relationships
@@ -176,6 +176,30 @@ inline bool ScanUtf8(const uint8_t* s, size_t n, Utf8Info* info) {
     info->length += cp > 0xffff ? 2 : 1;
   }
   return true;
+}
+
+inline bool ScanUtf8(const uint8_t* s, size_t n, Utf8Info* info) {
+#ifdef V8_MSGPACK_NEON
+  // Keep short ASCII keys/values in the caller. The vector validator is large
+  // enough to be outlined; entering it for tiny ASCII strings costs more than
+  // these word tests. Non-ASCII input still receives full strict validation.
+  if (n < 64) {
+    constexpr uintptr_t high_bits =
+        (std::numeric_limits<uintptr_t>::max() / 255) * 128;
+    size_t i = 0;
+    for (; n - i >= sizeof(uintptr_t); i += sizeof(uintptr_t)) {
+      uintptr_t word;
+      std::memcpy(&word, s + i, sizeof(word));
+      if (word & high_bits) return ScanUtf8Body(s, n, info);
+    }
+    for (; i < n; ++i) {
+      if (s[i] >= 0x80) return ScanUtf8Body(s, n, info);
+    }
+    info->length += static_cast<int>(n);
+    return true;
+  }
+#endif
+  return ScanUtf8Body(s, n, info);
 }
 
 // The immutable input has passed ScanUtf8. SIMD handles ASCII and regular
