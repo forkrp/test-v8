@@ -3333,11 +3333,13 @@ MaybeLocal<String> JSON::Stringify(Local<Context> context,
   PREPARE_FOR_EXECUTION(context, JSON, Stringify);
   auto object = Utils::OpenHandle(*json_object);
   i::Handle<i::Object> replacer = i_isolate->factory()->undefined_value();
-  i::Handle<i::String> gap_string = gap.IsEmpty()
-                                        ? i_isolate->factory()->empty_string()
-                                        : Utils::OpenHandle(*gap);
+  // The absent gap has the same semantics as the JS builtin's undefined gap
+  // and must reach the same fast-path eligibility check.
+  i::Handle<i::Object> gap_value = gap.IsEmpty()
+      ? i::Handle<i::Object>(i_isolate->factory()->undefined_value())
+      : i::Handle<i::Object>(Utils::OpenHandle(*gap));
   i::Handle<i::Object> maybe;
-  has_exception = !i::JsonStringify(i_isolate, object, replacer, gap_string)
+  has_exception = !i::JsonStringify(i_isolate, object, replacer, gap_value)
                        .ToHandle(&maybe);
   RETURN_ON_FAILED_EXECUTION(String);
   Local<String> result;

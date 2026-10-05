@@ -4,6 +4,7 @@
 #include <sys/resource.h>
 
 #include <chrono>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -14,6 +15,7 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 #include "src/api/api-inl.h"
+#include "src/base/page-allocator.h"
 #include "src/msgpack/messagepack.h"
 
 namespace i = v8::internal;
@@ -84,7 +86,8 @@ v8::Local<v8::Value> Decode(v8::Isolate* isolate,
   i::Handle<i::Object> object;
   auto mode = codec == "msgpack_tree" ? i::MessagePackDecodeMode::kNativeTree
               : codec == "mpack"      ? i::MessagePackDecodeMode::kMPackReader
-                                      : i::MessagePackDecodeMode::kVisitor;
+              : codec == "msgpack_visitor" ? i::MessagePackDecodeMode::kVisitor
+                                           : i::MessagePackDecodeMode::kDirect;
   Check(
       i::DecodeMessagePack(
           reinterpret_cast<i::Isolate*>(isolate),
@@ -129,7 +132,45 @@ v8::Local<v8::Value> Evaluate(v8::Isolate* isolate,
       ->Run(context)
       .ToLocalChecked();
 }
+void BufferOwnershipSelfTest() {
+  for (bool pages : {false, true}) {
+    for (bool report_mapping : {false, true}) {
+      for (size_t size : {size_t{17}, size_t{32767}, size_t{32768},
+                          size_t{49315}, size_t{65537}, size_t{262149}}) {
+        i::MessagePackBuffer buffer(pages);
+        size_t first = size * 2 / 3;
+        auto fill = [](uint8_t* output, size_t start, size_t count) {
+          for (size_t j = 0; j < count; ++j)
+            output[j] =
+                static_cast<uint8_t>(((start + j) * 29) ^ ((start + j) >> 8));
+        };
+        fill(buffer.Append(first), 0, first);
+        fill(buffer.Append(size - first), first, size - first);
+        size_t mapping_size = 0;
+        uint8_t* owned =
+            buffer.Release(report_mapping ? &mapping_size : nullptr);
+        Check(owned && buffer.size() == 0, "Buffer ownership transfer failed");
+        for (size_t j = 0; j < size; ++j)
+          Check(owned[j] == static_cast<uint8_t>((j * 29) ^ (j >> 8)),
+                "Buffer growth/trim lost data");
+        if (mapping_size) {
+          base::PageAllocator allocator;
+          Check(pages && report_mapping && mapping_size >= size &&
+                    mapping_size % allocator.AllocatePageSize() == 0,
+                "Invalid mapped buffer ownership");
+          Check(allocator.FreePages(owned, mapping_size),
+                "Mapped buffer release failed");
+        } else {
+          // The legacy interface must remain malloc/free compatible even when
+          // the buffer used mappings while growing.
+          std::free(owned);
+        }
+      }
+    }
+  }
+}
 void SelfTest(v8::Isolate* isolate, v8::Local<v8::Context> context) {
+  BufferOwnershipSelfTest();
   const std::vector<std::string> expressions = {
       "null",
       "true",
@@ -181,7 +222,8 @@ void SelfTest(v8::Isolate* isolate, v8::Local<v8::Context> context) {
       "right:{name:'different',ok:i%2===0},tags:[i,null]}))",
       "[{a:[1.5,-0,NaN,Infinity]}, {a:[1.5,'late',-0,NaN]},"
       "{a:[1,2,9007199254740991,9007199254740992n]}]",
-      "Array.from({length:40},(_,i)=>'a'.repeat(i)+'中文序列化'.repeat(40)+'🌏')",
+      "Array.from({length:40},(_,i)=>'a'.repeat(i)+'中文序列化'.repeat(40)+'🌏'"
+      ")",
       "Array.from({length:40},(_,i)=>'a'.repeat(i)+'Ελληνικά'.repeat(40)+'é')",
       "Array.from({length:40},(_,i)=>'a'.repeat(i)+'éÿ'.repeat(40)+'\\u0000')",
       "Array.from({length:40},(_,i)=>'a'.repeat(i)+'🌏😀'.repeat(40)+'中文')",
@@ -202,7 +244,8 @@ void SelfTest(v8::Isolate* isolate, v8::Local<v8::Context> context) {
     auto original = Evaluate(isolate, context, expression);
     for (const auto& encoder : {"msgpack", "msgpack32"}) {
       auto bytes = Encode(isolate, context, encoder, original);
-      for (const auto& codec : {"msgpack", "msgpack_tree", "mpack"}) {
+      for (const auto& codec :
+           {"msgpack", "msgpack_visitor", "msgpack_tree", "mpack"}) {
         auto decoded = Decode(isolate, context, codec, bytes);
         if (decoded->IsObject() && !decoded->IsArray()) {
           auto object =
@@ -223,7 +266,8 @@ void SelfTest(v8::Isolate* isolate, v8::Local<v8::Context> context) {
       }
       // Every incomplete prefix must fail. Bound large test cost.
       for (size_t n = 0; n < bytes.size() && n < 96; ++n) {
-        for (auto mode : {i::MessagePackDecodeMode::kVisitor,
+        for (auto mode : {i::MessagePackDecodeMode::kDirect,
+                          i::MessagePackDecodeMode::kVisitor,
                           i::MessagePackDecodeMode::kNativeTree,
                           i::MessagePackDecodeMode::kMPackReader}) {
           v8::HandleScope prefix_scope(isolate);
@@ -267,9 +311,10 @@ void SelfTest(v8::Isolate* isolate, v8::Local<v8::Context> context) {
   collision[3 + 64 + 2 + 10] = 0xff;
   malformed.push_back(collision);
   for (const auto& bytes : malformed) {
-    for (auto mode : {i::MessagePackDecodeMode::kVisitor,
-                      i::MessagePackDecodeMode::kNativeTree,
-                      i::MessagePackDecodeMode::kMPackReader}) {
+    for (auto mode :
+         {i::MessagePackDecodeMode::kDirect, i::MessagePackDecodeMode::kVisitor,
+          i::MessagePackDecodeMode::kNativeTree,
+          i::MessagePackDecodeMode::kMPackReader}) {
       v8::HandleScope malformed_scope(isolate);
       std::string error;
       auto result = i::DecodeMessagePack(
@@ -283,7 +328,8 @@ void SelfTest(v8::Isolate* isolate, v8::Local<v8::Context> context) {
       Decode(isolate, context, "msgpack", {0x82, 0xa1, 'x', 1, 0xa1, 'x', 2});
   Check(Json(isolate, context, duplicate) == "{\"x\":2}",
         "Duplicate key semantics failed");
-  for (const auto& codec : {"msgpack", "msgpack_tree", "mpack"}) {
+  for (const auto& codec :
+       {"msgpack", "msgpack_visitor", "msgpack_tree", "mpack"}) {
     auto large_signed =
         Decode(isolate, context, codec,
                {0xd3, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff});
@@ -311,9 +357,10 @@ void SelfTest(v8::Isolate* isolate, v8::Local<v8::Context> context) {
     for (auto& byte : bytes) byte = static_cast<uint8_t>(next());
     bool accepted[3];
     int backend = 0;
-    for (auto mode : {i::MessagePackDecodeMode::kVisitor,
-                      i::MessagePackDecodeMode::kNativeTree,
-                      i::MessagePackDecodeMode::kMPackReader}) {
+    for (auto mode :
+         {i::MessagePackDecodeMode::kDirect, i::MessagePackDecodeMode::kVisitor,
+          i::MessagePackDecodeMode::kNativeTree,
+          i::MessagePackDecodeMode::kMPackReader}) {
       std::string error;
       accepted[backend++] =
           !i::DecodeMessagePack(
@@ -340,9 +387,8 @@ void SelfTest(v8::Isolate* isolate, v8::Local<v8::Context> context) {
           "Encode failure left output or no error");
   }
   std::cout << "{\"selfTest\":\"PASS\",\"roundTrips\":" << expressions.size()
-            << ",\"backends\":3,\"malformedCases\":" << malformed.size()
-            << ",\"differentialByteInputs\":2000"
-            << "}\n";
+            << ",\"backends\":4,\"malformedCases\":" << malformed.size()
+            << ",\"differentialByteInputs\":2000" << "}\n";
 }
 double CpuSeconds() {
   rusage r{};

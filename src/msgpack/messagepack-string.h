@@ -45,6 +45,57 @@ inline unsigned Count(uint16x8_t mask) {
 }
 #endif
 
+inline bool IsAscii(const uint8_t* s, size_t n) {
+  if (n <= 16) {
+    if (n >= 8) {
+      uint64_t first, last;
+      std::memcpy(&first, s, 8);
+      std::memcpy(&last, s + n - 8, 8);
+      return ((first | last) & UINT64_C(0x8080808080808080)) == 0;
+    }
+    if (n >= 4) {
+      uint32_t first, last;
+      std::memcpy(&first, s, 4);
+      std::memcpy(&last, s + n - 4, 4);
+      return ((first | last) & UINT32_C(0x80808080)) == 0;
+    }
+    if (n >= 2) {
+      uint16_t first, last;
+      std::memcpy(&first, s, 2);
+      std::memcpy(&last, s + n - 2, 2);
+      return ((first | last) & 0x8080) == 0;
+    }
+    return !n || !(s[0] & 0x80);
+  }
+  size_t i = 0;
+#ifdef V8_MSGPACK_NEON
+  if (n <= 32) {
+    auto bytes = vorrq_u8(vld1q_u8(s), vld1q_u8(s + n - 16));
+    return !Any(vandq_u8(bytes, vdupq_n_u8(0x80)));
+  }
+  while (n - i >= 64) {
+    auto bytes = vorrq_u8(vorrq_u8(vld1q_u8(s + i), vld1q_u8(s + i + 16)),
+                          vorrq_u8(vld1q_u8(s + i + 32), vld1q_u8(s + i + 48)));
+    if (Any(vandq_u8(bytes, vdupq_n_u8(0x80)))) return false;
+    i += 64;
+  }
+  while (n - i >= 16) {
+    if (Any(vandq_u8(vld1q_u8(s + i), vdupq_n_u8(0x80)))) return false;
+    i += 16;
+  }
+#endif
+  constexpr uintptr_t high_bits =
+      (std::numeric_limits<uintptr_t>::max() / 255) * 128;
+  for (; n - i >= sizeof(uintptr_t); i += sizeof(uintptr_t)) {
+    uintptr_t word;
+    std::memcpy(&word, s + i, sizeof(word));
+    if (word & high_bits) return false;
+  }
+  for (; i < n; ++i)
+    if (s[i] & 0x80) return false;
+  return true;
+}
+
 inline bool ScanUtf8Body(const uint8_t* s, size_t n, Utf8Info* info) {
   size_t i = 0;
 #ifdef V8_MSGPACK_NEON
@@ -179,6 +230,11 @@ inline bool ScanUtf8Body(const uint8_t* s, size_t n, Utf8Info* info) {
 }
 
 inline bool ScanUtf8(const uint8_t* s, size_t n, Utf8Info* info) {
+  if (n <= 32) {
+    if (!IsAscii(s, n)) return ScanUtf8Body(s, n, info);
+    info->length += static_cast<int>(n);
+    return true;
+  }
 #ifdef V8_MSGPACK_NEON
   // Keep short ASCII keys/values in the caller. The vector validator is large
   // enough to be outlined; entering it for tiny ASCII strings costs more than

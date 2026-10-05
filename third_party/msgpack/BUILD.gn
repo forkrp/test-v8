@@ -1,0 +1,7 @@
+config("headers") {
+  include_dirs = [ "include" ]
+}
+
+source_set("msgpack") {
+  public_configs = [ ":headers" ]
+}

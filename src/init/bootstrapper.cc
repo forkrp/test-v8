@@ -3576,6 +3576,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_json_object(*json_object);
   }
 
+  {  // -- M e s s a g e P a c k (fork extension)
+    Handle<JSObject> msgpack =
+        factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
+    JSObject::AddProperty(isolate_, global, "MSGPACK", msgpack, DONT_ENUM);
+    SimpleInstallFunction(isolate_, msgpack, "encode", Builtin::kMsgpackEncode,
+                          1, false);
+    SimpleInstallFunction(isolate_, msgpack, "decode", Builtin::kMsgpackDecode,
+                          1, false);
+    InstallToStringTag(isolate_, msgpack, "MSGPACK");
+  }
+
   {  // -- M a t h
     Handle<JSObject> math =
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);

@@ -1,0 +1,15 @@
+config("headers") {
+  include_dirs = [ "src/mpack" ]
+}
+
+source_set("mpack") {
+  sources = [
+    "src/mpack/mpack-platform.c",
+    "src/mpack/mpack-common.c",
+    "src/mpack/mpack-reader.c",
+    "src/mpack/mpack-expect.c",
+    "src/mpack/mpack-writer.c",
+    "src/mpack/mpack-node.c",
+  ]
+  public_configs = [ ":headers" ]
+}

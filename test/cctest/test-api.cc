@@ -20977,6 +20977,27 @@ THREADED_TEST(JSONStringifyObjectWithGap) {
   ExpectString("JSON.stringify(obj, null,  '*')", *utf8);
 }
 
+THREADED_TEST(JSONStringifyDefaultGapSemantics) {
+  LocalContext context;
+  HandleScope scope(context->GetIsolate());
+  Local<Value> object = CompileRun(
+      "globalThis.jsonApiCalls = 0; ({toJSON(key) {"
+      " if (key !== '') throw new Error('wrong key');"
+      " return {get value() { ++jsonApiCalls; return [0.1, -0, NaN, '中文']; }};"
+      "}})");
+  Local<String> result = v8::JSON::Stringify(context.local(), object).ToLocalChecked();
+  v8::String::Utf8Value text(context->GetIsolate(), result);
+  CHECK_EQ(1, CompileRun("jsonApiCalls")->Int32Value(context.local()).FromJust());
+  context->Global()->Set(context.local(), v8_str("jsonApiObject"), object).FromJust();
+  ExpectString("JSON.stringify(jsonApiObject)", *text);
+  CHECK_EQ(2, CompileRun("jsonApiCalls")->Int32Value(context.local()).FromJust());
+  Local<String> explicit_empty = v8::JSON::Stringify(
+      context.local(), object, v8_str("")).ToLocalChecked();
+  v8::String::Utf8Value empty_text(context->GetIsolate(), explicit_empty);
+  CHECK_EQ(std::string(*text), std::string(*empty_text));
+  CHECK_EQ(3, CompileRun("jsonApiCalls")->Int32Value(context.local()).FromJust());
+}
+
 #if V8_OS_POSIX
 class ThreadInterruptTest {
  public:

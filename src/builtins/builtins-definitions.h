@@ -654,6 +654,8 @@ namespace internal {
   CPP(JsonParseAsync)                                                          \
   CPP(JsonStringify)                                                           \
   CPP(JsonStringifyAsync)                                                      \
+  CPP(MsgpackEncode)                                                           \
+  CPP(MsgpackDecode)                                                           \
   CPP(JsonRawJson)                                                             \
   CPP(JsonIsRawJson)                                                           \
                                                                                \

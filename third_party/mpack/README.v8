@@ -1,0 +1,4 @@
+Name: mpack
+Revision: c9d1820ecfdbc3954c60a218492251e457cc1f86
+License: MIT
+Local changes: None in upstream files. GN build files added by V8 fork.

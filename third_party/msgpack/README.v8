@@ -1,0 +1,4 @@
+Name: msgpack
+Revision: 36631b24d14cd5e135d240b0b59ba2a7fb7eeab7
+License: Boost Software License 1.0
+Local changes: None in upstream files. GN build files added by V8 fork.
