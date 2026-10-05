@@ -15,6 +15,7 @@
 #include "mpack.h"
 #include "src/api/api-inl.h"
 #include "src/common/assert-scope.h"
+#include "src/msgpack/messagepack-string.h"
 #include "src/objects/bigint.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-data-object-builder.h"
@@ -30,94 +31,9 @@ constexpr uint64_t kMaxSafeInteger = 9007199254740991ULL;
 constexpr size_t kMaxDepth = 256;
 constexpr size_t kMaxOutputBytes = 256 * 1024 * 1024;
 
-struct Utf8Info {
-  int length = 0;
-  int ascii_prefix = 0;
-  bool ascii = true;
-  bool one_byte = true;
-};
-
-// Validate and determine the final V8 representation in one pass. Word loads
-// use memcpy, so unaligned input is safe on both ARM32 and ARM64.
-bool ScanUtf8(const uint8_t* s, size_t n, Utf8Info* info) {
-  constexpr uintptr_t kHighBits =
-      (std::numeric_limits<uintptr_t>::max() / 255) * 128;
-  for (size_t i = 0; i < n;) {
-    if (n - i >= sizeof(uintptr_t)) {
-      uintptr_t word;
-      std::memcpy(&word, s + i, sizeof(word));
-      if ((word & kHighBits) == 0) {
-        info->length += sizeof(word);
-        i += sizeof(word);
-        continue;
-      }
-    }
-    uint8_t c = s[i++];
-    if (c < 0x80) {
-      ++info->length;
-      continue;
-    }
-    if (info->ascii) info->ascii_prefix = static_cast<int>(i - 1);
-    info->ascii = false;
-    unsigned follow;
-    uint32_t cp;
-    if (c >= 0xc2 && c <= 0xdf) {
-      follow = 1;
-      cp = c & 31;
-    } else if (c >= 0xe0 && c <= 0xef) {
-      follow = 2;
-      cp = c & 15;
-    } else if (c >= 0xf0 && c <= 0xf4) {
-      follow = 3;
-      cp = c & 7;
-    } else
-      return false;
-    if (follow > n - i) return false;
-    for (unsigned j = 0; j < follow; ++j) {
-      c = s[i++];
-      if ((c & 0xc0) != 0x80) return false;
-      cp = (cp << 6) | (c & 63);
-    }
-    if ((follow == 1 && cp < 0x80) || (follow == 2 && cp < 0x800) ||
-        (follow == 3 && cp < 0x10000) || cp > 0x10ffff ||
-        (cp >= 0xd800 && cp <= 0xdfff))
-      return false;
-    info->one_byte &= cp <= 0xff;
-    info->length += cp > 0xffff ? 2 : 1;
-  }
-  return true;
-}
-
-// Input has passed ScanUtf8 and remains immutable throughout this call. Decode
-// complete code points rather than running V8's lossy DFA for each input byte.
-template <typename Char>
-void DecodeUtf8(const uint8_t* s, size_t n, int ascii_prefix, Char* out) {
-  CopyChars(out, s, ascii_prefix);
-  out += ascii_prefix;
-  for (size_t i = ascii_prefix; i < n;) {
-    uint32_t cp = s[i++];
-    if (cp >= 0x80) {
-      if (cp < 0xe0) {
-        cp = ((cp & 31) << 6) | (s[i++] & 63);
-      } else if (cp < 0xf0) {
-        cp = ((cp & 15) << 12) | ((s[i] & 63) << 6) | (s[i + 1] & 63);
-        i += 2;
-      } else {
-        cp = ((cp & 7) << 18) | ((s[i] & 63) << 12) | ((s[i + 1] & 63) << 6) |
-             (s[i + 2] & 63);
-        i += 3;
-      }
-    }
-    if constexpr (sizeof(Char) == 2) {
-      if (cp > 0xffff) {
-        *out++ = static_cast<Char>(0xd800 + ((cp - 0x10000) >> 10));
-        *out++ = static_cast<Char>(0xdc00 + ((cp - 0x10000) & 1023));
-        continue;
-      }
-    }
-    *out++ = static_cast<Char>(cp);
-  }
-}
+using messagepack_strings::DecodeUtf8;
+using messagepack_strings::ScanUtf8;
+using messagepack_strings::Utf8Info;
 
 MaybeHandle<String> MakeUtf8String(Isolate* isolate, const uint8_t* bytes,
                                    uint32_t size, const Utf8Info& info) {
@@ -546,6 +462,13 @@ class ByteWriter {
     output_->insert(output_->end(), reinterpret_cast<const uint8_t*>(bytes),
                     reinterpret_cast<const uint8_t*>(bytes) + n);
   }
+  uint8_t* Append(size_t n) {
+    if (n > kMaxOutputBytes - output_->size())
+      throw std::length_error("MessagePack output limit exceeded");
+    size_t start = output_->size();
+    output_->resize(start + n);
+    return output_->data() + start;
+  }
 
  private:
   std::vector<uint8_t>* output_;
@@ -584,25 +507,39 @@ class Encoder {
   }
   bool StringValue(Handle<String> string) {
     string = String::Flatten(isolate_, string);
-    {
-      DisallowGarbageCollection no_gc;
-      String::FlatContent flat = string->GetFlatContent(no_gc);
-      if (flat.IsOneByte()) {
-        auto bytes = flat.ToOneByteVector();
-        if (String::IsAscii(bytes.begin(), bytes.length())) {
-          packer_.pack_str(bytes.length());
-          packer_.pack_str_body(reinterpret_cast<const char*>(bytes.begin()),
-                                bytes.length());
-          return true;
-        }
+    DisallowGarbageCollection no_gc;
+    String::FlatContent flat = string->GetFlatContent(no_gc);
+    if (flat.IsOneByte()) {
+      auto bytes = flat.ToOneByteVector();
+      if (String::IsAscii(bytes.begin(), bytes.length())) {
+        packer_.pack_str(bytes.length());
+        packer_.pack_str_body(reinterpret_cast<const char*>(bytes.begin()),
+                              bytes.length());
+        return true;
       }
+      return WriteString(bytes.begin(), bytes.length());
     }
-    if (!String::IsWellFormedUnicode(isolate_, string))
+    auto chars = flat.ToUC16Vector();
+    return WriteString(chars.begin(), chars.length());
+  }
+  template <typename Char>
+  bool WriteString(const Char* chars, size_t count) {
+    if (messagepack_strings::UseSimdForEncoding(chars, count))
+      return WriteStringImpl<Char, true>(chars, count);
+    return WriteStringImpl<Char, false>(chars, count);
+  }
+  template <typename Char, bool use_simd>
+  bool WriteStringImpl(const Char* chars, size_t count) {
+    size_t length;
+    bool ascii;
+    if (!messagepack_strings::Utf8Length<Char, use_simd>(chars, count, &length,
+                                                         &ascii))
       return Fail("Unpaired UTF-16 surrogate is outside the UTF-8 profile");
-    int length;
-    auto bytes = string->ToCString(ALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
-    packer_.pack_str(length);
-    packer_.pack_str_body(bytes.get(), length);
+    if (length > kMaxOutputBytes)
+      return Fail("MessagePack output limit exceeded");
+    packer_.pack_str(static_cast<uint32_t>(length));
+    messagepack_strings::EncodeUtf8<Char, use_simd>(chars, count,
+                                                    writer_.Append(length));
     return true;
   }
   bool Value(Handle<Object> value, size_t depth = 0) {

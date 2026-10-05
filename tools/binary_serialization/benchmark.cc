@@ -180,7 +180,12 @@ void SelfTest(v8::Isolate* isolate, v8::Local<v8::Context> context) {
       "Array.from({length:2000},(_,i)=>({left:{x:i,y:i/8},"
       "right:{name:'different',ok:i%2===0},tags:[i,null]}))",
       "[{a:[1.5,-0,NaN,Infinity]}, {a:[1.5,'late',-0,NaN]},"
-      "{a:[1,2,9007199254740991,9007199254740992n]}]"};
+      "{a:[1,2,9007199254740991,9007199254740992n]}]",
+      "Array.from({length:40},(_,i)=>'a'.repeat(i)+'中文序列化'.repeat(40)+'🌏')",
+      "Array.from({length:40},(_,i)=>'a'.repeat(i)+'Ελληνικά'.repeat(40)+'é')",
+      "Array.from({length:40},(_,i)=>'a'.repeat(i)+'éÿ'.repeat(40)+'\\u0000')",
+      "Array.from({length:40},(_,i)=>'a'.repeat(i)+'🌏😀'.repeat(40)+'中文')",
+      "'éÿ'.repeat(10000)"};
   auto equal =
       Evaluate(isolate, context,
                "(function eq(a,b){if(Object.is(a,b))return "
@@ -323,7 +328,8 @@ void SelfTest(v8::Isolate* isolate, v8::Local<v8::Context> context) {
   for (const auto& expression :
        {"(()=>{let x={};x.x=x;return x})()", "[,1]",
         "({get x(){throw Error('executed')}})", "'\\ud800'", "(()=>{})",
-        "18446744073709551616n"}) {
+        "18446744073709551616n", "'a'.repeat(40)+'\\ud800'+'a'.repeat(40)",
+        "'a'.repeat(40)+'\\udc00'+'a'.repeat(40)"}) {
     auto value = Evaluate(isolate, context, expression);
     std::vector<uint8_t> bytes;
     std::string error;
