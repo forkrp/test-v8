@@ -531,7 +531,9 @@ class Encoder {
     return WriteStringImpl<Char, false>(chars, count);
   }
   template <typename Char, bool use_simd>
-  bool WriteStringImpl(const Char* chars, size_t count) {
+  // Compile scalar and SIMD conversion independently. Otherwise the combined
+  // function's register pressure penalizes its scalar fallback on mixed text.
+  V8_NOINLINE bool WriteStringImpl(const Char* chars, size_t count) {
     size_t length;
     bool ascii;
     if (!messagepack_strings::Utf8Length<Char, use_simd>(chars, count, &length,
