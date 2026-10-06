@@ -1,6 +1,7 @@
 # MessagePack JavaScript API
 
-This V8 fork provides a synchronous `MSGPACK` global with two methods:
+This V8 fork provides a synchronous `MSGPACK` global. Its standard methods use
+ordinary MessagePack:
 
 ```js
 const bytes = MSGPACK.encode({id: 42, name: 'example', position: [0.5, -0]});
@@ -55,6 +56,28 @@ The format carries values rather than object identity, prototypes, or property
 attributes. Repeated references decode to independent values. `__proto__` is an
 ordinary own data property when present in the wire map. Indexed property names
 follow JavaScript's normal property ordering.
+
+## Compact resources
+
+For assets generated offline and loaded by this fork, use:
+
+```js
+const resourceBytes = MSGPACK.encodeResource(value);
+const loadedValue = MSGPACK.decodeResource(resourceBytes);
+```
+
+`encodeResource` analyzes a validated standard encoding and constructs a
+self-contained compact candidate with shared object shapes, repeated value
+strings, and lossless numeric blocks. It returns compact bytes only when the
+entire file is strictly smaller than the standard encoding. Otherwise it
+returns the standard bytes. Each result owns its storage independently.
+
+`decodeResource` accepts either format and the same buffer/view arguments as
+`decode`. It reconstructs the same supported values in the calling realm,
+with ordinary property ordering and own `__proto__` data properties. Compact
+files require this resource decoder; standard `encode` and `decode` keep their
+existing wire format. See [the version 1 format](msgpack-resource-format.md)
+for extension layouts, numeric representations, validation, and limits.
 
 Unsupported values include `undefined`, functions, proxies, cyclic graphs,
 sparse arrays, enumerable accessors, BigInts outside the 64-bit range, and

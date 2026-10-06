@@ -1,5 +1,11 @@
 # Native binary serialization investigation
 
+The compact resource API adds opt-in shape/string sharing and lossless numeric
+blocks. See the [resource format](../../docs/msgpack-resource-format.md),
+[per-workload results](../../docs/msgpack-resource-results.md), and
+[reproduction commands](../../docs/msgpack-resource-benchmarks.md). The historical
+native experiments below retain their original workload and build scopes.
+
 The encoder and decoder now include the 2026-10-05 native NEON pass described
 under **SIMD string processing** below, following the earlier decoder pass.
 The original nine-workload measurements are preserved under **Original Android

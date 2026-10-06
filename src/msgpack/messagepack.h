@@ -64,7 +64,10 @@ class MessagePackBuffer {
 // native memory, alive for the synchronous call. No third-party JS codec.
 MaybeHandle<Object> DecodeMessagePack(
     Isolate* isolate, base::Vector<const uint8_t> input, std::string* error,
-    MessagePackDecodeMode mode = MessagePackDecodeMode::kDirect);
+    MessagePackDecodeMode mode = MessagePackDecodeMode::kDirect,
+    bool resource = false);
+bool EncodeMessagePackResource(Isolate* isolate, Handle<Object> value,
+                               MessagePackBuffer* output, std::string* error);
 bool EncodeMessagePack(Isolate* isolate, Handle<Object> value,
                        std::vector<uint8_t>* output, std::string* error,
                        bool lossless_float32 = false);

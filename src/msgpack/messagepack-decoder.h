@@ -33,6 +33,12 @@ class DirectMessagePackDecoder {
                  failures_[1], failures_[2], failures_[3]);
   }
 #endif
+  MaybeHandle<Object> DecodeResource() {
+    resource_ = std::make_unique<ResourceState>();
+    if (!ResourceTables()) return {};
+    return Decode();
+  }
+
  private:
   Handle<Object> Fail(const char* message) {
     if (error_->empty()) *error_ = message;
@@ -79,6 +85,7 @@ class DirectMessagePackDecoder {
     }
     return Unsigned(count);
   }
+#include "src/msgpack/messagepack-resource-decoder.h"
   struct StringEntry {
     const uint8_t* bytes = nullptr;
     uint32_t size = 0;
@@ -168,6 +175,16 @@ class DirectMessagePackDecoder {
       return Container(tag, depth, role, false);
     uint64_t bits = 0;
     switch (tag) {
+      case 0xc7:
+      case 0xc8:
+      case 0xc9:
+      case 0xd4:
+      case 0xd5:
+      case 0xd6:
+      case 0xd7:
+      case 0xd8:
+        if (resource_) return ResourceExtension(tag, depth, role);
+        return Fail("Unsupported MessagePack value");
       case 0xc0:
         return isolate_->factory()->null_value();
       case 0xc2:
@@ -794,18 +811,22 @@ class DirectMessagePackDecoder {
     return scope.CloseAndEscape(handle(array, isolate_));
   }
 #endif
+  template <bool resource_shape = false>
   Handle<Object> Container(uint8_t tag, size_t depth, Handle<String> role,
-                           bool map) {
+                           bool map, ResourceShape* schema = nullptr) {
     uint32_t count;
     if (!Length(tag, &count)) return {};
     if (depth >= kMaxDepth) return Fail("MessagePack nesting limit exceeded");
-    if (count > static_cast<size_t>(end_ - cursor_) / (map ? 2 : 1))
+    if (resource_shape && count != schema->keys.size())
+      return Fail("MessagePack resource field count mismatch");
+    if (count >
+        static_cast<size_t>(end_ - cursor_) / (map && !resource_shape ? 2 : 1))
       return Fail("Malformed MessagePack container count");
     if (count > static_cast<uint32_t>(FixedArray::kMaxLength))
       return Fail("MessagePack container limit exceeded");
     if (map) {
       size_t start = properties_.size();
-      bool indexed = false;
+      bool indexed = resource_shape && schema->indexed;
       // The same role often alternates between several optional-field counts.
       // Keep those schemas in separate hint slots, then validate every key.
       size_t slot = (depth * 17 + count * 31 +
@@ -813,36 +834,41 @@ class DirectMessagePackDecoder {
                     127;
       Feedback& cached = feedback_[slot];
       for (uint32_t i = 0; i < count; ++i) {
-        const uint8_t* marker;
-        if (!Read(1, &marker)) return {};
-        if ((*marker & 0xe0) != 0xa0 && (*marker < 0xd9 || *marker > 0xdb))
-          return Fail("MessagePack object keys must be strings");
-        const uint8_t* key_start = cursor_;
-        // Feedback may be replaced by a nested container at the same cache
-        // slot. Check its role on every key; a full byte comparison is still
-        // required before accepting an ASCII named-key hint.
-        bool same_role =
-            cached.depth == depth &&
-            (role.is_null() ? cached.role.is_null()
-                            : !cached.role.is_null() && *role == *cached.role);
-        const KeyHint* hint = same_role && cached.keys.size() == count
-                                  ? &cached.keys[i]
-                                  : nullptr;
-        bool known_named;
-        Handle<String> key = StringKey(*marker, hint, &known_named);
-        if (key.is_null()) return {};
-        uint32_t index;
-        if (!known_named && key->length()) {
-          // StringKey has validated the complete header/body. Array-index
-          // names must start with an ASCII digit, so ordinary wire keys need
-          // no V8 hash/index query on this path.
-          size_t header = *marker == 0xd9   ? 1
-                          : *marker == 0xda ? 2
-                          : *marker == 0xdb ? 4
-                                            : 0;
-          uint8_t first = key_start[header];
-          if (first >= '0' && first <= '9')
-            indexed |= key->AsArrayIndex(&index);
+        Handle<String> key;
+        if constexpr (resource_shape) {
+          key = schema->keys[i];
+        } else {
+          const uint8_t* marker;
+          if (!Read(1, &marker)) return {};
+          if ((*marker & 0xe0) != 0xa0 && (*marker < 0xd9 || *marker > 0xdb))
+            return Fail("MessagePack object keys must be strings");
+          const uint8_t* key_start = cursor_;
+          // Feedback may be replaced by a nested container at the same cache
+          // slot. Check its role on every key; a full byte comparison is still
+          // required before accepting an ASCII named-key hint.
+          bool same_role = cached.depth == depth &&
+                           (role.is_null() ? cached.role.is_null()
+                                           : !cached.role.is_null() &&
+                                                 *role == *cached.role);
+          const KeyHint* hint = same_role && cached.keys.size() == count
+                                    ? &cached.keys[i]
+                                    : nullptr;
+          bool known_named;
+          key = StringKey(*marker, hint, &known_named);
+          if (key.is_null()) return {};
+          uint32_t index;
+          if (!known_named && key->length()) {
+            // StringKey has validated the complete header/body. Array-index
+            // names must start with an ASCII digit, so ordinary wire keys need
+            // no V8 hash/index query on this path.
+            size_t header = *marker == 0xd9   ? 1
+                            : *marker == 0xda ? 2
+                            : *marker == 0xdb ? 4
+                                              : 0;
+            uint8_t first = key_start[header];
+            if (first >= '0' && first <= '9')
+              indexed |= key->AsArrayIndex(&index);
+          }
         }
         double number;
         if (NumericAt(&cursor_, &number)) {
@@ -853,6 +879,7 @@ class DirectMessagePackDecoder {
           properties_.push_back({key, value});
         }
       }
+      if constexpr (resource_shape) return ResourceObject(schema, start, count);
       Handle<JSObject> object;
       if (indexed) {
         MaterializeNumbers(start, count);
@@ -1021,6 +1048,7 @@ class DirectMessagePackDecoder {
   Prefix prefixes_[512]{};
   std::vector<Property> properties_;
   std::vector<Handle<Object>> values_;
+  std::unique_ptr<ResourceState> resource_;
 #ifdef MSGPACK_PROFILE_CACHE
   uint32_t hits_ = 0, empty_ = 0, collisions_ = 0, deprecated_ = 0;
   uint32_t direct_ = 0, failures_[4]{};

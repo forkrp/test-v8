@@ -126,5 +126,88 @@ BUILTIN(MsgpackDecode) {
     return CodecFailure(isolate, error, false);
   return *value;
 }
+BUILTIN(MsgpackEncodeResource) {
+  HandleScope scope(isolate);
+#if defined(V8_TARGET_OS_ANDROID) && defined(V8_TARGET_ARCH_ARM)
+  // Large malloc buffers released in sweeping batches trigger expensive
+  // Scudo32 page-release scans. Dedicated mappings avoid that allocator path;
+  // each output remains independently owned and is freed when its store dies.
+  MessagePackBuffer bytes(true);
+#else
+  MessagePackBuffer bytes;
+#endif
+  std::string error;
+  // A float32 tag is used only when widening exactly reproduces the Number.
+  // Other values keep float64, including all NaNs and non-representable values.
+  if (!EncodeMessagePackResource(isolate, args.atOrUndefined(isolate, 1),
+                                 &bytes, &error))
+    return CodecFailure(isolate, error, true);
+  size_t length = bytes.size();
+  size_t mapping_size;
+  uint8_t* data = bytes.Release(&mapping_size);
+  std::shared_ptr<BackingStore> backing = BackingStore::WrapAllocation(
+      data, length, FreeMessagePackBytes, reinterpret_cast<void*>(mapping_size),
+      SharedFlag::kNotShared);
+  Handle<JSArrayBuffer> buffer =
+      isolate->factory()->NewJSArrayBuffer(std::move(backing));
+  return *isolate->factory()->NewJSTypedArray(kExternalUint8Array, buffer, 0,
+                                              length);
+}
+
+BUILTIN(MsgpackDecodeResource) {
+  HandleScope scope(isolate);
+  Handle<Object> input = args.atOrUndefined(isolate, 1);
+  Handle<JSArrayBuffer> buffer;
+  size_t offset = 0;
+  size_t length = 0;
+  if (IsJSArrayBuffer(*input)) {
+    buffer = Handle<JSArrayBuffer>::cast(input);
+    length = buffer->GetByteLength();
+  } else if (IsJSTypedArray(*input)) {
+    Handle<JSTypedArray> view = Handle<JSTypedArray>::cast(input);
+    if (view->IsDetachedOrOutOfBounds())
+      return CodecFailure(isolate,
+                          "Detached or out-of-bounds MessagePack input", true);
+    // On-heap typed arrays must be externalized before decoding can allocate
+    // or move V8 objects. The retained backing store then has a stable address.
+    buffer = view->GetBuffer();
+    offset = view->byte_offset();
+    length = view->GetByteLength();
+  } else if (IsJSArrayBufferView(*input)) {
+    Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(input);
+    buffer = handle(JSArrayBuffer::cast(view->buffer()), isolate);
+    offset = view->byte_offset();
+    if (IsJSRabGsabDataView(*view)) {
+      Handle<JSRabGsabDataView> data = Handle<JSRabGsabDataView>::cast(view);
+      if (data->IsOutOfBounds())
+        return CodecFailure(isolate, "Out-of-bounds MessagePack input", true);
+      length = data->GetByteLength();
+    } else {
+      length = view->byte_length();
+    }
+  } else {
+    return CodecFailure(isolate,
+                        "MSGPACK.decode requires an ArrayBuffer or view", true);
+  }
+  if (buffer->was_detached() || buffer->is_shared())
+    return CodecFailure(
+        isolate, "Detached or shared MessagePack input is unsupported", true);
+  if (length > 256 * 1024 * 1024)
+    return CodecFailure(isolate, "MessagePack input limit exceeded", false);
+  if (!length) return CodecFailure(isolate, "Empty MessagePack input", false);
+  std::shared_ptr<BackingStore> backing = buffer->GetBackingStore();
+  if (!backing || offset > backing->byte_length() ||
+      length > backing->byte_length() - offset)
+    return CodecFailure(isolate, "Out-of-bounds MessagePack input", true);
+  const uint8_t* bytes =
+      static_cast<const uint8_t*>(backing->buffer_start()) + offset;
+  std::string error;
+  Handle<Object> value;
+  if (!DecodeMessagePack(isolate, base::Vector<const uint8_t>(bytes, length),
+                         &error, MessagePackDecodeMode::kDirect, true)
+           .ToHandle(&value))
+    return CodecFailure(isolate, error, false);
+  return *value;
+}
 }  // namespace internal
 }  // namespace v8

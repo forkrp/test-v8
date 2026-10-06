@@ -15,6 +15,15 @@ ROOT = Path(__file__).resolve().parents[2]
 def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
+def dependency_revision(path, ref, optional=False):
+    if (path / '.git').exists():
+        return subprocess.check_output(['git', 'rev-parse', ref], cwd=path, text=True).strip()
+    if optional:
+        return None  # A vendored C++ dependency contains no C-branch sources.
+    for line in (path / 'README.v8').read_text().splitlines():
+        if line.startswith('Revision: '): return line.split(': ', 1)[1]
+    raise RuntimeError('Missing vendored revision: ' + str(path))
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--v8-build', type=Path, required=True)
@@ -30,11 +39,14 @@ def main():
                    help='Diagnostic cache counters on stderr; exclude from timings')
     p.add_argument('--ndk',type=Path,default=Path('/Users/james/software/android/sdk/ndk/27.3.13750724'))
     args = p.parse_args()
+    for name in ['v8_build', 'msgpack', 'mpack', 'output']:
+        setattr(args, name, getattr(args, name).resolve())
     args.output.mkdir(parents=True, exist_ok=True)
     sources = ['src/json/json-parser.cc','src/msgpack/messagepack.cc','tools/binary_serialization/benchmark.cc']
     source_hashes = {s:digest(ROOT/s) for s in sources}
     header_hashes = {s:digest(ROOT/s) for s in
-        ['src/msgpack/messagepack.h','src/msgpack/messagepack-string.h',
+        ['src/msgpack/messagepack.h','src/msgpack/messagepack-string.h', 'src/msgpack/messagepack-resource-format.h',
+                  'src/msgpack/messagepack-resource-encoder.h', 'src/msgpack/messagepack-resource-decoder.h',
          'src/msgpack/messagepack-decoder.h','src/objects/js-data-object-builder.h']}
     ninja = (args.v8_build/'obj/v8_base_without_compiler.ninja').read_text()
     variables = dict(line.split(' = ',1) for line in ninja.splitlines() if ' = ' in line and not line.startswith(' '))
@@ -94,7 +106,10 @@ def main():
     monolith = (args.v8_build/'obj/v8_monolith.ninja').read_text()
     link_line = next(x for x in monolith.splitlines() if x.startswith('build obj/libv8_monolith.a:'))
     objects = [args.v8_build/x for x in link_line.split(': alink ',1)[1].split(' || ',1)[0].split()]
-    objects = [replacement['src/json/json-parser.cc'] if x.name=='json-parser.o' else x for x in objects]
+    # Production GN now already includes the adapter and MPack. Replace those
+    # objects rather than linking a second set from this native investigation.
+    objects = [replacement['src/json/json-parser.cc'] if x.name=='json-parser.o' else x for x in objects
+               if x.name != 'messagepack.o' and '/third_party/mpack/' not in str(x)]
     objects += [*mpack_objects,replacement['src/msgpack/messagepack.cc'],replacement['tools/binary_serialization/benchmark.cc'],
         args.v8_build/'obj/third_party/zlib/libchrome_zlib.a',
         args.v8_build/'obj/third_party/zlib/google/libcompression_utils_portable.a']
@@ -115,9 +130,9 @@ def main():
     if any(digest(ROOT/s)!=expected for s,expected in {**source_hashes,**header_hashes}.items()):
         raise RuntimeError('Experiment source changed during build; do not use this binary. Rebuild with frozen sources.')
     manifest = {'v8BaseCommit': subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
-        'msgpackCommit':subprocess.check_output(['git','rev-parse','cpp_master'],cwd=args.msgpack,text=True).strip(),
-        'msgpackCCommit':subprocess.check_output(['git','rev-parse','c_master'],cwd=args.msgpack,text=True).strip(),
-        'mpackCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=args.mpack,text=True).strip(),
+        'msgpackCommit':dependency_revision(args.msgpack, 'cpp_master'),
+        'msgpackCCommit':dependency_revision(args.msgpack, 'c_master', optional=True),
+        'mpackCommit':dependency_revision(args.mpack, 'HEAD'),
         'platform':args.platform,'explicitMsgpackSimd':not args.disable_msgpack_simd,
         'referenceBuiltinDefinitions':reference_builtin,
         'profileMsgpackCache':args.profile_msgpack_cache,

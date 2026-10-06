@@ -3304,9 +3304,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kRegExpPrototypeStickyGetter, true);
       SimpleInstallGetter(isolate_, prototype, factory->unicode_string(),
                           Builtin::kRegExpPrototypeUnicodeGetter, true);
-      SimpleInstallGetter(isolate(), prototype,
-                      factory->unicodeSets_string(),
-                      Builtin::kRegExpPrototypeUnicodeSetsGetter, true);
+      SimpleInstallGetter(isolate(), prototype, factory->unicodeSets_string(),
+                          Builtin::kRegExpPrototypeUnicodeSetsGetter, true);
 
       SimpleInstallFunction(isolate_, prototype, "compile",
                             Builtin::kRegExpPrototypeCompile, 2, true);
@@ -3584,6 +3583,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           1, false);
     SimpleInstallFunction(isolate_, msgpack, "decode", Builtin::kMsgpackDecode,
                           1, false);
+    SimpleInstallFunction(isolate_, msgpack, "encodeResource",
+                          Builtin::kMsgpackEncodeResource, 1, false);
+    SimpleInstallFunction(isolate_, msgpack, "decodeResource",
+                          Builtin::kMsgpackDecodeResource, 1, false);
     InstallToStringTag(isolate_, msgpack, "MSGPACK");
   }
 

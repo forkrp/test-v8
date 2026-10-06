@@ -5220,6 +5220,9 @@ v8_source_set("v8_msgpack") {
     "src/msgpack/messagepack.cc",
     "src/msgpack/messagepack.h",
     "src/msgpack/messagepack-decoder.h",
+    "src/msgpack/messagepack-resource-format.h",
+    "src/msgpack/messagepack-resource-encoder.h",
+    "src/msgpack/messagepack-resource-decoder.h",
     "src/msgpack/messagepack-string.h",
   ]
   # msgpack-c exceptions are contained by the codec boundary. Keep all other
