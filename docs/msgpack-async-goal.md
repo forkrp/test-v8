@@ -2,7 +2,7 @@
 
 Goal: implement `MSGPACK.encodeAsync` and `MSGPACK.decodeAsync` like this fork's custom async JSON methods, validate correctness and ownership, and establish useful performance with representative measurements.
 
-Selected implementation: **r11-final**, branch `codex/msgpack-async`, base `d23be36808219a08dfcc19fd55e6866e6af6df73`. Worktree: `/Users/james/.codex/worktrees/1d8b/v8-standalone`. No commit, merge or push is included.
+Measured implementation: **r11-final**, branch `codex/msgpack-async`, base `d23be36808219a08dfcc19fd55e6866e6af6df73`. Worktree: `/Users/james/.codex/worktrees/1d8b/v8-standalone`. The implementation was subsequently recorded in local commit `8dc47d839`. The performance tables below describe that pre-integration runtime source snapshot; integration with the compact resource format has separate validation evidence.
 
 ## Implementation and contract
 
@@ -24,6 +24,12 @@ The final requirement audit covers four source-matched linked builds, complete n
 | Android ARM32 | 4,261 | All 23 corresponding checks |
 
 Correctness coverage includes exact sync wire/value parity, numeric and unsafe 64-bit boundaries, strict UTF-8, view offsets and lengths, detachment/resizing/shared-storage rejection, mutations after snapshot, unsupported hooks/types, cycles, schema hints, realms, moving/incremental GC, retained output, 2,000 deterministic malformed inputs, large container-count regressions, tape-budget rejection/recovery, pending-job limits, termination and tasks outliving isolate disposal.
+
+## Local integration with compact resources
+
+The integration with resource-format commit `1b219d1ee` preserves synchronous, asynchronous and compact resource methods. Conflicts in the API documentation, builtins, global installation and codec implementation were resolved together. Resource builtins use the shared input validation and owned-output transfer helpers; the templated decoder retains compact resource decoding alongside asynchronous standard MessagePack materialization.
+
+The combined macOS ARM64 `d8`, `cctest` and native benchmark harness linked successfully. All 38 post-integration check invocations passed: five API suites in three GC modes, seven native MSGPACK and six native JSON checks, three standalone JSON suites, four harness checks, and three focused integration reruns with long Unicode property names. The integration regression test interleaves both APIs across GC and mutations after capture. The checked-in summary is [msgpack-async-integration.json](../tools/binary_serialization/evidence/msgpack-async-integration.json); detailed logs, source identity and frozen linked binaries are retained in the original worktree's `out/msgpack-async` directory. Android correctness and performance were not rerun after integration; the Android results below remain evidence for the pre-integration measured source snapshot.
 
 ## Measurement method
 

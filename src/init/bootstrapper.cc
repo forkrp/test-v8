@@ -3587,6 +3587,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kMsgpackEncodeAsync, 1, false);
     SimpleInstallFunction(isolate_, msgpack, "decodeAsync",
                           Builtin::kMsgpackDecodeAsync, 1, false);
+    SimpleInstallFunction(isolate_, msgpack, "encodeResource",
+                          Builtin::kMsgpackEncodeResource, 1, false);
+    SimpleInstallFunction(isolate_, msgpack, "decodeResource",
+                          Builtin::kMsgpackDecodeResource, 1, false);
     InstallToStringTag(isolate_, msgpack, "MSGPACK");
   }
 

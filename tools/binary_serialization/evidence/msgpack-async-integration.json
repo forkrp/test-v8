@@ -1,0 +1,276 @@
+{
+  "status": "pass",
+  "recordedUtc": "2026-10-06T08:11:50.929303+00:00",
+  "parents": {
+    "asyncImplementation": "8dc47d8396a5633751cbc711c306dcf5cd3f648e",
+    "compactResources": "1b219d1ee30ca689eacb93b0c5fc2bc1da0e32cd"
+  },
+  "resolvedConflicts": [
+    "docs/msgpack-js-api.md",
+    "src/builtins/builtins-msgpack.cc",
+    "src/init/bootstrapper.cc",
+    "src/msgpack/messagepack.cc"
+  ],
+  "resolution": "Preserve all six public methods, resource-format decoding and mixed UTF-16 encoding, owned native async jobs and cooperative materialization; use shared input validation and guarded output transfer for resource builtins.",
+  "platform": "macOS ARM64 host",
+  "build": {
+    "compilerInputs": 4269,
+    "binaries": {
+      "d8": "bad76412289ce539aeec44f3ec69b43bdcb611ef1cf9738e2926cd2d5db31d64",
+      "cctest": "c4732a5bf42be8e5d44f22a2838a3be8f6babc54012af78fb861b22737372b4d",
+      "msgpack_js_benchmark": "b29347639792c4673d12c8ee144d3abb46be884851f3b92014e750b15812fba5"
+    },
+    "argsSha256": "9d3f09d82c98da7ffdc8e573f4ec9893e22288819e33e9d7217270e8c715131c",
+    "compilerIdentitySha256": "8436ea1f10ee47da6a69106b74f91121a8e5e022e6be4a5eb99534a3d36812bc"
+  },
+  "sources": {
+    "test/msgpack/async.js": "f1f86c827ebdeb606d3ed42a6c56d8279481404ae099fd96ba1a8db607626bfc",
+    "test/msgpack/async-numeric.js": "03645e91375e51421c3595fa25c61151728f018092c3dbf874fe0e5143ac9075",
+    "test/intl/assert.js": "2b1418ef9fa6cac35ef3cf171e2e000a572c3aea40745e8ac517461e01f854dc",
+    "test/mjsunit/msgpack.js": "744530baea2cb0a4aee3d90baba513da69ebb7113f1a989713cfe70122755926",
+    "test/mjsunit/msgpack-resource.js": "f131191900a6e9ff479edba33c7c50e93b953668a8cff60572c2235c6f6e82ac",
+    "test/mjsunit/msgpack-async-resource.js": "48b53f8e9e406f0f6c4f62afc3165f6ef33ca2daf83870a6bc3f55b69bf4af5d",
+    "test/json/parse-async.js": "1da2d57ebb1ec0695569638c75acc079aa0d0a264f7930f8a5bf1ce0dcd9231e",
+    "test/json/stringify-async.js": "a234864df79e8910a068c75691928a026a3c4792a10acce794f875124746e4bc",
+    "test/json/async-json-android-round2.js": "fbe1c155306ef636c4623786dbe20eeb9c653cda8f093f58af0f0de6a8907dbe",
+    "out/msgpack-async/merge-harness-source.json": "87188dcd2d56c646d7012ebb907624d4f710d71291b6dce554a5c119888be89d",
+    "test/msgpack/async-benchmark.js": "9f8a94bf3a0adb1b4660cea304fdda1768daf0dd5f3b2c3bf35445d73b76c072",
+    "BUILD.gn": "d5f8d8008acdf193f508a3eed3fe60dfdb25b2d3c515ee90baaa6d780743a563",
+    "src/msgpack/messagepack.cc": "da021a9ecf5415230d51c890e83d502ace526bcc54c545b59ca51e4e794f42ac",
+    "src/msgpack/messagepack-decoder.h": "0dcef46de64fa7c4b388f18c83a0f18e44b51555168181069c2f9d368bd27401",
+    "src/msgpack/messagepack-async.cc": "65cfa89bd8cc76718321d7954006304d7e6b2e83573ae02792b3f7e97b1904df",
+    "src/msgpack/messagepack-async.h": "ef0817bb8806dbe11b55e2c0f5453313f0d8ad7f5f379dd2de601153f48b6a39",
+    "src/msgpack/messagepack-background.cc": "1ad1cd821c98ee5821b4e6521ba03ca1bbbeac1a765a8a2a3fcf8bcf2d0ecce9",
+    "src/msgpack/messagepack.h": "ca9f0dce924c2b638b3d18aa18a81fd01b97e9a11a656dc9c16159ef04396953",
+    "src/msgpack/messagepack-string.h": "657e718848f8552d3bfb9b0be4123e4d53c640089eed12a1132bcfa85d06ff29",
+    "src/msgpack/messagepack-resource-decoder.h": "14d8f37ce7f65902e77b04241fc4e993ba7fbe0c5571e5c6ce997f8d943f5993",
+    "src/msgpack/messagepack-resource-encoder.h": "6cf859e61f18800496430befdd5cb83b21bae7999be4ea6ff70a03835d355768",
+    "src/msgpack/messagepack-resource-format.h": "5fc5bb8ddce5b2cc7b7b274fa63be95ce565f9c4d605593e7959f5580ce852d0",
+    "src/builtins/builtins-msgpack.cc": "51eed3504d25b816478b4d8091b83a23977b3c1b12d70c1af89038f472e20ede",
+    "src/builtins/builtins-definitions.h": "c515d860f1716b9a939f51e2f5d14927e6e19f17f4ce7b28adb3d4601e8afff2",
+    "src/init/bootstrapper.cc": "36ce31b1d9f07ca6d61916a596e12767fa17de59960d3409720cb9a3c9fb8f38",
+    "src/api/api.cc": "e21dd656dd239fe26b3d592ad5738c41a6764fe6396892fe2f37095aded2e35f",
+    "src/execution/isolate.cc": "60173fafb2c7ab054d7e415f34f4e09a1cd362c9afa72332ce7f6cf569197d8c",
+    "test/cctest/test-json-async.cc": "8e405f0af3aad5251523a82b1dcdf113cb83ed9ae48007ec799aca23361d425c",
+    "tools/binary_serialization/js_benchmark.cc": "60077a84ccce0245ff6be74d918c6b6958f8b75e5976bbf26300a9b6833e5fca",
+    "docs/msgpack-async-goal.md": "7934b27da7bcc9096a0743b050ab554bcecd8eac6478b9476238a4dc63f5fcfa",
+    "docs/msgpack-js-api.md": "06a7727d341d4d2049c4aa5964b2cd60140e2870ee3985f1b7fca7e63ffb63cc"
+  },
+  "checks": [
+    {
+      "name": "async-normal",
+      "exit": 0
+    },
+    {
+      "name": "numeric-normal",
+      "exit": 0
+    },
+    {
+      "name": "sync-normal",
+      "exit": 0
+    },
+    {
+      "name": "resource-normal",
+      "exit": 0
+    },
+    {
+      "name": "integration-normal",
+      "exit": 0
+    },
+    {
+      "name": "async-moving",
+      "exit": 0
+    },
+    {
+      "name": "numeric-moving",
+      "exit": 0
+    },
+    {
+      "name": "sync-moving",
+      "exit": 0
+    },
+    {
+      "name": "resource-moving",
+      "exit": 0
+    },
+    {
+      "name": "integration-moving",
+      "exit": 0
+    },
+    {
+      "name": "async-incremental",
+      "exit": 0
+    },
+    {
+      "name": "numeric-incremental",
+      "exit": 0
+    },
+    {
+      "name": "sync-incremental",
+      "exit": 0
+    },
+    {
+      "name": "resource-incremental",
+      "exit": 0
+    },
+    {
+      "name": "integration-incremental",
+      "exit": 0
+    },
+    {
+      "name": "native-MessagePackAsyncYieldsAndSurvivesGC",
+      "exit": 0
+    },
+    {
+      "name": "native-MessagePackAsyncConcurrentWorkersAndSnapshot",
+      "exit": 0
+    },
+    {
+      "name": "native-MessagePackAsyncUnsupportedPlatform",
+      "exit": 0
+    },
+    {
+      "name": "native-MessagePackAsyncTermination",
+      "exit": 0
+    },
+    {
+      "name": "native-MessagePackAsyncTasksOutliveIsolate",
+      "exit": 0
+    },
+    {
+      "name": "native-MessagePackAsyncNativeAccounting",
+      "exit": 0
+    },
+    {
+      "name": "native-MessagePackAsyncCompleteWireAccounting",
+      "exit": 0
+    },
+    {
+      "name": "native-JsonParseAsyncConcurrentWorkers",
+      "exit": 0
+    },
+    {
+      "name": "native-JsonParseAsyncTasksOutliveIsolate",
+      "exit": 0
+    },
+    {
+      "name": "native-JsonParseAsyncQueuedWorkerOutlivesIsolate",
+      "exit": 0
+    },
+    {
+      "name": "native-JsonStringifyAsyncConcurrentWorkers",
+      "exit": 0
+    },
+    {
+      "name": "native-JsonStringifyAsyncTasksOutliveIsolate",
+      "exit": 0
+    },
+    {
+      "name": "native-JsonStringifyAsyncQueuedWorkerOutlivesIsolate",
+      "exit": 0
+    },
+    {
+      "name": "json-parse-async",
+      "exit": 0
+    },
+    {
+      "name": "json-stringify-async",
+      "exit": 0
+    },
+    {
+      "name": "json-async-json-android-round2",
+      "exit": 0
+    },
+    {
+      "name": "harness-resource-encode",
+      "exit": 0
+    },
+    {
+      "name": "harness-async-encode",
+      "exit": 0
+    },
+    {
+      "name": "harness-resource-decode",
+      "exit": 0
+    },
+    {
+      "name": "harness-async-decode",
+      "exit": 0
+    },
+    {
+      "name": "integration-unicode-keys-normal",
+      "exit": 0
+    },
+    {
+      "name": "integration-unicode-keys-moving",
+      "exit": 0
+    },
+    {
+      "name": "integration-unicode-keys-incremental",
+      "exit": 0
+    }
+  ],
+  "preservedFiles": {
+    "implementation": {
+      "docs/msgpack-async.md": "162a56a07f2202964801b75f299878c07f33878e90d9df5836e3b0dbc2f08c54",
+      "src/api/api.cc": "e21dd656dd239fe26b3d592ad5738c41a6764fe6396892fe2f37095aded2e35f",
+      "src/execution/isolate.cc": "60173fafb2c7ab054d7e415f34f4e09a1cd362c9afa72332ce7f6cf569197d8c",
+      "src/msgpack/messagepack-async.cc": "65cfa89bd8cc76718321d7954006304d7e6b2e83573ae02792b3f7e97b1904df",
+      "src/msgpack/messagepack-async.h": "ef0817bb8806dbe11b55e2c0f5453313f0d8ad7f5f379dd2de601153f48b6a39",
+      "src/msgpack/messagepack-background.cc": "1ad1cd821c98ee5821b4e6521ba03ca1bbbeac1a765a8a2a3fcf8bcf2d0ecce9",
+      "src/msgpack/messagepack-string.h": "657e718848f8552d3bfb9b0be4123e4d53c640089eed12a1132bcfa85d06ff29",
+      "test/cctest/test-json-async.cc": "8e405f0af3aad5251523a82b1dcdf113cb83ed9ae48007ec799aca23361d425c",
+      "test/msgpack/async-benchmark.js": "9f8a94bf3a0adb1b4660cea304fdda1768daf0dd5f3b2c3bf35445d73b76c072",
+      "test/msgpack/async-numeric.js": "03645e91375e51421c3595fa25c61151728f018092c3dbf874fe0e5143ac9075",
+      "test/msgpack/async.js": "f1f86c827ebdeb606d3ed42a6c56d8279481404ae099fd96ba1a8db607626bfc",
+      "tools/binary_serialization/audit_async.py": "0eea690bf5d8e20518a124b79f31e308ea50b23a8517603725978375968c7cc0",
+      "tools/binary_serialization/compare_async.py": "0401c108858a5793c56129e2542a5e09df70fdc598dadb1ba2c429b6d342d736",
+      "tools/binary_serialization/freeze_async.py": "734f781bd0b104613fd00534b65a3b5145c7b7d8e9ac493c78e395ed1787bea8",
+      "tools/binary_serialization/resume_async.py": "37975fe906a375a93f45a6512456541e847e5159a6378c045e9071e12078c32a",
+      "tools/binary_serialization/run_async.py": "c87846f5f9ffe86066e824a3f100c79e45392d7c42ccaa500fcd55ccc8eae503",
+      "tools/binary_serialization/run_sync_control.py": "7ac3f60c682a8c2d3a6cb514479e3b75e4483c315d5d77dbaa5087734b1c25c4",
+      "tools/binary_serialization/summarize_async.py": "f18e2a12be40dc16a4a8102156d88aea27e4c93272f8d9b8e9962645978d0294"
+    },
+    "resource": {
+      "docs/msgpack-resource-benchmarks.md": "a290341975694f047f599553ec4a802eac919764d439a8f7021c0103082b23e8",
+      "docs/msgpack-resource-format.md": "a12562dad6da6a67ffa83bfe0ecbd05e476d042f423931da7186ac8250773ea1",
+      "docs/msgpack-resource-results.md": "d834ce8b5aa9236746ae33e3e8d095d822bd418f268840b69f5761568c58fea2",
+      "src/msgpack/messagepack-resource-decoder.h": "14d8f37ce7f65902e77b04241fc4e993ba7fbe0c5571e5c6ce997f8d943f5993",
+      "src/msgpack/messagepack-resource-encoder.h": "6cf859e61f18800496430befdd5cb83b21bae7999be4ea6ff70a03835d355768",
+      "src/msgpack/messagepack-resource-format.h": "5fc5bb8ddce5b2cc7b7b274fa63be95ce565f9c4d605593e7959f5580ce852d0",
+      "test/mjsunit/msgpack-resource.js": "f131191900a6e9ff479edba33c7c50e93b953668a8cff60572c2235c6f6e82ac",
+      "tools/binary_serialization/README.md": "c16937061d6f2a7732c6f21bbfd7b921181e94eaa6daabcc10cb62889ae87b55",
+      "tools/binary_serialization/analyze_resource.py": "a34313aa12706fd8bdb07c5fa7a8f6bc8e19539e6f3a454b25c8fcbb081eff89",
+      "tools/binary_serialization/audit_resource.py": "ac017150d4b84ad4b02110c2394bf594830bee779bf3baa98b5f0f5839295663",
+      "tools/binary_serialization/build.py": "d36180416e66617c6696bdd64121276095b5ec275a19dc0f52843bf1ea72852a",
+      "tools/binary_serialization/check_resource_api.py": "80d0637f5b2240f55e049e6d54648d29d7b05874b534b79b508225b2762b5bcc",
+      "tools/binary_serialization/configure_resource_build.py": "f16400878b03bfae90b4903596b56a9f28523776f769246b04abc8c98dd01ccb",
+      "tools/binary_serialization/controls_js.py": "bb4cb1f2d575a4255f4ddabbd15a69668036e1c9870db960ad5ee0c55189361d",
+      "tools/binary_serialization/controls_resource.py": "7e7fcf1bc37b2ae875b703de6713adb83b39aefcb052dc3b96e641f30590e764",
+      "tools/binary_serialization/device_guard.py": "64c1cc239434e3e0d6afb0467ff28533e4fd64ce07a08403f12e6d77b621e123",
+      "tools/binary_serialization/evidence/msgpack-resources-r6.json": "336c16200678fab7a3b72be2d86f1fe121caa0b0ce976de558d8f32fdb0944a9",
+      "tools/binary_serialization/gn_mac_android.py": "0925d96f88c609067de5b6b0463d256f06f3b6638307f71c7313feae8484b0ff",
+      "tools/binary_serialization/report_resource.py": "08b6f3266ba3704bd39a5c35548ea625b9ee5ed558752d9f5b1ebd984eb4e48a",
+      "tools/binary_serialization/resource_ablate.py": "c27f371cfb093dfc20eedabdf91f18282660ee803ced0d3e2433178ef88bb53e",
+      "tools/binary_serialization/resource_peer.py": "6c8be5a9314a78da5db2e8adfd066c1d9c213b414a035cb348d6d71644d11ab7",
+      "tools/binary_serialization/run_js.py": "ddc0280711dbaebc63986a5605e8e87e41d4685fc1b0aa6027999c32ccdce9fc",
+      "tools/binary_serialization/run_resource_stages.py": "df5744c5529dd6e5e6ef3859bb9a302ac8fdc382da8a9f692b74bca4d61bc68f"
+    }
+  },
+  "updatedDocumentation": [
+    "docs/msgpack-async-goal.md"
+  ],
+  "evidenceRoot": "/Users/james/.codex/worktrees/1d8b/v8-standalone/out/msgpack-async",
+  "evidence": {
+    "merge-validation-host.json": "2f17389b9e9b16756672421a8ffd1226873acd3931583ba1d42401351ae73a6b",
+    "merge-unicode-keys-validation.json": "9efa072e3e81444c5461ad84e250786e011cd5c83b4c5e6ef1026d0b91c948a1",
+    "merge-host-build.log": "8f971d6e5c046e7037e11431e7955eaa1e0d6ecba293c510d95480308f28688b",
+    "merge-validation-host-progress.log": "c23537e79f56f3b9b7c58c13e4000e40198dd56c7d95f3d18cf429ad4253b047",
+    "frozen-host-merge-final/build-manifest.json": "656440c54ac7ff257d0ad6f8f8e0d2af40ac0e4aa935b5464f0bd94b5fbe0d76",
+    "frozen-host-merge-final/source-patch.diff": "9ddc0f7a7dc7b0250d7f25a939b6a4c5da9a9656f4e54a3445c64bdf871c238e",
+    "frozen-host-merge-final/commands.txt": "1a88c42ee74431e44d36c9fe9a316b6fe856c7048e29ee19480e72930fa1e4b0",
+    "frozen-host-merge-final/compiler-identity.json": "8436ea1f10ee47da6a69106b74f91121a8e5e022e6be4a5eb99534a3d36812bc",
+    "requirements-audit-r11-final.json": "4382b3eb94d3fedbe7ab764e1d4cb91ae1c4532f53b375d87f235e40389fd02c"
+  },
+  "scope": "38 merged-source check invocations passed. The final Unicode-name integration reruns supersede the earlier integration script hash only; original logs remain intact. Android correctness/performance results are for the pre-integration runtime snapshot; no Android rerun or new performance claim is included. Frozen compiler-input closure and runtime sources match the tested merged binaries."
+}

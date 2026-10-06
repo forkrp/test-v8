@@ -146,5 +146,42 @@ BUILTIN(MsgpackDecodeAsync) {
       MessagePackAsync(isolate, args.atOrUndefined(isolate, 1), false));
   return *promise;
 }
+BUILTIN(MsgpackEncodeResource) {
+  HandleScope scope(isolate);
+#if defined(V8_TARGET_OS_ANDROID) && defined(V8_TARGET_ARCH_ARM)
+  // Large malloc buffers released in sweeping batches trigger expensive
+  // Scudo32 page-release scans. Dedicated mappings avoid that allocator path;
+  // each output remains independently owned and is freed when its store dies.
+  MessagePackBuffer bytes(true);
+#else
+  MessagePackBuffer bytes;
+#endif
+  std::string error;
+  // A float32 tag is used only when widening exactly reproduces the Number.
+  // Other values keep float64, including all NaNs and non-representable values.
+  if (!EncodeMessagePackResource(isolate, args.atOrUndefined(isolate, 1),
+                                 &bytes, &error))
+    return CodecFailure(isolate, error, true);
+  Handle<Object> result = MessagePackOutput(isolate, &bytes);
+  return result.is_null() ? ReadOnlyRoots(isolate).exception() : *result;
+}
+
+BUILTIN(MsgpackDecodeResource) {
+  HandleScope scope(isolate);
+  std::shared_ptr<BackingStore> backing;
+  size_t offset, length;
+  if (!GetMessagePackInput(isolate, args.atOrUndefined(isolate, 1), &backing,
+                           &offset, &length))
+    return ReadOnlyRoots(isolate).exception();
+  const uint8_t* bytes =
+      static_cast<const uint8_t*>(backing->buffer_start()) + offset;
+  std::string error;
+  Handle<Object> value;
+  if (!DecodeMessagePack(isolate, base::Vector<const uint8_t>(bytes, length),
+                         &error, MessagePackDecodeMode::kDirect, true)
+           .ToHandle(&value))
+    return CodecFailure(isolate, error, false);
+  return *value;
+}
 }  // namespace internal
 }  // namespace v8

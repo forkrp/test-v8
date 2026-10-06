@@ -9,6 +9,7 @@ import shlex
 import statistics
 
 from run_js import digest, execute
+from device_guard import DeviceGuard
 
 
 def main():
@@ -73,7 +74,7 @@ def main():
                           'id': f'{name}:{operation}:{count}'})
     report = {'startedUtc': datetime.now(timezone.utc).isoformat(),
               'binarySha256': digest(binary), 'manifestSha256': digest(manifest_path),
-              'matrixSha256': digest(args.matrix), 'runnerSha256': digest(__file__),
+              'matrixSha256': digest(args.matrix), 'runnerSha256': digest(__file__), 'deviceGuardSha256': digest(Path(__file__).parent / 'device_guard.py'),
               'runtimeSha256': digest(args.runtime_library), 'serial': args.adb_serial,
               'cpuMask': 'f0', 'rounds': args.rounds, 'seed': args.seed, 'warmups': 20,
               'cases': cases, 'sources': sources, 'samples': {}, 'orders': [],
@@ -82,6 +83,7 @@ def main():
                              'round alternates which codec runs first for each case. '
                              'All results receive complete benchmark validation.'}
     rng = random.Random(args.seed)
+    guard = DeviceGuard(args.adb_serial, remote, args.output / 'excluded-device-overlaps.json')
     for round_index in range(args.rounds):
         order = cases.copy()
         rng.shuffle(order)
@@ -95,7 +97,7 @@ def main():
                            str(remote / 'benchmark'), case['operation'], codec,
                            str(remote / (case['name'] + '.source.json')),
                            str(case['iterations']), '20']
-                output = adb('shell', shlex.join(command))
+                output = guard.run(['adb', '-s', args.adb_serial, 'shell', shlex.join(command)])
                 sample = json.loads(output.strip().splitlines()[-1])
                 key = case['id'] + ':' + codec
                 report['samples'].setdefault(key, []).append(sample)

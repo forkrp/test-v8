@@ -165,12 +165,14 @@ int main(int argc, char** argv) {
   if (argc == 8 && std::string(argv[1]) == "--async") return AsyncMain(argv);
   bool prepare_only = argc == 5 && std::string(argv[1]) == "--prepare";
   bool cold = argc == 8 && std::string(argv[6]) == "--cold";
-  Check(argc == 6 || prepare_only || cold,
+  bool supplied = argc == 8 && std::string(argv[6]) == "--input";
+  Check(argc == 6 || prepare_only || cold || supplied,
         "Usage: encode|decode codec source.json iterations warmups [--cold "
         "input.bytes], or --prepare codec source.json output.bytes");
   std::string operation = prepare_only ? "encode" : argv[1], codec = argv[2];
   Check(operation == "encode" || operation == "decode", "Invalid operation");
-  Check(codec == "msgpack" || codec == "json_bytes" || codec == "json_string",
+  Check(codec == "msgpack" || codec == "resource" || codec == "json_bytes" ||
+            codec == "json_string",
         "Invalid codec");
   int iterations = prepare_only ? 1 : std::stoi(argv[4]);
   int warmups = prepare_only ? 0 : std::stoi(argv[5]);
@@ -204,18 +206,24 @@ int main(int argc, char** argv) {
           .Check();
     std::string action =
         operation == "encode"
-            ? (codec == "msgpack"      ? "MSGPACK.encode(input)"
+            ? (codec == "resource"     ? "MSGPACK.encodeResource(input)"
+               : codec == "msgpack"    ? "MSGPACK.encode(input)"
                : codec == "json_bytes" ? "__utf8Encode(JSON.stringify(input))"
                                        : "JSON.stringify(input)")
-            : (codec == "msgpack"      ? "MSGPACK.decode(input)"
+            : (codec == "resource"     ? "MSGPACK.decodeResource(input)"
+               : codec == "msgpack"    ? "MSGPACK.decode(input)"
                : codec == "json_bytes" ? "JSON.parse(__utf8Decode(input))"
                                        : "JSON.parse(input)");
+    Check(!supplied || operation == "decode", "--input requires decoding");
     std::string prepare =
         operation == "encode" ? "const input = original;"
-        : codec == "msgpack"  ? "const input = MSGPACK.encode(original);"
+        : codec == "resource"
+            ? "const input = MSGPACK.encodeResource(original);"
+        : codec == "msgpack" ? "const input = MSGPACK.encode(original);"
         : codec == "json_bytes"
             ? "const input = __utf8Encode(JSON.stringify(original));"
             : "const input = JSON.stringify(original);";
+    if (supplied) prepare = "const input = __wire;";
     // The preparation scope retains only the required input. Decode does not
     // retain the original graph, so GC cannot artificially keep its maps alive.
     std::string body = "(() => { const original = JSON.parse(";
@@ -228,6 +236,7 @@ int main(int argc, char** argv) {
         "; const out = once(); "
         "const restored = " +
         (operation == "decode"   ? std::string("out")
+         : codec == "resource"   ? std::string("MSGPACK.decodeResource(out)")
          : codec == "msgpack"    ? std::string("MSGPACK.decode(out)")
          : codec == "json_bytes" ? std::string("JSON.parse(__utf8Decode(out))")
                                  : std::string("JSON.parse(out)")) +
@@ -248,7 +257,7 @@ int main(int argc, char** argv) {
              : std::string("observed ^= Array.isArray(value) ? value.length : "
                            "Object.keys(value).length;")) +
         " } return [observed, value]; }]; })()";
-    if (cold) {
+    if (cold || supplied) {
       if (operation == "decode") {
         std::ifstream wire_file(argv[7], std::ios::binary);
         Check(wire_file.good(), "Cold input file missing");
@@ -265,14 +274,17 @@ int main(int argc, char** argv) {
         }
         context->Global()->Set(context, Text(isolate, "__wire"), input).Check();
       }
-      // No codec call, decoded graph, or schema cache exists before the clock.
-      // Validate against the original source only after the timed first call.
-      body = "(() => { const input = " +
-             (operation == "encode" ? std::string("JSON.parse(__source)")
-                                    : std::string("__wire")) +
-             "; const once = () => " + action +
-             "; return [0, function(n) { const value = once(); return [0, "
-             "value]; }]; })()";
+      if (cold) {
+        // No codec call, decoded graph, or schema cache exists before the
+        // clock. Validate against the original source only after the timed
+        // first call.
+        body = "(() => { const input = " +
+               (operation == "encode" ? std::string("JSON.parse(__source)")
+                                      : std::string("__wire")) +
+               "; const once = () => " + action +
+               "; return [0, function(n) { const value = once(); return [0, "
+               "value]; }]; })()";
+      }
     }
     auto prepared = Eval(isolate, context, body).As<v8::Array>();
     auto loop = prepared->Get(context, 1).ToLocalChecked().As<v8::Function>();
@@ -333,11 +345,12 @@ int main(int argc, char** argv) {
             ->Set(context, Text(isolate, "__out"),
                   result->Get(context, 1).ToLocalChecked())
             .Check();
-        std::string restore = operation == "decode" ? "__out"
-                              : codec == "msgpack"  ? "MSGPACK.decode(__out)"
-                              : codec == "json_bytes"
-                                  ? "JSON.parse(__utf8Decode(__out))"
-                                  : "JSON.parse(__out)";
+        std::string restore =
+            operation == "decode"   ? "__out"
+            : codec == "resource"   ? "MSGPACK.decodeResource(__out)"
+            : codec == "msgpack"    ? "MSGPACK.decode(__out)"
+            : codec == "json_bytes" ? "JSON.parse(__utf8Decode(__out))"
+                                    : "JSON.parse(__out)";
         Eval(isolate, context,
              "if (JSON.stringify(" + restore +
                  ") !== JSON.stringify(JSON.parse(__source))) throw new "

@@ -13,6 +13,8 @@
 #include <cstring>
 #include <limits>
 #include <msgpack.hpp>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "mpack.h"
 #include "src/api/api-inl.h"
@@ -40,6 +42,8 @@ namespace {
 constexpr uint64_t kMaxSafeInteger = 9007199254740991ULL;
 constexpr size_t kMaxDepth = 256;
 constexpr size_t kMaxOutputBytes = 256 * 1024 * 1024;
+
+#include "src/msgpack/messagepack-resource-format.h"
 
 using messagepack_strings::DecodeUtf8;
 using messagepack_strings::ScanUtf8;
@@ -1013,8 +1017,57 @@ class Encoder {
     }
     if (messagepack_strings::UseSimdForEncoding(chars, count))
       return WriteStringImpl<Char, true>(chars, count);
+#if defined(V8_TARGET_ARCH_ARM64)
+    if constexpr (sizeof(Char) == 2) {
+      // Mixed UTF-16 pays for two scalar passes. For bounded strings, reserve
+      // its worst-case bytes and validate while writing, then close the small
+      // header gap. Larger strings keep exact preflight allocation. Near the
+      // byte limit, use preflight so a fitting value cannot be rejected due
+      // to this temporary reserve.
+      if (count >= 64 && count <= 4096 &&
+          writer_.size() <= kMaxOutputBytes - (count * 3 + 5))
+        return WriteMixedString(chars, count);
+    }
+#endif
     return WriteStringImpl<Char, false>(chars, count);
   }
+#if defined(V8_TARGET_ARCH_ARM64)
+  V8_NOINLINE bool WriteMixedString(const uint16_t* chars, size_t count) {
+    size_t start = writer_.size();
+    uint8_t* body = writer_.Append(count * 3 + 5) + 5;
+    uint8_t* output = body;
+    for (size_t i = 0; i < count;) {
+      uint32_t cp = chars[i++];
+      if (cp >= 0xd800 && cp <= 0xdfff) {
+        if (cp > 0xdbff || i == count || chars[i] < 0xdc00 ||
+            chars[i] > 0xdfff)
+          return Fail("Unpaired UTF-16 surrogate is outside the UTF-8 profile");
+        cp = 0x10000 + ((cp - 0xd800) << 10) + (chars[i++] - 0xdc00);
+      }
+      if (cp < 0x80) {
+        *output++ = static_cast<uint8_t>(cp);
+      } else if (cp < 0x800) {
+        *output++ = static_cast<uint8_t>(0xc0 | (cp >> 6));
+        *output++ = static_cast<uint8_t>(0x80 | (cp & 63));
+      } else if (cp < 0x10000) {
+        *output++ = static_cast<uint8_t>(0xe0 | (cp >> 12));
+        *output++ = static_cast<uint8_t>(0x80 | ((cp >> 6) & 63));
+        *output++ = static_cast<uint8_t>(0x80 | (cp & 63));
+      } else {
+        *output++ = static_cast<uint8_t>(0xf0 | (cp >> 18));
+        *output++ = static_cast<uint8_t>(0x80 | ((cp >> 12) & 63));
+        *output++ = static_cast<uint8_t>(0x80 | ((cp >> 6) & 63));
+        *output++ = static_cast<uint8_t>(0x80 | (cp & 63));
+      }
+    }
+    uint32_t length = static_cast<uint32_t>(output - body);
+    writer_.Rewind(start);
+    packer_.pack_str(length);
+    // Reserve already guaranteed capacity, so neither call can invalidate body.
+    std::memmove(writer_.Append(length), body, length);
+    return true;
+  }
+#endif
   template <typename Char, bool use_simd>
   // Compile scalar and SIMD conversion independently. Otherwise the combined
   // function's register pressure penalizes its scalar fallback on mixed text.
@@ -1642,6 +1695,7 @@ class Encoder {
   uint32_t cache_hits_ = 0, cache_misses_ = 0;
 #endif
 };
+#include "src/msgpack/messagepack-resource-encoder.h"
 }  // namespace
 
 void MessagePackBuffer::FreeAllocation() {
@@ -1718,11 +1772,22 @@ uint8_t* MessagePackBuffer::AppendSlow(size_t count) {
 MaybeHandle<Object> DecodeMessagePack(Isolate* isolate,
                                       base::Vector<const uint8_t> input,
                                       std::string* error,
-                                      MessagePackDecodeMode mode) {
+                                      MessagePackDecodeMode mode,
+                                      bool resource) {
   error->clear();
   if (input.empty() || input.size() > kMaxOutputBytes) {
     *error = "Invalid MessagePack input size";
     return {};
+  }
+  bool compact =
+      resource && input.size() >= 4 &&
+      std::memcmp(input.begin(), messagepack_resources::kMagic, 4) == 0;
+  if (compact) {
+    if (input.size() < 5 || input[4] != 1) {
+      *error = "Unsupported MessagePack resource version";
+      return {};
+    }
+    input = input.SubVector(5, input.size());
   }
   DisallowJavascriptExecution no_js(isolate);
   try {
@@ -1732,7 +1797,7 @@ MaybeHandle<Object> DecodeMessagePack(Isolate* isolate,
       Handle<WeakFixedArray> shapes(
           handle(WeakFixedArray::cast(cache->get(1)), isolate));
       DirectMessagePackDecoder<false> decoder(isolate, input, error, shapes);
-      return decoder.Decode();
+      return compact ? decoder.DecodeResource() : decoder.Decode();
     }
     V8Visitor visitor(isolate, input.size(), error);
     size_t offset = 0;
@@ -1998,5 +2063,35 @@ bool CaptureMessagePack(Isolate* isolate, Handle<Object> value,
   return false;
 }
 
+bool EncodeMessagePackResource(Isolate* isolate, Handle<Object> value,
+                               MessagePackBuffer* output, std::string* error) {
+  if (!EncodeMessagePack(isolate, value, output, error, true)) return false;
+  try {
+    size_t offset = 0;
+    auto tree = msgpack::unpack(reinterpret_cast<const char*>(output->data()),
+                                output->size(), offset);
+    MessagePackBuffer compact;
+    ResourceEncoder encoder(&compact);
+    encoder.Encode(tree.get());
+    if (compact.size() < output->size()) {
+      output->Clear();
+      std::memcpy(output->Append(compact.size()), compact.data(),
+                  compact.size());
+    }
+    return true;
+  } catch (const std::length_error&) {
+    // An unprofitable compact candidate can exceed the resource byte limit
+    // while the validated standard value still fits. Keep those exact bytes.
+    return true;
+  } catch (const std::bad_alloc&) {
+    *error = "MessagePack native allocation failed";
+  } catch (const std::exception& e) {
+    *error = e.what();
+  } catch (...) {
+    *error = "Native MessagePack resource exception";
+  }
+  output->Clear();
+  return false;
+}
 }  // namespace internal
 }  // namespace v8

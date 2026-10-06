@@ -13,6 +13,7 @@ import struct
 import subprocess
 
 from run import ROOT, corpus
+from device_guard import DeviceGuard
 
 
 def digest(path):
@@ -45,6 +46,8 @@ def main():
     p.add_argument('--cold', action='store_true',
                    help='Time exactly the first API call in each process, using separately prepared bytes')
     p.add_argument('--workloads', help='Pilot subset; acceptance uses the full 18-workload corpus')
+    p.add_argument('--include-resource', action='store_true',
+                   help='Add resource decode; cold runs also measure offline encode and file sizes')
     args = p.parse_args()
     if args.min_iterations < 1 or args.min_iterations > 1000 or args.target_ms <= 0:
         p.error('Require positive target-ms and min-iterations in [1, 1000]')
@@ -88,6 +91,7 @@ def main():
               'binary': str(binary), 'binarySha256': digest(binary),
               'frozenBuildManifest': manifest_identity,
               'runnerSha256': digest(__file__),
+              'deviceGuardSha256': digest(Path(__file__).parent / 'device_guard.py'),
               'benchmarkSourceSha256': digest(ROOT / 'tools/binary_serialization/js_benchmark.cc'),
               'serial': args.adb_serial, 'cpuMask': 'f0' if args.adb_serial else None,
               'rounds': args.rounds, 'seed': args.seed, 'warmups': args.warmups,
@@ -103,6 +107,9 @@ def main():
               'sources': {str(path.relative_to(ROOT)): digest(path) for path in
                           [ROOT / 'src/msgpack/messagepack.cc', ROOT / 'src/msgpack/messagepack.h',
                            ROOT / 'src/msgpack/messagepack-string.h',
+                           ROOT / 'src/msgpack/messagepack-resource-format.h',
+                           ROOT / 'src/msgpack/messagepack-resource-encoder.h',
+                           ROOT / 'src/msgpack/messagepack-resource-decoder.h',
                            ROOT / 'src/msgpack/messagepack-decoder.h', ROOT / 'src/builtins/builtins-msgpack.cc',
                            ROOT / 'src/builtins/builtins-definitions.h', ROOT / 'src/init/bootstrapper.cc',
                            ROOT / 'src/api/api.cc', ROOT / 'BUILD.gn']},
@@ -130,12 +137,16 @@ def main():
         workloads = {name: workloads[name] for name in args.workloads.split(',')}
     tasks = [(op, codec) for op in ['decode', 'encode']
              for codec in ['msgpack', 'json_bytes', 'json_string']]
+    if args.include_resource:
+        tasks.append(('decode', 'resource'))
+        if args.cold: tasks.append(('encode', 'resource'))
     rng = random.Random(args.seed)
+    guard = DeviceGuard(args.adb_serial, remote, args.output / 'excluded-device-overlaps.json') if args.adb_serial else None
     def invoke(command):
         if args.adb_serial:
             command = ['adb', '-s', args.adb_serial, 'shell',
                        shlex.join(['env', 'LD_LIBRARY_PATH=' + str(remote), 'taskset', 'f0', *command])]
-        return execute(command)
+        return guard.run(command) if guard else execute(command)
     for name, value in workloads.items():
         source = args.output / (name + '.source.json')
         source.write_text(json.dumps(value, ensure_ascii=False, separators=(',', ':')))
@@ -143,7 +154,7 @@ def main():
             execute(['adb', '-s', args.adb_serial, 'push', str(source), str(remote / source.name)])
         prepared = {}
         if args.cold:
-            for codec in ['msgpack', 'json_bytes', 'json_string']:
+            for codec in ['msgpack', 'json_bytes', 'json_string'] + (['resource'] if args.include_resource else []):
                 path = args.output / (name + '.' + codec)
                 source_path = remote / source.name if args.adb_serial else source
                 wire_path = remote / path.name if args.adb_serial else path
