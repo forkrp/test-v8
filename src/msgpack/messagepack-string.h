@@ -262,7 +262,7 @@ inline bool ScanUtf8(const uint8_t* s, size_t n, Utf8Info* info) {
 // two/three-byte runs; mixed widths and supplementary characters use scalar
 // code. Stores write only the exact number of decoded code units.
 template <typename Char>
-void DecodeUtf8(const uint8_t* s, size_t n, int ascii_prefix, Char* out) {
+Char* DecodeUtf8(const uint8_t* s, size_t n, int ascii_prefix, Char* out) {
   if constexpr (sizeof(Char) == 1) {
     if (ascii_prefix) std::memcpy(out, s, ascii_prefix);
   } else {
@@ -369,6 +369,7 @@ void DecodeUtf8(const uint8_t* s, size_t n, int ascii_prefix, Char* out) {
     }
     *out++ = static_cast<Char>(cp);
   }
+  return out;
 }
 
 template <typename Char, bool use_simd = true>

@@ -984,3 +984,218 @@ TEST_WITH_PLATFORM(JsonStringifyAsyncQueuedWorkerOutlivesIsolate,
   CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
   CHECK(!runner->RunOne());
 }
+
+TEST_WITH_PLATFORM(MessagePackAsyncYieldsAndSurvivesGC, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  CompileRun(
+      "var original = Array.from({length: 100000}, (_,i) => ({id:i, n:i/10}));"
+      "var bytes = MSGPACK.encode(original)");
+  auto large = CompileRun("MSGPACK.decodeAsync(bytes)").As<v8::Promise>();
+  CHECK_EQ(v8::Promise::kPending, large->State());
+  CHECK(isolate->HasPendingBackgroundTasks());
+  CHECK(runner->RunOne(isolate));
+  CHECK_EQ(v8::Promise::kPending, large->State());
+  isolate->LowMemoryNotification();
+  int slices = 1;
+  {
+    auto other = v8::Context::New(isolate);
+    v8::Context::Scope other_scope(other);
+    while (large->State() == v8::Promise::kPending) {
+      CHECK(runner->RunOne(isolate));
+      CHECK(isolate->GetCurrentContext() == other);
+      CHECK_LT(++slices, 100000);
+      if (slices == 3) isolate->LowMemoryNotification();
+    }
+  }
+  CHECK_EQ(v8::Promise::kFulfilled, large->State());
+  CHECK(!isolate->HasPendingBackgroundTasks());
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("restored"), large->Result())
+            .FromJust());
+  CHECK(CompileRun("Object.getPrototypeOf(restored) === Array.prototype && "
+                   "JSON.stringify(restored) === JSON.stringify(original)")
+            ->IsTrue());
+  printf("MessagePack decode materialization slices: %d\n", slices);
+}
+
+TEST_WITH_PLATFORM(MessagePackAsyncConcurrentWorkersAndSnapshot,
+                   JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  auto gate = std::make_shared<JsonWorkerGate>();
+  CompileRun(
+      "var input = {text: '中'.repeat(10000), values: [1, 0.1, -0]}; "
+      "var expected = MSGPACK.encode(input)");
+  platform.SetWorkerGate(gate);
+  auto first = CompileRun("MSGPACK.encodeAsync(input)").As<v8::Promise>();
+  auto second = CompileRun("MSGPACK.decodeAsync(expected)").As<v8::Promise>();
+  platform.SetWorkerGate(nullptr);
+  CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+  CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+  CompileRun(
+      "input.text = 'changed'; input.values[0] = 999; expected.fill(0xc1)");
+  isolate->LowMemoryNotification();
+  gate->proceed.Signal();
+  gate->proceed.Signal();
+  CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+  CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+  while (isolate->HasPendingBackgroundTasks()) CHECK(runner->RunOne(isolate));
+  CHECK_EQ(v8::Promise::kFulfilled, first->State());
+  CHECK_EQ(v8::Promise::kFulfilled, second->State());
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("encoded"), first->Result())
+            .FromJust());
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("decoded"), second->Result())
+            .FromJust());
+  CHECK(CompileRun("JSON.stringify(MSGPACK.decode(encoded)) === "
+                   "JSON.stringify(decoded) && "
+                   "decoded.text.length === 10000 && decoded.values[0] === 1")
+            ->IsTrue());
+}
+
+TEST_WITH_PLATFORM(MessagePackAsyncUnsupportedPlatform, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  for (bool encode : {false, true}) {
+    const char* expression = encode
+                                 ? "MSGPACK.encodeAsync({a:1})"
+                                 : "MSGPACK.decodeAsync(new Uint8Array([1]))";
+    runner->supported = false;
+    CHECK_EQ(v8::Promise::kRejected,
+             CompileRun(expression).As<v8::Promise>()->State());
+    runner->supported = true;
+    platform.worker_threads_supported = false;
+    CHECK_EQ(v8::Promise::kRejected,
+             CompileRun(expression).As<v8::Promise>()->State());
+    platform.worker_threads_supported = true;
+  }
+  CHECK(!isolate->HasPendingBackgroundTasks());
+}
+
+TEST_WITH_PLATFORM(MessagePackAsyncTermination, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  for (const char* expression : {"MSGPACK.encodeAsync('中'.repeat(100000))",
+                                 "MSGPACK.decodeAsync(MSGPACK.encode(Array."
+                                 "from({length:100000}, (_,i)=>i/10)))"}) {
+    auto promise = CompileRun(expression).As<v8::Promise>();
+    runner->WaitForTasks(1);
+    isolate->TerminateExecution();
+    CHECK(runner->RunOne(isolate));
+    CHECK_EQ(v8::Promise::kPending, promise->State());
+    CHECK(isolate->IsExecutionTerminating());
+    CHECK(!isolate->HasPendingBackgroundTasks());
+    isolate->CancelTerminateExecution();
+  }
+}
+
+TEST_WITH_PLATFORM(MessagePackAsyncTasksOutliveIsolate, JsonTestPlatform) {
+  for (int mode = 0; mode < 4; ++mode) {
+    v8::Isolate::CreateParams params;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    auto isolate = v8::Isolate::New(params);
+    auto runner = platform.HoldTasks(isolate);
+    auto gate = std::make_shared<JsonWorkerGate>();
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope scope(isolate);
+      auto context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      if (mode == 0) platform.SetWorkerGate(gate);
+      CompileRun(
+          "MSGPACK.encodeAsync('中'.repeat(100000));"
+          "MSGPACK.decodeAsync(MSGPACK.encode(Array.from({length:100000}, "
+          "(_,i)=>({n:i/10}))))");
+      platform.SetWorkerGate(nullptr);
+      if (mode == 0) {
+        CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+        CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+      } else {
+        runner->WaitForTasks(2);
+        if (mode == 2) CHECK(runner->RunOne(isolate));
+        if (mode == 3) {
+          auto task = runner->TakeOne(isolate);
+          CHECK(task);
+          task.reset();
+        }
+      }
+    }
+    isolate->Dispose();
+    if (mode == 0) {
+      gate->proceed.Signal();
+      gate->proceed.Signal();
+      CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+      CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+    }
+    while (runner->RunOne()) {
+    }
+  }
+}
+
+TEST_WITH_PLATFORM(MessagePackAsyncNativeAccounting, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  CompileRun("var text = '中'.repeat(1000000)");
+  v8::HeapStatistics before, pending, encoded, decoded;
+  isolate->GetHeapStatistics(&before);
+  int64_t baseline_native = isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  auto encoding = CompileRun("MSGPACK.encodeAsync(text)").As<v8::Promise>();
+  isolate->GetHeapStatistics(&pending);
+  printf("capture accounting: before=%zu pending=%zu\n", before.external_memory(), pending.external_memory()); fflush(stdout);
+  CHECK_GE(isolate->AdjustAmountOfExternalAllocatedMemory(0), baseline_native + 2000000);
+  while (isolate->HasPendingBackgroundTasks()) CHECK(runner->RunOne(isolate));
+  CHECK_EQ(v8::Promise::kFulfilled, encoding->State());
+  auto bytes = encoding->Result().As<v8::Uint8Array>();
+  CHECK(context->Global()->Set(context.local(), v8_str("bytes"), bytes).FromJust());
+  isolate->GetHeapStatistics(&encoded);
+  printf("encode accounting: before=%zu encoded=%zu payload=%zu\n", before.external_memory(), encoded.external_memory(), bytes->ByteLength()); fflush(stdout);
+  CHECK_GE(encoded.external_memory(), before.external_memory() + bytes->ByteLength());
+  CHECK_LE(encoded.external_memory(), before.external_memory() + bytes->ByteLength() + 4096);
+  auto decoding = CompileRun("MSGPACK.decodeAsync(bytes)").As<v8::Promise>();
+  isolate->GetHeapStatistics(&pending);
+  printf("decode capture accounting: encoded=%zu pending=%zu\n", encoded.external_memory(), pending.external_memory()); fflush(stdout);
+  CHECK_GE(isolate->AdjustAmountOfExternalAllocatedMemory(0), baseline_native + 2 * static_cast<int64_t>(bytes->ByteLength()));
+  while (isolate->HasPendingBackgroundTasks()) CHECK(runner->RunOne(isolate));
+  CHECK_EQ(v8::Promise::kFulfilled, decoding->State());
+  CHECK(decoding->Result()->StrictEquals(CompileRun("text")));
+  isolate->GetHeapStatistics(&decoded);
+  printf("decode accounting: encoded=%zu decoded=%zu\n", encoded.external_memory(), decoded.external_memory()); fflush(stdout);
+  CHECK_LE(decoded.external_memory(), encoded.external_memory() + 4096);
+  CHECK_LE(isolate->AdjustAmountOfExternalAllocatedMemory(0), baseline_native + static_cast<int64_t>(bytes->ByteLength()) + 4096);
+  printf("MessagePack native accounting: baseline=%zu encoded=%zu decoded=%zu payload=%zu\n",
+         before.external_memory(), encoded.external_memory(), decoded.external_memory(), bytes->ByteLength());
+}
+
+TEST_WITH_PLATFORM(MessagePackAsyncCompleteWireAccounting, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  CompileRun("var input = Array.from({length:20000}, (_,i) => ({id:i, score:i, name:'short', ok:true}));");
+  v8::HeapStatistics before, after;
+  isolate->GetHeapStatistics(&before);
+  int64_t baseline = isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  auto promise = CompileRun("MSGPACK.encodeAsync(input)").As<v8::Promise>();
+  CompileRun("input[0].name = 'changed'");
+  while (isolate->HasPendingBackgroundTasks()) CHECK(runner->RunOne(isolate));
+  CHECK_EQ(v8::Promise::kFulfilled, promise->State());
+  auto bytes = promise->Result().As<v8::Uint8Array>();
+  CHECK(context->Global()->Set(context.local(), v8_str("bytes"), bytes).FromJust());
+  isolate->GetHeapStatistics(&after);
+  CHECK_GE(after.external_memory(), before.external_memory() + bytes->ByteLength());
+  CHECK_LE(after.external_memory(), before.external_memory() + bytes->ByteLength() + 4096);
+  CHECK_LE(isolate->AdjustAmountOfExternalAllocatedMemory(0), baseline + static_cast<int64_t>(bytes->ByteLength()) + 4096);
+  CHECK(CompileRun("MSGPACK.decode(bytes)[0].name === 'short'")->IsTrue());
+}

@@ -1,14 +1,13 @@
 // Copyright 2026 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-#include <cstdlib>
-
-#include "src/base/page-allocator.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/msgpack/messagepack-async.h"
 #include "src/msgpack/messagepack.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-promise.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -20,29 +19,24 @@ bool ResourceError(const std::string& message) {
 }
 Tagged<Object> CodecFailure(Isolate* isolate, const std::string& message,
                             bool encode) {
-  if (isolate->has_exception()) return ReadOnlyRoots(isolate).exception();
-  Handle<String> text =
-      isolate->factory()->NewStringFromAsciiChecked(message.c_str());
-  if (ResourceError(message)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kPlaceholderOnly, text));
-  }
-  if (encode) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kPlaceholderOnly, text));
-  }
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewSyntaxError(MessageTemplate::kPlaceholderOnly, text));
-}
-void FreeMessagePackBytes(void* data, size_t, void* mapping_size) {
-  size_t size = reinterpret_cast<uintptr_t>(mapping_size);
-  if (size)
-    CHECK(base::PageAllocator().FreePages(data, size));
-  else
-    std::free(data);
+  ThrowMessagePackError(isolate, message, encode);
+  return ReadOnlyRoots(isolate).exception();
 }
 }  // namespace
 
+void ThrowMessagePackError(Isolate* isolate, const std::string& message,
+                           bool encode) {
+  if (isolate->has_exception()) return;
+  auto text = isolate->factory()->NewStringFromAsciiChecked(message.c_str());
+  Handle<JSObject> error =
+      ResourceError(message) ? isolate->factory()->NewRangeError(
+                                   MessageTemplate::kPlaceholderOnly, text)
+      : encode ? isolate->factory()->NewTypeError(
+                     MessageTemplate::kPlaceholderOnly, text)
+               : isolate->factory()->NewSyntaxError(
+                     MessageTemplate::kPlaceholderOnly, text);
+  isolate->Throw(*error);
+}
 BUILTIN(MsgpackEncode) {
   HandleScope scope(isolate);
 #if defined(V8_TARGET_OS_ANDROID) && defined(V8_TARGET_ARCH_ARM)
@@ -59,21 +53,19 @@ BUILTIN(MsgpackEncode) {
   if (!EncodeMessagePack(isolate, args.atOrUndefined(isolate, 1), &bytes,
                          &error, true))
     return CodecFailure(isolate, error, true);
-  size_t length = bytes.size();
-  size_t mapping_size;
-  uint8_t* data = bytes.Release(&mapping_size);
-  std::shared_ptr<BackingStore> backing = BackingStore::WrapAllocation(
-      data, length, FreeMessagePackBytes, reinterpret_cast<void*>(mapping_size),
-      SharedFlag::kNotShared);
-  Handle<JSArrayBuffer> buffer =
-      isolate->factory()->NewJSArrayBuffer(std::move(backing));
-  return *isolate->factory()->NewJSTypedArray(kExternalUint8Array, buffer, 0,
-                                              length);
+  Handle<Object> result = MessagePackOutput(isolate, &bytes);
+  return result.is_null() ? ReadOnlyRoots(isolate).exception() : *result;
 }
 
-BUILTIN(MsgpackDecode) {
-  HandleScope scope(isolate);
-  Handle<Object> input = args.atOrUndefined(isolate, 1);
+namespace {
+bool InputFailure(Isolate* isolate, const std::string& error, bool encode) {
+  ThrowMessagePackError(isolate, error, encode);
+  return false;
+}
+}  // namespace
+bool GetMessagePackInput(Isolate* isolate, Handle<Object> input,
+                         std::shared_ptr<BackingStore>* backing_out,
+                         size_t* offset_out, size_t* length_out) {
   Handle<JSArrayBuffer> buffer;
   size_t offset = 0;
   size_t length = 0;
@@ -83,7 +75,7 @@ BUILTIN(MsgpackDecode) {
   } else if (IsJSTypedArray(*input)) {
     Handle<JSTypedArray> view = Handle<JSTypedArray>::cast(input);
     if (view->IsDetachedOrOutOfBounds())
-      return CodecFailure(isolate,
+      return InputFailure(isolate,
                           "Detached or out-of-bounds MessagePack input", true);
     // On-heap typed arrays must be externalized before decoding can allocate
     // or move V8 objects. The retained backing store then has a stable address.
@@ -97,25 +89,37 @@ BUILTIN(MsgpackDecode) {
     if (IsJSRabGsabDataView(*view)) {
       Handle<JSRabGsabDataView> data = Handle<JSRabGsabDataView>::cast(view);
       if (data->IsOutOfBounds())
-        return CodecFailure(isolate, "Out-of-bounds MessagePack input", true);
+        return InputFailure(isolate, "Out-of-bounds MessagePack input", true);
       length = data->GetByteLength();
     } else {
       length = view->byte_length();
     }
   } else {
-    return CodecFailure(isolate,
+    return InputFailure(isolate,
                         "MSGPACK.decode requires an ArrayBuffer or view", true);
   }
   if (buffer->was_detached() || buffer->is_shared())
-    return CodecFailure(
+    return InputFailure(
         isolate, "Detached or shared MessagePack input is unsupported", true);
   if (length > 256 * 1024 * 1024)
-    return CodecFailure(isolate, "MessagePack input limit exceeded", false);
-  if (!length) return CodecFailure(isolate, "Empty MessagePack input", false);
-  std::shared_ptr<BackingStore> backing = buffer->GetBackingStore();
+    return InputFailure(isolate, "MessagePack input limit exceeded", false);
+  if (!length) return InputFailure(isolate, "Empty MessagePack input", false);
+  *backing_out = buffer->GetBackingStore();
+  const auto& backing = *backing_out;
   if (!backing || offset > backing->byte_length() ||
       length > backing->byte_length() - offset)
-    return CodecFailure(isolate, "Out-of-bounds MessagePack input", true);
+    return InputFailure(isolate, "Out-of-bounds MessagePack input", true);
+  *offset_out = offset;
+  *length_out = length;
+  return true;
+}
+BUILTIN(MsgpackDecode) {
+  HandleScope scope(isolate);
+  std::shared_ptr<BackingStore> backing;
+  size_t offset, length;
+  if (!GetMessagePackInput(isolate, args.atOrUndefined(isolate, 1), &backing,
+                           &offset, &length))
+    return ReadOnlyRoots(isolate).exception();
   const uint8_t* bytes =
       static_cast<const uint8_t*>(backing->buffer_start()) + offset;
   std::string error;
@@ -125,6 +129,22 @@ BUILTIN(MsgpackDecode) {
            .ToHandle(&value))
     return CodecFailure(isolate, error, false);
   return *value;
+}
+BUILTIN(MsgpackEncodeAsync) {
+  HandleScope scope(isolate);
+  Handle<JSPromise> promise;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, promise,
+      MessagePackAsync(isolate, args.atOrUndefined(isolate, 1), true));
+  return *promise;
+}
+BUILTIN(MsgpackDecodeAsync) {
+  HandleScope scope(isolate);
+  Handle<JSPromise> promise;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, promise,
+      MessagePackAsync(isolate, args.atOrUndefined(isolate, 1), false));
+  return *promise;
 }
 }  // namespace internal
 }  // namespace v8

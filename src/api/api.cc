@@ -70,6 +70,7 @@
 #include "src/init/startup-data-util.h"
 #include "src/init/v8.h"
 #include "src/json/json-parser.h"
+#include "src/msgpack/messagepack-async.h"
 #include "src/json/json-stringifier.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/metrics.h"
@@ -9661,6 +9662,7 @@ void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
 
 bool Isolate::HasPendingBackgroundTasks() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  if (i::HasPendingMessagePackTasks(i_isolate)) return true;
   if (i::HasPendingJsonParseTasks(i_isolate)) return true;
   if (i::HasPendingJsonStringifyTasks(i_isolate)) return true;
 #if V8_ENABLE_WEBASSEMBLY

@@ -80,9 +80,89 @@ double CpuSeconds() {
   return usage.ru_utime.tv_sec + usage.ru_utime.tv_usec / 1e6 +
          usage.ru_stime.tv_sec + usage.ru_stime.tv_usec / 1e6;
 }
+
+void Now(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  static auto origin = Clock::now();
+  info.GetReturnValue().Set(
+      std::chrono::duration<double, std::milli>(Clock::now() - origin).count());
+}
+void GC(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetIsolate()->LowMemoryNotification();
+}
+void Print(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::String::Utf8Value text(info.GetIsolate(), info[0]);
+  std::cout << *text << std::endl;
+}
+void Quit(const v8::FunctionCallbackInfo<v8::Value>& info) { std::exit(1); }
+std::string Read(const char* path) {
+  std::ifstream file(path, std::ios::binary);
+  Check(file.good(), "File missing");
+  return std::string((std::istreambuf_iterator<char>(file)), {});
+}
+int AsyncMain(char** argv) {
+  v8::V8::InitializeICUDefaultLocation(argv[0]);
+  v8::V8::InitializeExternalStartupData(argv[0]);
+  auto platform = v8::platform::NewDefaultPlatform();
+  v8::V8::InitializePlatform(platform.get());
+  v8::V8::Initialize();
+  auto allocator = std::unique_ptr<v8::ArrayBuffer::Allocator>(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  v8::Isolate::CreateParams params;
+  params.array_buffer_allocator = allocator.get();
+  auto isolate = v8::Isolate::New(params);
+  {
+    v8::Isolate::Scope scope(isolate);
+    v8::HandleScope handles(isolate);
+    auto context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+    for (const auto& helper : {std::pair<const char*, v8::FunctionCallback>{
+                                   "__utf8Encode", Utf8Encode},
+                               {"__utf8Decode", Utf8Decode},
+                               {"gc", GC},
+                               {"print", Print},
+                               {"quit", Quit}})
+      context->Global()
+          ->Set(context, Text(isolate, helper.first),
+                v8::Function::New(context, helper.second).ToLocalChecked())
+          .Check();
+    auto performance = v8::Object::New(isolate);
+    performance
+        ->Set(context, Text(isolate, "now"),
+              v8::Function::New(context, Now).ToLocalChecked())
+        .Check();
+    context->Global()
+        ->Set(context, Text(isolate, "performance"), performance)
+        .Check();
+    auto arguments = v8::Array::New(isolate, 5);
+    for (int i = 0; i < 5; ++i)
+      arguments->Set(context, i, Text(isolate, argv[i + 3])).Check();
+    context->Global()
+        ->Set(context, Text(isolate, "arguments"), arguments)
+        .Check();
+    context->Global()
+        ->Set(context, Text(isolate, "__source"), Text(isolate, Read(argv[3])))
+        .Check();
+    auto result = Eval(isolate, context, Read(argv[2])).As<v8::Promise>();
+    isolate->PerformMicrotaskCheckpoint();
+    while (result->State() == v8::Promise::kPending ||
+           isolate->HasPendingBackgroundTasks()) {
+      v8::platform::PumpMessageLoop(
+          platform.get(), isolate,
+          v8::platform::MessageLoopBehavior::kWaitForWork);
+      isolate->PerformMicrotaskCheckpoint();
+    }
+    Check(result->State() == v8::Promise::kFulfilled,
+          "Async benchmark rejected");
+  }
+  isolate->Dispose();
+  v8::V8::Dispose();
+  v8::V8::DisposePlatform();
+  return 0;
+}
 }  // namespace
 
 int main(int argc, char** argv) {
+  if (argc == 8 && std::string(argv[1]) == "--async") return AsyncMain(argv);
   bool prepare_only = argc == 5 && std::string(argv[1]) == "--prepare";
   bool cold = argc == 8 && std::string(argv[6]) == "--cold";
   Check(argc == 6 || prepare_only || cold,

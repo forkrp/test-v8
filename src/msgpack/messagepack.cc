@@ -17,10 +17,13 @@
 #include "mpack.h"
 #include "src/api/api-inl.h"
 #include "src/base/page-allocator.h"
+#include "src/base/platform/time.h"
 #include "src/common/assert-scope.h"
 #include "src/handles/global-handles-inl.h"
+#include "src/handles/persistent-handles.h"
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/msgpack/messagepack-async.h"
 #include "src/msgpack/messagepack-string.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/bigint.h"
@@ -53,7 +56,7 @@ constexpr int kShapeCacheWays = 8;
 constexpr int kShapeSignatureMask = (1 << 29) - 1;
 constexpr int kShapeDenseLayout = 1 << 29;
 MaybeHandle<FixedArray> GetMessagePackRealmCache(Isolate* isolate) {
-  constexpr char kName[] = "v8.msgpack.realm.cache.v7";
+  constexpr char kName[] = "v8.msgpack.realm.cache.v8";
   Handle<JSObject> owner(isolate->native_context()->json_object(), isolate);
   Handle<Symbol> symbol;
   auto matches = [&](Tagged<Object> key) {
@@ -88,24 +91,27 @@ MaybeHandle<FixedArray> GetMessagePackRealmCache(Isolate* isolate) {
     LookupIterator lookup(isolate, owner, symbol, LookupIterator::OWN);
     if (lookup.state() == LookupIterator::DATA) {
       Handle<Object> value = lookup.GetDataValue();
-      if (IsFixedArray(*value) && FixedArray::cast(*value)->length() == 6)
+      if (IsFixedArray(*value) && FixedArray::cast(*value)->length() == 7)
         return Handle<FixedArray>::cast(value);
     }
     return {};
   }
   Handle<FixedArray> cache =
-      isolate->factory()->NewFixedArray(6, AllocationType::kOld);
+      isolate->factory()->NewFixedArray(7, AllocationType::kOld);
   Handle<WeakFixedArray> decode = isolate->factory()->NewWeakFixedArray(
       kDecodeShapeCacheEntries * 2, AllocationType::kOld);
   Handle<WeakFixedArray> encode = isolate->factory()->NewWeakFixedArray(
       kShapeCacheEntries * 2, AllocationType::kOld);
   Handle<WeakFixedArray> size_hint =
       isolate->factory()->NewWeakFixedArray(3, AllocationType::kOld);
-  cache->set(0, Smi::FromInt(7));
+  Handle<WeakFixedArray> capture_hint =
+      isolate->factory()->NewWeakFixedArray(4, AllocationType::kOld);
+  cache->set(0, Smi::FromInt(8));
   cache->set(1, *decode);
   cache->set(2, *encode);
   cache->set(3, Smi::zero());
   cache->set(4, *size_hint);
+  cache->set(6, *capture_hint);
   Handle<String> name = isolate->factory()->NewStringFromAsciiChecked(kName);
   symbol = isolate->factory()->NewPrivateNameSymbol(name);
   LookupIterator lookup(isolate, owner, symbol, LookupIterator::OWN);
@@ -589,7 +595,9 @@ bool ReadMPack(mpack_reader_t* reader, V8Visitor* visitor, size_t depth = 0) {
 
 class ByteWriter {
  public:
-  explicit ByteWriter(MessagePackBuffer* output) : output_(output) {}
+  explicit ByteWriter(MessagePackBuffer* output,
+                      MessagePackAsyncData* capture = nullptr)
+      : output_(output), main_(output), capture_(capture) {}
   void write(const char* bytes, size_t n) {
     if (!n) return;
     uint8_t* destination = output_->Append(n);
@@ -628,7 +636,54 @@ class ByteWriter {
   }
   uint8_t* Append(size_t n) { return output_->Append(n); }
   size_t size() const { return output_->size(); }
-  void Rewind(size_t size) { output_->Rewind(size); }
+  void Rewind(size_t size) {
+    output_->Rewind(size);
+    if (capturing()) {
+      while (!capture_->parts.empty() && capture_->parts.back().offset >= size)
+        capture_->parts.pop_back();
+      if (!capture_->parts.empty()) {
+        auto& part = capture_->parts.back();
+        if (part.offset + part.length > size) {
+          DCHECK(part.kind == MessagePackEncodePart::kNumber ||
+                 part.kind == MessagePackEncodePart::kNumbers);
+          DCHECK_EQ((size - part.offset) % sizeof(double), 0);
+          part.length = static_cast<uint32_t>(size - part.offset);
+        }
+      }
+    }
+  }
+  bool capturing() const { return capture_ && output_ == main_ && !keys_; }
+  V8_INLINE uint8_t* CaptureSpan(size_t length,
+                               MessagePackEncodePart::Kind kind) {
+    size_t offset = size();
+    uint8_t* destination = Append(length);
+    // Mixed arrays can contain long adjacent runs of HeapNumbers. Keep one
+    // native span for each run instead of one metadata entry per scalar.
+    bool numbers = kind == MessagePackEncodePart::kNumber ||
+                   kind == MessagePackEncodePart::kNumbers;
+    auto* previous = capture_->parts.empty() ? nullptr : &capture_->parts.back();
+    if (numbers && previous &&
+        (previous->kind == MessagePackEncodePart::kNumber ||
+         previous->kind == MessagePackEncodePart::kNumbers) &&
+        previous->offset + previous->length == offset) {
+      previous->kind = MessagePackEncodePart::kNumbers;
+      previous->length += static_cast<uint32_t>(length);
+    } else {
+      capture_->parts.push_back(
+          {static_cast<uint32_t>(offset), static_cast<uint32_t>(length), kind});
+    }
+    // The budget depends on capacities, which change only on allocation.
+    // Avoid re-reading unrelated worker buffers and tape metadata per scalar.
+    if (main_->capacity() != checked_input_ ||
+        capture_->parts.capacity() != checked_parts_)
+      CheckCaptureMemory();
+    return destination;
+  }
+  V8_INLINE void Capture(const void* bytes, size_t length,
+                         MessagePackEncodePart::Kind kind) {
+    if (length) std::memcpy(CaptureSpan(length, kind), bytes, length);
+  }
+  bool keys_ = false;
   const uint8_t* data() const { return output_->data(); }
   MessagePackBuffer* SetBuffer(MessagePackBuffer* buffer) {
     MessagePackBuffer* previous = output_;
@@ -637,18 +692,29 @@ class ByteWriter {
   }
 
  private:
+  V8_NOINLINE void CheckCaptureMemory() {
+    if (capture_->MemoryUsage() > MessagePackAsyncData::kNativeLimit)
+      throw std::length_error("MessagePack async native memory limit exceeded");
+    checked_input_ = main_->capacity();
+    checked_parts_ = capture_->parts.capacity();
+  }
   MessagePackBuffer* output_;
+  MessagePackBuffer* main_;
+  MessagePackAsyncData* capture_;
+  size_t checked_input_ = 0, checked_parts_ = 0;
 };
 
+template <bool async = false>
 class Encoder {
  public:
   Encoder(Isolate* isolate, MessagePackBuffer* output, std::string* error,
-          bool lossless_float32)
+          bool lossless_float32, MessagePackAsyncData* capture = nullptr)
       : isolate_(isolate),
-        writer_(output),
+        writer_(output, capture),
         packer_(writer_),
         error_(error),
         lossless_float32_(lossless_float32),
+        capture_(capture),
         candidates_(isolate->factory()->NewFixedArray(64)) {
     if (!GetMessagePackRealmCache(isolate).ToHandle(&realm_cache_))
       throw std::runtime_error("MessagePack cache initialization failed");
@@ -667,6 +733,23 @@ class Encoder {
     Tagged<Map> map;
     int count;
     if (!SizeHintKey(*value, &map, &count)) return;
+    if constexpr (async) {
+      auto hint = WeakFixedArray::cast(realm_cache_->get(6));
+      Tagged<HeapObject> cached;
+      if (hint->get(0).GetHeapObjectIfWeak(&cached) && cached == map &&
+          hint->get(1).IsSmi() && hint->get(1).ToSmi().value() == count &&
+          hint->get(2).IsSmi() && hint->get(3).IsSmi()) {
+        int bytes = hint->get(2).ToSmi().value();
+        int parts = hint->get(3).ToSmi().value();
+        if (bytes > 0 && bytes <= 8 * 1024 * 1024 && parts >= 0 &&
+            parts <= 262144) {
+          writer_.Append(bytes);
+          writer_.Rewind(0);
+          capture_->parts.reserve(static_cast<size_t>(parts));
+          return;
+        }
+      }
+    }
     Tagged<WeakFixedArray> hint = WeakFixedArray::cast(realm_cache_->get(4));
     Tagged<HeapObject> cached;
     if (!hint->get(0).GetHeapObjectIfWeak(&cached) || cached != map ||
@@ -691,6 +774,23 @@ class Encoder {
     hint->set(1, Smi::FromInt(count));
     hint->set(2, Smi::FromInt(static_cast<int>(writer_.size())));
   }
+  void RememberCaptureSize(Handle<Object> value) {
+    if constexpr (async) {
+      Tagged<Map> map;
+      int count;
+      if (!SizeHintKey(*value, &map, &count) || !writer_.size() ||
+          writer_.size() > 8 * 1024 * 1024 || capture_->parts.size() > 262144)
+        return;
+      // Weak map plus scalar allocation feedback only; captured objects and
+      // bytes remain job-owned. The wire-size hint is independent because
+      // native numeric spans and code units can be larger than their wire.
+      auto hint = WeakFixedArray::cast(realm_cache_->get(6));
+      hint->set(0, MakeWeak(map));
+      hint->set(1, Smi::FromInt(count));
+      hint->set(2, Smi::FromInt(static_cast<int>(writer_.size())));
+      hint->set(3, Smi::FromInt(static_cast<int>(capture_->parts.size())));
+    }
+  }
   V8_INLINE void WriteTag(uint8_t tag) { writer_.Append(1)[0] = tag; }
   V8_INLINE void WriteContainerHeader(uint32_t count, bool map) {
     if (count < 16) {
@@ -704,6 +804,9 @@ class Encoder {
   V8_INLINE bool TryScalar(Tagged<Object> value,
                            const DisallowGarbageCollection& no_gc) {
     if (IsSmi(value)) {
+      // Small tagged integers already have a cheap wire representation.
+      // Capturing each one as a double plus a part entry costs more foreground
+      // work than writing it here. Packed numeric arrays still use one span.
       int32_t number = Smi::cast(value).value();
       if (number >= 0)
         packer_.pack_uint32(static_cast<uint32_t>(number));
@@ -746,6 +849,12 @@ class Encoder {
     if (IsSeqOneByteString(string)) {
       const uint8_t* bytes = SeqOneByteString::cast(string)->GetChars(no_gc);
       int length = string->length();
+      if constexpr (async) {
+        if (writer_.capturing() && length > 64) {
+          writer_.Capture(bytes, length, MessagePackEncodePart::kString8);
+          return true;
+        }
+      }
       if (!messagepack_strings::IsAscii(bytes, length))
         return WriteString(bytes, length);
       return WriteAscii(bytes, length);
@@ -754,6 +863,13 @@ class Encoder {
       String::FlatContent flat = string->GetFlatContent(no_gc);
       if (flat.IsOneByte()) {
         auto bytes = flat.ToOneByteVector();
+        if constexpr (async) {
+          if (writer_.capturing() && bytes.length() > 64) {
+            writer_.Capture(bytes.begin(), bytes.length(),
+                            MessagePackEncodePart::kString8);
+            return true;
+          }
+        }
         if (!messagepack_strings::IsAscii(bytes.begin(), bytes.length()))
           return WriteString(bytes.begin(), bytes.length());
         return WriteAscii(bytes.begin(), bytes.length());
@@ -764,6 +880,12 @@ class Encoder {
     return false;
   }
   V8_INLINE bool WriteAscii(const uint8_t* bytes, uint32_t length) {
+    if constexpr (async) {
+      if (writer_.capturing() && length > 64) {
+        writer_.Capture(bytes, length, MessagePackEncodePart::kString8);
+        return true;
+      }
+    }
     // The caller has validated every byte. Reserve the complete wire string
     // once, including its header, so the common path needs one capacity check.
     uint32_t header = length < 32      ? 1
@@ -790,6 +912,48 @@ class Encoder {
     if (length) std::memcpy(output + header, bytes, length);
     return true;
   }
+  bool CaptureNumberArray(Tagged<FixedArrayBase> storage, uint32_t length,
+                          bool smi) {
+    if constexpr (!async) return false;
+    if (!writer_.capturing() || !length) return false;
+    size_t width = smi ? sizeof(int32_t) : sizeof(double);
+    uint8_t* bytes = writer_.CaptureSpan(static_cast<size_t>(length) * width,
+                                         smi ? MessagePackEncodePart::kIntegers
+                                             : MessagePackEncodePart::kNumbers);
+    for (uint32_t i = 0; i < length; ++i) {
+      if (smi) {
+        int32_t number = Smi::cast(FixedArray::cast(storage)->get(i)).value();
+        std::memcpy(bytes + i * width, &number, width);
+      } else {
+        double number = FixedDoubleArray::cast(storage)->get_scalar(i);
+        std::memcpy(bytes + i * width, &number, width);
+      }
+    }
+    return true;
+  }
+  uint32_t CaptureTaggedNumberPrefix(Tagged<FixedArray> storage,
+                                     uint32_t length) {
+    if constexpr (!async) return 0;
+    if (!writer_.capturing() || length < 64) return 0;
+    uint32_t count = 0;
+    bool smi = true;
+    while (count < length && IsNumber(storage->get(count))) {
+      smi &= IsSmi(storage->get(count));
+      ++count;
+    }
+    if (count < 64) return 0;
+    if (smi) {
+      CaptureNumberArray(storage, count, true);
+      return count;
+    }
+    uint8_t* bytes = writer_.CaptureSpan(static_cast<size_t>(count) * 8,
+                                         MessagePackEncodePart::kNumbers);
+    for (uint32_t i = 0; i < count; ++i) {
+      double number = Object::Number(storage->get(i));
+      std::memcpy(bytes + static_cast<size_t>(i) * 8, &number, 8);
+    }
+    return count;
+  }
   bool Number(double n) {
     if (std::isfinite(n) && !(n == 0 && std::signbit(n)) &&
         std::trunc(n) == n && n >= -static_cast<double>(kMaxSafeInteger) &&
@@ -807,6 +971,15 @@ class Encoder {
     } else
       packer_.pack_double(n);
     return true;
+  }
+  bool KeyValue(Handle<String> string) {
+    struct Restore {
+      ByteWriter* writer;
+      bool previous;
+      ~Restore() { writer->keys_ = previous; }
+    } restore{&writer_, writer_.keys_};
+    writer_.keys_ = true;
+    return StringValue(string);
   }
   bool StringValue(Handle<String> string) {
     string = String::Flatten(isolate_, string);
@@ -826,6 +999,18 @@ class Encoder {
   // Keep Unicode conversion and its register spills out of the common ASCII
   // StringValue path, including compiler-vectorized scalar conversion.
   V8_NOINLINE bool WriteString(const Char* chars, size_t count) {
+    if (!count) {
+      WriteTag(0xa0);
+      return true;
+    }
+    if constexpr (async) {
+      if (writer_.capturing()) {
+        writer_.Capture(chars, count * sizeof(Char),
+                        sizeof(Char) == 1 ? MessagePackEncodePart::kString8
+                                          : MessagePackEncodePart::kString16);
+        return true;
+      }
+    }
     if (messagepack_strings::UseSimdForEncoding(chars, count))
       return WriteStringImpl<Char, true>(chars, count);
     return WriteStringImpl<Char, false>(chars, count);
@@ -913,13 +1098,21 @@ class Encoder {
       if (length > 0 && kind == PACKED_DOUBLE_ELEMENTS) {
         Handle<FixedDoubleArray> storage(
             FixedDoubleArray::cast(array->elements()), isolate_);
-        for (uint32_t i = 0; i < length && ok; ++i)
-          ok = Number(storage->get_scalar(i));
+        if (!CaptureNumberArray(*storage, length, false))
+          for (uint32_t i = 0; i < length && ok; ++i)
+            ok = Number(storage->get_scalar(i));
       } else if (length > 0 && kind == PACKED_SMI_ELEMENTS) {
         DisallowGarbageCollection no_gc;
         Tagged<FixedArray> storage = FixedArray::cast(array->elements());
-        for (uint32_t i = 0; i < length; ++i) {
+        for (uint32_t i = 0, count = CaptureNumberArray(storage, length, true)
+                                         ? 0
+                                         : length;
+             i < count; ++i) {
           int32_t number = Smi::cast(storage->get(i)).value();
+          if constexpr (async) {
+            Number(number);
+            continue;
+          }
           if (number >= 0)
             packer_.pack_uint32(static_cast<uint32_t>(number));
           else
@@ -928,7 +1121,12 @@ class Encoder {
       } else if (length > 0 && kind == PACKED_ELEMENTS) {
         Handle<FixedArray> storage(FixedArray::cast(array->elements()),
                                    isolate_);
-        for (uint32_t i = 0; i < length && ok; ++i) {
+        uint32_t prefix;
+        {
+          DisallowGarbageCollection no_gc;
+          prefix = CaptureTaggedNumberPrefix(*storage, length);
+        }
+        for (uint32_t i = prefix; i < length && ok; ++i) {
           {
             DisallowGarbageCollection no_gc;
             if (TryScalar(storage->get(i), no_gc)) continue;
@@ -965,7 +1163,7 @@ class Encoder {
           }
           if (field.wire.empty()) {
             size_t start = writer_.size();
-            if (!StringValue(field.key)) {
+            if (!KeyValue(field.key)) {
               ok = false;
               break;
             }
@@ -1023,7 +1221,7 @@ class Encoder {
                              FieldIndex::ForDetails(*map, details)),
                          isolate_)
                 : handle(descriptors->GetStrongValue(i), isolate_);
-        ok = StringValue(key) && Value(field, depth + 1);
+        ok = KeyValue(key) && Value(field, depth + 1);
       }
     } else {
       Handle<FixedArray> keys;
@@ -1042,7 +1240,7 @@ class Encoder {
         if (lookup.state() != LookupIterator::DATA)
           ok = Fail("Accessors are unsupported");
         else
-          ok = StringValue(key) && Value(lookup.GetDataValue(), depth + 1);
+          ok = KeyValue(key) && Value(lookup.GetDataValue(), depth + 1);
       }
     }
     ancestors_.pop_back();
@@ -1146,11 +1344,19 @@ class Encoder {
       if (kind == PACKED_DOUBLE_ELEMENTS) {
         Tagged<FixedDoubleArray> storage =
             FixedDoubleArray::cast(data->elements());
-        for (uint32_t i = 0; i < length; ++i) Number(storage->get_scalar(i));
+        if (!CaptureNumberArray(storage, length, false))
+          for (uint32_t i = 0; i < length; ++i) Number(storage->get_scalar(i));
       } else if (kind == PACKED_SMI_ELEMENTS) {
         Tagged<FixedArray> storage = FixedArray::cast(data->elements());
-        for (uint32_t i = 0; i < length; ++i) {
+        for (uint32_t i = 0, count = CaptureNumberArray(storage, length, true)
+                                         ? 0
+                                         : length;
+             i < count; ++i) {
           int32_t number = Smi::cast(storage->get(i)).value();
+          if constexpr (async) {
+            Number(number);
+            continue;
+          }
           if (number >= 0)
             packer_.pack_uint32(static_cast<uint32_t>(number));
           else
@@ -1158,7 +1364,8 @@ class Encoder {
         }
       } else {
         Tagged<FixedArray> storage = FixedArray::cast(data->elements());
-        for (uint32_t i = 0; i < length; ++i)
+        for (uint32_t i = CaptureTaggedNumberPrefix(storage, length); i < length;
+             ++i)
           if (!FastValue(storage->get(i), depth + 1, ancestor_count, no_gc))
             return false;
       }
@@ -1301,7 +1508,7 @@ class Encoder {
         size_t start = metadata.size();
         Handle<String> key(
             handle(String::cast(descriptors->GetKey(i)), isolate_));
-        if (!StringValue(key)) return {};
+        if (!KeyValue(key)) return {};
         length = static_cast<uint32_t>(metadata.size() - start);
         std::memcpy(const_cast<uint8_t*>(metadata.data()) + length_offset,
                     &length, 4);
@@ -1425,6 +1632,7 @@ class Encoder {
   uint32_t fast_epoch_ = 0;
   Tagged<Object> fast_ancestors_[kMaxDepth];
   bool lossless_float32_;
+  MessagePackAsyncData* capture_;
   EncodePlan plans_[64];
   Handle<FixedArray> candidates_;
   uint8_t candidate_hits_[64]{};
@@ -1523,7 +1731,7 @@ MaybeHandle<Object> DecodeMessagePack(Isolate* isolate,
       if (!GetMessagePackRealmCache(isolate).ToHandle(&cache)) return {};
       Handle<WeakFixedArray> shapes(
           handle(WeakFixedArray::cast(cache->get(1)), isolate));
-      DirectMessagePackDecoder decoder(isolate, input, error, shapes);
+      DirectMessagePackDecoder<false> decoder(isolate, input, error, shapes);
       return decoder.Decode();
     }
     V8Visitor visitor(isolate, input.size(), error);
@@ -1601,7 +1809,7 @@ bool EncodeMessagePack(Isolate* isolate, Handle<Object> value,
   output->Clear();
   DisallowJavascriptExecution no_js(isolate);
   try {
-    Encoder encoder(isolate, output, error, lossless_float32);
+    Encoder<false> encoder(isolate, output, error, lossless_float32);
     encoder.Prepare(value);
     bool ok = encoder.Value(value);
     if (ok)
@@ -1623,5 +1831,172 @@ bool EncodeMessagePack(Isolate* isolate, Handle<Object> value,
     return false;
   }
 }
+bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
+                           PersistentHandles* handles, Handle<Object> result,
+                           uint32_t* cursor,
+                           std::vector<MessagePackBuildFrame>* frames) {
+  DisallowJavascriptExecution no_js(isolate);
+  try {
+    Handle<FixedArray> cache;
+    if (!GetMessagePackRealmCache(isolate).ToHandle(&cache)) return true;
+    Handle<WeakFixedArray> shapes(
+        handle(WeakFixedArray::cast(cache->get(1)), isolate));
+    // Decoder key/map caches hold handles allocated throughout this slice.
+    // Keep them in the caller's slice scope, rather than iteration scopes.
+    DirectMessagePackDecoder<true> decoder(
+        isolate,
+        base::Vector<const uint8_t>(data->input.data(), data->input.size()),
+        &data->error, shapes, data);
+    auto emit = [&](Handle<Object> value) {
+      if (frames->empty()) {
+        result.PatchValue(*value);
+        return true;
+      }
+      auto& frame = frames->back();
+      if (frame.map) {
+        PropertyKey key(isolate, Handle<Name>::cast(frame.key));
+        LookupIterator lookup(isolate, frame.object, key, LookupIterator::OWN);
+        if (JSObject::DefineOwnPropertyIgnoreAttributes(&lookup, value, NONE)
+                .is_null())
+          return false;
+        frame.key.PatchValue(*isolate->factory()->empty_string());
+      } else {
+        auto array = Handle<JSArray>::cast(frame.object);
+        DCHECK(array->HasObjectElements());
+        FixedArray::cast(array->elements())->set(frame.index++, *value);
+      }
+      return true;
+    };
+    const auto deadline =
+        base::TimeTicks::Now() + base::TimeDelta::FromMilliseconds(2);
+    size_t next_check = 0;
+    for (size_t work = 0; work < 65536; ++work) {
+      if (work >= next_check) {
+        next_check = work + 128;
+        StackLimitCheck check(isolate);
+        if (check.InterruptRequested())
+          USE(isolate->stack_guard()->HandleInterrupts());
+        if (isolate->has_exception()) return true;
+        if (work && base::TimeTicks::Now() >= deadline) return false;
+      }
+      if (!frames->empty() && *cursor == frames->back().end) {
+        auto frame = frames->back();
+        if (!frame.map)
+          JSArray::cast(*frame.object)->set_length(Smi::FromInt(frame.index));
+        frames->pop_back();
+        if (!emit(frame.object)) return true;
+        if (!frames->empty() && frames->back().map) ++frames->back().index;
+        Handle<Object> released = frame.object;
+        released.PatchValue(*isolate->factory()->undefined_value());
+        if (!frame.key.is_null())
+          frame.key.PatchValue(*isolate->factory()->empty_string());
+        continue;
+      }
+      if (*cursor == data->tokens.size()) return true;
+      auto* parent = frames->empty() ? nullptr : &frames->back();
+      const auto& token = data->tokens[*cursor];
+      if (parent && parent->map && !(parent->index & 1)) {
+        Handle<Object> key =
+            decoder.DecodeValue(token.offset, frames->size(), {});
+        if (key.is_null()) return true;
+        auto string =
+            isolate->factory()->InternalizeString(Handle<String>::cast(key));
+        parent->key.PatchValue(*string);
+        ++parent->index;
+        *cursor = token.next;
+        continue;
+      }
+      if (parent && !parent->map &&
+          (JSArray::cast(*parent->object)->HasDoubleElements() ||
+           JSArray::cast(*parent->object)->HasSmiElements())) {
+        DisallowGarbageCollection no_gc;
+        Tagged<JSArray> array = JSArray::cast(*parent->object);
+        bool doubles = array->HasDoubleElements();
+        Tagged<FixedArrayBase> storage = array->elements();
+        size_t count = 0;
+        while (*cursor < parent->end && count < 128) {
+          const auto& number = data->tokens[*cursor];
+          DCHECK_EQ(number.kind, MessagePackToken::kNumber);
+          if (doubles)
+            FixedDoubleArray::cast(storage)->set(parent->index++,
+                                                 number.number);
+          else
+            FixedArray::cast(storage)->set(
+                parent->index++, Smi::FromInt(static_cast<int>(number.number)),
+                SKIP_WRITE_BARRIER);
+          *cursor = number.next;
+          ++count;
+        }
+        work += count - 1;
+        continue;
+      }
+      Handle<String> role =
+          parent && parent->map ? parent->key : Handle<String>();
+      bool container = token.kind == MessagePackToken::kArray ||
+                       token.kind == MessagePackToken::kMap;
+      if (container && (token.next - *cursor > 256 || frames->size() > 16)) {
+        bool map = token.kind == MessagePackToken::kMap;
+        Handle<JSObject> object;
+        if (map)
+          object = isolate->factory()->NewJSObject(isolate->object_function());
+        else
+          object = isolate->factory()->NewJSArray(
+              token.container.all_smis      ? PACKED_SMI_ELEMENTS
+              : token.container.all_numbers ? PACKED_DOUBLE_ELEMENTS
+                                            : PACKED_ELEMENTS,
+              0, token.container.count,
+              ArrayStorageAllocationMode::INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+        // A partial array is rooted across GC and task boundaries. Its length
+        // stays zero and every unused slot is a valid hole until completion.
+        MessagePackBuildFrame frame{
+            token.next, 0, handles->NewHandle(object), {}, map};
+        if (map)
+          frame.key = handles->NewHandle(isolate->factory()->empty_string());
+        frames->push_back(frame);
+        ++*cursor;
+        continue;
+      }
+      Handle<Object> value =
+          decoder.DecodeValue(token.offset, frames->size(), role);
+      if (value.is_null()) return true;
+      work += token.next - *cursor - 1;
+      *cursor = token.next;
+      if (!emit(value)) return true;
+      if (!frames->empty() && frames->back().map) ++frames->back().index;
+    }
+    return false;
+  } catch (const std::bad_alloc&) {
+    data->error = "MessagePack native allocation failed";
+  } catch (const std::exception& e) {
+    data->error = e.what();
+  } catch (...) {
+    data->error = "Native MessagePack exception";
+  }
+  return true;
+}
+
+bool CaptureMessagePack(Isolate* isolate, Handle<Object> value,
+                        MessagePackAsyncData* data) {
+  DisallowJavascriptExecution no_js(isolate);
+  try {
+    Encoder<true> encoder(isolate, &data->input, &data->error, true, data);
+    encoder.Prepare(value);
+    if (!encoder.Value(value)) return false;
+    // A final run of inline scalars can grow the wire buffer after the last
+    // deferred part checked the combined capture budget.
+    if (data->MemoryUsage() > MessagePackAsyncData::kNativeLimit)
+      throw std::length_error("MessagePack async native memory limit exceeded");
+    encoder.RememberCaptureSize(value);
+    return true;
+  } catch (const std::bad_alloc&) {
+    data->error = "MessagePack native allocation failed";
+  } catch (const std::exception& e) {
+    data->error = e.what();
+  } catch (...) {
+    data->error = "Native MessagePack exception";
+  }
+  return false;
+}
+
 }  // namespace internal
 }  // namespace v8

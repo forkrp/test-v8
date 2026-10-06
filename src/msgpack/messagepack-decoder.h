@@ -4,19 +4,29 @@
 // Included inside messagepack.cc's anonymous namespace after string helpers.
 // The direct reader keeps every V8 reference in rooted handles and never
 // retains a raw V8 pointer across allocation. Native input remains immutable.
+template <bool asynchronous = false>
 class DirectMessagePackDecoder {
  public:
   DirectMessagePackDecoder(Isolate* isolate, base::Vector<const uint8_t> input,
-                           std::string* error, Handle<WeakFixedArray> shapes)
+                           std::string* error, Handle<WeakFixedArray> shapes,
+                           const MessagePackAsyncData* async = nullptr)
       : isolate_(isolate),
+        begin_(input.begin()),
         cursor_(input.begin()),
         end_(input.end()),
         error_(error),
+        async_(async),
         shapes_(shapes),
         object_prototype_(handle(
             isolate->object_function()->initial_map()->prototype(), isolate)) {
+    if constexpr (asynchronous) token_index_ = async_->tokens.base();
     properties_.reserve(64);
     values_.reserve(64);
+  }
+  Handle<Object> DecodeValue(uint32_t offset, size_t depth,
+                             Handle<String> role) {
+    cursor_ = begin_ + offset;
+    return Value(depth, role);
   }
   MaybeHandle<Object> Decode() {
     Handle<Object> value = Value(0, {});
@@ -34,6 +44,32 @@ class DirectMessagePackDecoder {
   }
 #endif
  private:
+  const MessagePackToken* TokenAt(const uint8_t* position) {
+    if constexpr (!asynchronous) return nullptr;
+    uint32_t offset = static_cast<uint32_t>(position - begin_);
+    const auto& tokens = async_->tokens;
+    while (token_index_ < tokens.size() && tokens[token_index_].offset < offset)
+      ++token_index_;
+    if (token_index_ == tokens.size() || tokens[token_index_].offset > offset) {
+      size_t lo = tokens.base(), hi = tokens.size();
+      while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (tokens[mid].offset < offset)
+          lo = mid + 1;
+        else
+          hi = mid;
+      }
+      token_index_ = lo;
+    }
+    return token_index_ < tokens.size() && tokens[token_index_].offset == offset
+               ? &tokens[token_index_]
+               : nullptr;
+  }
+  uint32_t TokenEnd(const MessagePackToken& token) const {
+    return token.next == async_->tokens.size()
+               ? static_cast<uint32_t>(end_ - begin_)
+               : async_->tokens[token.next].offset;
+  }
   Handle<Object> Fail(const char* message) {
     if (error_->empty()) *error_ = message;
     return {};
@@ -85,6 +121,7 @@ class DirectMessagePackDecoder {
     Handle<String> value;
   };
   Handle<String> StringValue(uint8_t tag, bool key) {
+    const MessagePackToken* token = TokenAt(cursor_ - 1);
     uint32_t size;
     const uint8_t* bytes;
     if (!Length(tag, &size) || !Read(size, &bytes)) return {};
@@ -101,11 +138,42 @@ class DirectMessagePackDecoder {
         return entry->value;
     }
     Utf8Info info;
-    if (!ScanUtf8(bytes, size, &info)) {
+    if (token) {
+      DCHECK(token->IsString());
+      info = token->StringInfo();
+    } else if (!ScanUtf8(bytes, size, &info)) {
       Fail("Invalid MessagePack UTF-8 string");
       return {};
     }
     Handle<String> result;
+    if constexpr (asynchronous) {
+      if (token && token->DecodedString()) {
+        const uint8_t* chars =
+            async_->decoded_strings.data() + info.ascii_prefix;
+        if (info.one_byte) {
+          Handle<SeqOneByteString> string;
+          if (!isolate_->factory()
+                   ->NewRawOneByteString(info.length)
+                   .ToHandle(&string))
+            return {};
+          DisallowGarbageCollection no_gc;
+          std::memcpy(string->GetChars(no_gc), chars, info.length);
+          result = string;
+        } else {
+          Handle<SeqTwoByteString> string;
+          if (!isolate_->factory()
+                   ->NewRawTwoByteString(info.length)
+                   .ToHandle(&string))
+            return {};
+          DisallowGarbageCollection no_gc;
+          std::memcpy(string->GetChars(no_gc), chars,
+                      static_cast<size_t>(info.length) * 2);
+          result = string;
+        }
+        if (entry) *entry = {bytes, size, result};
+        return result;
+      }
+    }
     if (key && info.ascii) {
       result = isolate_->factory()->InternalizeString(
           base::Vector<const uint8_t>(bytes, static_cast<int>(size)));
@@ -154,6 +222,11 @@ class DirectMessagePackDecoder {
     return BigInt::FromUint64(isolate_, bits);
   }
   Handle<Object> Value(size_t depth, Handle<String> role) {
+    if (const MessagePackToken* token = TokenAt(cursor_);
+        token && token->kind == MessagePackToken::kNumber) {
+      cursor_ = begin_ + TokenEnd(*token);
+      return isolate_->factory()->NewNumber(token->number);
+    }
     const uint8_t* data;
     if (!Read(1, &data)) return {};
     uint8_t tag = *data;
@@ -583,6 +656,12 @@ class DirectMessagePackDecoder {
   }
   V8_INLINE bool NumericAt(const uint8_t** position, double* number) {
     const uint8_t* p = *position;
+    if (const MessagePackToken* token = TokenAt(p)) {
+      if (token->kind != MessagePackToken::kNumber) return false;
+      *number = token->number;
+      *position = begin_ + TokenEnd(*token);
+      return true;
+    }
     if (p == end_) return false;
     uint8_t tag = *p;
     if (tag <= 0x7f) {
@@ -1008,9 +1087,12 @@ class DirectMessagePackDecoder {
     return array;
   }
   Isolate* isolate_;
+  const uint8_t* begin_;
   const uint8_t* cursor_;
   const uint8_t* end_;
   std::string* error_;
+  const MessagePackAsyncData* async_;
+  size_t token_index_ = 0;
   Handle<WeakFixedArray> shapes_;
   Handle<HeapObject> object_prototype_;
   uint8_t replacement_[kDecodeShapeCacheEntries / kShapeCacheWays]{};

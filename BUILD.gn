@@ -5218,6 +5218,9 @@ group("v8_tracing") {
 v8_source_set("v8_msgpack") {
   sources = [
     "src/msgpack/messagepack.cc",
+    "src/msgpack/messagepack-async.cc",
+    "src/msgpack/messagepack-async.h",
+    "src/msgpack/messagepack-background.cc",
     "src/msgpack/messagepack.h",
     "src/msgpack/messagepack-decoder.h",
     "src/msgpack/messagepack-string.h",

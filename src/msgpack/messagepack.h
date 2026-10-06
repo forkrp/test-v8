@@ -32,6 +32,7 @@ class MessagePackBuffer {
   MessagePackBuffer& operator=(const MessagePackBuffer&) = delete;
   const uint8_t* data() const { return data_; }
   size_t size() const { return size_; }
+  size_t capacity() const { return capacity_; }
   // With a mapping_size recipient, ownership includes the native allocation
   // kind. Zero denotes malloc/free; nonzero denotes an OS mapping of that size.
   // Legacy recipients receive malloc-owned memory even if pages were enabled.

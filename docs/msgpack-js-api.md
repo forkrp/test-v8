@@ -1,6 +1,9 @@
 # MessagePack JavaScript API
 
-This V8 fork provides a synchronous `MSGPACK` global with two methods:
+This V8 fork provides a `MSGPACK` global with synchronous `encode`/`decode`
+and Promise-returning `encodeAsync`/`decodeAsync` methods. The asynchronous
+contract and measurement workflow are documented in
+[msgpack-async.md](msgpack-async.md). The synchronous methods work as follows:
 
 ```js
 const bytes = MSGPACK.encode({id: 42, name: 'example', position: [0.5, -0]});
