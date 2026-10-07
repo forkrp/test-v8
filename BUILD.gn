@@ -7134,6 +7134,20 @@ if (v8_monolithic) {
     configs = [ ":internal_config", "//build/config/compiler:exceptions" ]
     remove_configs = [ "//build/config/compiler:no_exceptions" ]
   }
+  v8_executable("msgpack_resource") {
+    output_name = "msgpack-resource"
+    sources = [ "tools/msgpack-resource/main.cc" ]
+    deps = [
+      ":v8_abseil",
+      ":v8_internal_headers",
+      ":v8_libbase",
+      ":v8_libplatform",
+      ":v8_msgpack",
+      ":v8_monolith",
+    ]
+    configs = [ ":internal_config", "//build/config/compiler:exceptions" ]
+    remove_configs = [ "//build/config/compiler:no_exceptions" ]
+  }
 }
 
 if (v8_enable_webassembly) {
