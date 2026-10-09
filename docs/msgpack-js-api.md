@@ -66,6 +66,9 @@ For assets generated offline and loaded by this fork, use:
 ```js
 const resourceBytes = MSGPACK.encodeResource(value);
 const loadedValue = MSGPACK.decodeResource(resourceBytes);
+
+const asyncResourceBytes = await MSGPACK.encodeResourceAsync(value);
+const asyncLoadedValue = await MSGPACK.decodeResourceAsync(asyncResourceBytes);
 ```
 
 `encodeResource` analyzes a validated standard encoding and constructs a
@@ -80,6 +83,13 @@ with ordinary property ordering and own `__proto__` data properties. Compact
 files require this resource decoder; standard `encode` and `decode` keep their
 existing wire format. See [the version 1 format](msgpack-resource-format.md)
 for extension layouts, numeric representations, validation, and limits.
+
+`encodeResourceAsync` and `decodeResourceAsync` are Promise-returning
+counterparts with the same format selection and supported values. They capture
+their inputs before returning and perform resource analysis/validation on the
+platform worker pool. Decode materialization yields through foreground slices.
+The shared async job and native-memory limits are described in
+[msgpack-async.md](msgpack-async.md).
 
 Unsupported values include `undefined`, functions, proxies, cyclic graphs,
 sparse arrays, enumerable accessors, BigInts outside the 64-bit range, and

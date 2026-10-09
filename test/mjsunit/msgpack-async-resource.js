@@ -5,7 +5,8 @@
 // Exercise shared key/map caches and input/output ownership across both APIs.
 async function testAsyncResourceIntegration() {
   for (const method of ['encode', 'decode', 'encodeAsync', 'decodeAsync',
-                        'encodeResource', 'decodeResource']) {
+                        'encodeResource', 'decodeResource',
+                        'encodeResourceAsync', 'decodeResourceAsync']) {
     assertEquals(1, MSGPACK[method].length);
     assertFalse(Object.getOwnPropertyDescriptor(MSGPACK, method).enumerable);
   }
@@ -23,17 +24,24 @@ async function testAsyncResourceIntegration() {
     const standard = MSGPACK.encode(value);
     const encoding = MSGPACK.encodeAsync(value);
     const resource = MSGPACK.encodeResource(value);
+    const resourceEncoding = MSGPACK.encodeResourceAsync(value);
+    const resourceInput = resource.slice();
+    const resourceDecoding = MSGPACK.decodeResourceAsync(resourceInput);
     const decoding = MSGPACK.decodeAsync(standard);
     value[0].label = 'changed after capture';
     standard.fill(0xc1);
+    resourceInput.fill(0xc1);
     gc();
     assertEquals(expected, MSGPACK.decodeResource(resource));
+    assertEquals(resource, await resourceEncoding);
+    assertEquals(expected, await resourceDecoding);
     const encoded = await encoding;
     assertEquals(MSGPACK.encode(expected), encoded);
     assertEquals(expected, await decoding);
     assertEquals(expected, await MSGPACK.decodeAsync(encoded));
     // The resource decoder also accepts ordinary MessagePack.
     assertEquals(expected, MSGPACK.decodeResource(encoded));
+    assertEquals(expected, await MSGPACK.decodeResourceAsync(encoded));
     assertEquals(expected, MSGPACK.decode(encoded));
     if (String.fromCharCode(...resource.subarray(0, 4)) === 'V8MR') {
       let rejected = false;

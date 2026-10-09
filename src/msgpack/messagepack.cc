@@ -2066,12 +2066,27 @@ bool CaptureMessagePack(Isolate* isolate, Handle<Object> value,
 bool EncodeMessagePackResource(Isolate* isolate, Handle<Object> value,
                                MessagePackBuffer* output, std::string* error) {
   if (!EncodeMessagePack(isolate, value, output, error, true)) return false;
+  return EncodeMessagePackResourceBytes(output, error);
+}
+
+void MessagePackBuffer::Swap(MessagePackBuffer* other) {
+  std::swap(data_, other->data_);
+  std::swap(size_, other->size_);
+  std::swap(capacity_, other->capacity_);
+  std::swap(use_pages_, other->use_pages_);
+  std::swap(mapped_, other->mapped_);
+}
+
+bool EncodeMessagePackResourceBytes(MessagePackBuffer* output,
+                                    std::string* error,
+                                    const std::atomic<bool>* cancelled) {
   try {
+    if (cancelled && cancelled->load(std::memory_order_relaxed)) return true;
     size_t offset = 0;
     auto tree = msgpack::unpack(reinterpret_cast<const char*>(output->data()),
                                 output->size(), offset);
     MessagePackBuffer compact;
-    ResourceEncoder encoder(&compact);
+    ResourceEncoder encoder(&compact, cancelled);
     encoder.Encode(tree.get());
     if (compact.size() < output->size()) {
       output->Clear();

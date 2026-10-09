@@ -11,10 +11,13 @@ class ResourceByteWriter : public ByteWriter {
 class ResourceEncoder {
  public:
   using Node = msgpack::object;
-  explicit ResourceEncoder(MessagePackBuffer* output) : output_(output) {}
+  explicit ResourceEncoder(MessagePackBuffer* output,
+                           const std::atomic<bool>* cancelled = nullptr)
+      : output_(output), cancelled_(cancelled) {}
   void Encode(const Node& root) {
     Count(root);
     for (auto& shape : shapes_) {
+      CheckCancelled();
       size_t keys = 0;
       for (const auto& key : shape.keys) keys += StringSize(key.size());
         // Charge the complete definition and a conservative reference header.
@@ -27,6 +30,7 @@ class ResourceEncoder {
 #endif
     }
     for (auto& str : strings_) {
+      CheckCancelled();
       size_t id = selected_strings_.size();
       size_t ref = ExtensionSize(UIntSize(id));
       size_t literal = StringSize(str.value.size());
@@ -109,6 +113,7 @@ class ResourceEncoder {
     return signature;
   }
   void Count(const Node& n) {
+    CheckCancelled();
     if (n.type == msgpack::type::MAP) {
       std::string sig = Signature(n);
       auto inserted = shape_index_.emplace(sig, shapes_.size());
@@ -232,7 +237,7 @@ class ResourceEncoder {
     }
     return b;
   }
-  static bool Numbers(const Node& n, MessagePackBuffer* body) {
+  bool Numbers(const Node& n, MessagePackBuffer* body) {
 #if defined(MSGPACK_RESOURCE_NO_NUMBERS)
     return false;
 #endif
@@ -245,6 +250,7 @@ class ResourceEncoder {
 
     std::vector<Block> blocks;
     for (uint32_t start = 0; start < n.via.array.size; start += 256) {
+      CheckCancelled();
       uint32_t count = std::min<uint32_t>(256, n.via.array.size - start);
       double numbers[256];
       for (uint32_t i = 0; i < count; ++i)
@@ -267,6 +273,7 @@ class ResourceEncoder {
     return true;
   }
   void Write(const Node& n, MessagePackBuffer* dest) {
+    CheckCancelled();
     ResourceByteWriter w(dest);
     msgpack::packer<ResourceByteWriter> p(w);
     if (n.type == msgpack::type::STR) {
@@ -334,6 +341,11 @@ class ResourceEncoder {
       p.pack(n);
   }
   MessagePackBuffer* output_;
+  void CheckCancelled() const {
+    if (cancelled_ && cancelled_->load(std::memory_order_relaxed))
+      throw std::runtime_error("MessagePack resource operation cancelled");
+  }
+  const std::atomic<bool>* cancelled_;
   std::vector<Shape> shapes_;
   std::vector<Text> strings_;
   std::vector<Shape*> selected_shapes_;

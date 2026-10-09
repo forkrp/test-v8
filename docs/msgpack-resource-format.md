@@ -6,6 +6,12 @@ Both methods are synchronous and use the standard API's supported-value,
 strict Unicode, error, buffer ownership and 256 MiB byte/256-container depth
 profile. Safe integer BigInts decode as Numbers, as in standard MessagePack.
 
+`encodeResourceAsync(value)` and `decodeResourceAsync(input)` are the
+Promise-returning counterparts. They use the same resource format and encoding
+selection, with owned input snapshots and worker execution. See
+[the asynchronous contract](msgpack-async.md) for foreground materialization,
+shared job limits, native memory limits and expansion costs.
+
 Existing `encode`/`decode` retain their contract. Ordinary MessagePack peers do
 not interpret compact resources. `decodeResource` also accepts standard bytes.
 Encoding first captures standard MessagePack, analyzes native data offline,

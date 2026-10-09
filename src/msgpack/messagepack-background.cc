@@ -7,9 +7,13 @@
 #include <limits>
 #include <msgpack.hpp>
 #include <stdexcept>
+#include <string_view>
+#include <unordered_set>
 
 #include "src/base/bits.h"
 #include "src/msgpack/messagepack-async.h"
+#include "src/msgpack/messagepack-resource-format.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
 
@@ -186,6 +190,8 @@ void Encode(MessagePackAsyncData* data) {
   writer.write(reinterpret_cast<const char*>(data->input.data() + cursor),
                data->input.size() - cursor);
 }
+
+#include "src/msgpack/messagepack-resource-background.h"
 
 class Parser {
  public:
@@ -456,10 +462,20 @@ class Parser {
 }  // namespace
 void RunMessagePackWorker(MessagePackAsyncData* data) {
   try {
-    if (data->encode)
+    if (data->encode) {
       Encode(data);
-    else
+      if (data->resource && !Cancelled(data))
+        EncodeMessagePackResourceBytes(
+            data->parts.empty() ? &data->input : &data->output, &data->error,
+            &data->cancelled);
+    } else {
+      if (data->resource && data->input.size() >= 4 &&
+          std::memcmp(data->input.data(), messagepack_resources::kMagic, 4) ==
+              0)
+        ResourceWireDecoder(data).Decode();
+      if (Cancelled(data)) return;
       Parser(data).Parse();
+    }
   } catch (const std::bad_alloc&) {
     data->error = "MessagePack native allocation failed";
   } catch (const std::exception& e) {

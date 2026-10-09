@@ -146,6 +146,22 @@ BUILTIN(MsgpackDecodeAsync) {
       MessagePackAsync(isolate, args.atOrUndefined(isolate, 1), false));
   return *promise;
 }
+BUILTIN(MsgpackEncodeResourceAsync) {
+  HandleScope scope(isolate);
+  Handle<JSPromise> promise;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, promise,
+      MessagePackAsync(isolate, args.atOrUndefined(isolate, 1), true, true));
+  return *promise;
+}
+BUILTIN(MsgpackDecodeResourceAsync) {
+  HandleScope scope(isolate);
+  Handle<JSPromise> promise;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, promise,
+      MessagePackAsync(isolate, args.atOrUndefined(isolate, 1), false, true));
+  return *promise;
+}
 BUILTIN(MsgpackEncodeResource) {
   HandleScope scope(isolate);
 #if defined(V8_TARGET_OS_ANDROID) && defined(V8_TARGET_ARCH_ARM)

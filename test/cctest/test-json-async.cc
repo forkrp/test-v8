@@ -1064,10 +1064,11 @@ TEST_WITH_PLATFORM(MessagePackAsyncUnsupportedPlatform, JsonTestPlatform) {
   v8::HandleScope scope(isolate);
   LocalContext context;
   auto runner = platform.HoldTasks(isolate);
-  for (bool encode : {false, true}) {
-    const char* expression = encode
-                                 ? "MSGPACK.encodeAsync({a:1})"
-                                 : "MSGPACK.decodeAsync(new Uint8Array([1]))";
+  for (const char* expression :
+       {"MSGPACK.encodeAsync({a:1})",
+        "MSGPACK.decodeAsync(new Uint8Array([1]))",
+        "MSGPACK.encodeResourceAsync({a:1})",
+        "MSGPACK.decodeResourceAsync(new Uint8Array([1]))"}) {
     runner->supported = false;
     CHECK_EQ(v8::Promise::kRejected,
              CompileRun(expression).As<v8::Promise>()->State());
@@ -1085,9 +1086,13 @@ TEST_WITH_PLATFORM(MessagePackAsyncTermination, JsonTestPlatform) {
   v8::HandleScope scope(isolate);
   LocalContext context;
   auto runner = platform.HoldTasks(isolate);
-  for (const char* expression : {"MSGPACK.encodeAsync('中'.repeat(100000))",
-                                 "MSGPACK.decodeAsync(MSGPACK.encode(Array."
-                                 "from({length:100000}, (_,i)=>i/10)))"}) {
+  for (const char* expression :
+       {"MSGPACK.encodeAsync('中'.repeat(100000))",
+        "MSGPACK.decodeAsync(MSGPACK.encode(Array."
+        "from({length:100000}, (_,i)=>i/10)))",
+        "MSGPACK.encodeResourceAsync('中'.repeat(100000))",
+        "MSGPACK.decodeResourceAsync(MSGPACK.encodeResource(Array."
+        "from({length:100000}, (_,i)=>i/10)))"}) {
     auto promise = CompileRun(expression).As<v8::Promise>();
     runner->WaitForTasks(1);
     isolate->TerminateExecution();
@@ -1100,7 +1105,8 @@ TEST_WITH_PLATFORM(MessagePackAsyncTermination, JsonTestPlatform) {
 }
 
 TEST_WITH_PLATFORM(MessagePackAsyncTasksOutliveIsolate, JsonTestPlatform) {
-  for (int mode = 0; mode < 4; ++mode) {
+  for (int test = 0; test < 8; ++test) {
+    int mode = test % 4;
     v8::Isolate::CreateParams params;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
     auto isolate = v8::Isolate::New(params);
@@ -1113,13 +1119,17 @@ TEST_WITH_PLATFORM(MessagePackAsyncTasksOutliveIsolate, JsonTestPlatform) {
       v8::Context::Scope context_scope(context);
       if (mode == 0) platform.SetWorkerGate(gate);
       CompileRun(
-          "MSGPACK.encodeAsync('中'.repeat(100000));"
-          "MSGPACK.decodeAsync(MSGPACK.encode(Array.from({length:100000}, "
-          "(_,i)=>({n:i/10}))))");
+          test < 4
+              ? "MSGPACK.encodeAsync('中'.repeat(100000));"
+                "MSGPACK.decodeAsync(MSGPACK.encode(Array.from({length:100000}, "
+                "(_,i)=>({n:i/10}))))"
+              : "MSGPACK.encodeResourceAsync('中'.repeat(100000));"
+                "MSGPACK.decodeResourceAsync(MSGPACK.encodeResource(Array.from("
+                "{length:100000}, (_,i)=>({long_property_name:i/10}))))");
       platform.SetWorkerGate(nullptr);
       if (mode == 0) {
-        CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
-        CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+        for (int i = 0; i < 2; ++i)
+          CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
       } else {
         runner->WaitForTasks(2);
         if (mode == 2) CHECK(runner->RunOne(isolate));
@@ -1132,14 +1142,78 @@ TEST_WITH_PLATFORM(MessagePackAsyncTasksOutliveIsolate, JsonTestPlatform) {
     }
     isolate->Dispose();
     if (mode == 0) {
-      gate->proceed.Signal();
-      gate->proceed.Signal();
-      CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
-      CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+      for (int i = 0; i < 2; ++i) gate->proceed.Signal();
+      for (int i = 0; i < 2; ++i)
+        CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
     }
     while (runner->RunOne()) {
     }
   }
+}
+
+TEST_WITH_PLATFORM(MessagePackResourceAsyncWorkersAndSlices, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  CompileRun(
+      "var resourceOriginal = Array.from({length:20000}, (_,i) => "
+      "({long_identifier:i, repeated_text:'common中'.repeat(30), "
+      "numbers:[i/10, -0, Infinity]}));"
+      "var resourceExpected = MSGPACK.encodeResource(resourceOriginal);"
+      "var resourceInput = resourceExpected.slice()");
+  auto gate = std::make_shared<JsonWorkerGate>();
+  platform.SetWorkerGate(gate);
+  auto encoding = CompileRun("MSGPACK.encodeResourceAsync(resourceOriginal)")
+                      .As<v8::Promise>();
+  auto decoding = CompileRun("MSGPACK.decodeResourceAsync(resourceInput)")
+                      .As<v8::Promise>();
+  platform.SetWorkerGate(nullptr);
+  for (int i = 0; i < 2; ++i)
+    CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+  CHECK_EQ(v8::Promise::kPending, encoding->State());
+  CHECK_EQ(v8::Promise::kPending, decoding->State());
+  CHECK(isolate->HasPendingBackgroundTasks());
+  CompileRun(
+      "resourceOriginal[0].long_identifier = 999; resourceInput.fill(0xc1)");
+  isolate->LowMemoryNotification();
+  for (int i = 0; i < 2; ++i) gate->proceed.Signal();
+  for (int i = 0; i < 2; ++i)
+    CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+  int slices = 0;
+  {
+    auto other = v8::Context::New(isolate);
+    v8::Context::Scope other_scope(other);
+    while (isolate->HasPendingBackgroundTasks()) {
+      CHECK(runner->RunOne(isolate));
+      CHECK(isolate->GetCurrentContext() == other);
+      CHECK_LT(++slices, 100000);
+      if (slices == 2 || slices == 4) isolate->LowMemoryNotification();
+    }
+  }
+  CHECK_GT(slices, 2);
+  CHECK_EQ(v8::Promise::kFulfilled, encoding->State());
+  CHECK_EQ(v8::Promise::kFulfilled, decoding->State());
+  CHECK(
+      context->Global()
+          ->Set(context.local(), v8_str("resourceEncoded"), encoding->Result())
+          .FromJust());
+  CHECK(
+      context->Global()
+          ->Set(context.local(), v8_str("resourceDecoded"), decoding->Result())
+          .FromJust());
+  CHECK(CompileRun(
+            "resourceExpected[0] === 86 && resourceExpected[1] === 56 && "
+            "resourceEncoded.length === resourceExpected.length && "
+            "resourceEncoded.every((b,i)=>b === resourceExpected[i]) && "
+            "Object.getPrototypeOf(resourceDecoded) === Array.prototype && "
+            "resourceDecoded.length === 20000 && "
+            "resourceDecoded[0].long_identifier === 0 && "
+            "resourceDecoded[19999].long_identifier === 19999 && "
+            "Object.is(resourceDecoded[19999].numbers[1], -0) && "
+            "resourceDecoded[19999].numbers[2] === Infinity")
+            ->IsTrue());
+  printf("MessagePack resource async foreground slices: %d\n", slices);
 }
 
 TEST_WITH_PLATFORM(MessagePackAsyncNativeAccounting, JsonTestPlatform) {

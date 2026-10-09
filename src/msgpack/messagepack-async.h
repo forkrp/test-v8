@@ -123,6 +123,7 @@ struct MessagePackAsyncData {
   MessagePackTape tokens;
   std::string error;
   bool encode = false;
+  bool resource = false;
   size_t MemoryUsage() const {
     return input.capacity() + decoded_strings.capacity() + output.capacity() +
            parts.capacity() * sizeof(MessagePackEncodePart) +
@@ -143,7 +144,8 @@ void RunMessagePackWorker(MessagePackAsyncData*);
 bool BuildMessagePackSlice(Isolate*, MessagePackAsyncData*, PersistentHandles*,
                            Handle<Object> result, uint32_t* cursor,
                            std::vector<MessagePackBuildFrame>* frames);
-MaybeHandle<JSPromise> MessagePackAsync(Isolate*, Handle<Object>, bool encode);
+MaybeHandle<JSPromise> MessagePackAsync(Isolate*, Handle<Object>, bool encode,
+                                        bool resource = false);
 bool HasPendingMessagePackTasks(Isolate*);
 void CancelMessagePackTasks(Isolate*);
 bool GetMessagePackInput(Isolate*, Handle<Object>,

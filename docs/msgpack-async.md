@@ -8,16 +8,35 @@ following the custom asynchronous JSON APIs.
 async function example(value, receivedBytes) {
   const bytes = await MSGPACK.encodeAsync(value); // independently owned Uint8Array
   const decoded = await MSGPACK.decodeAsync(receivedBytes);
-  return {bytes, decoded};
+  const resourceBytes = await MSGPACK.encodeResourceAsync(value);
+  const resourceValue = await MSGPACK.decodeResourceAsync(resourceBytes);
+  return {bytes, decoded, resourceBytes, resourceValue};
 }
 ```
 
-Both methods have one formal argument, are non-enumerable, and are not
+All four methods have one formal argument, are non-enumerable, and are not
 constructors. The supported value and wire profile is the same as
 [the synchronous API](msgpack-js-api.md): data objects, dense arrays, strict
 UTF-8 strings, lossless Numbers, and signed/unsigned 64-bit integers. Safe
 integer wire values decode to Number; larger values decode to BigInt. Binary
-and extension tags remain outside this profile.
+and general extension tags remain outside this profile. The resource methods
+add the opt-in [V8MR v1 resource format](msgpack-resource-format.md).
+
+`encodeResourceAsync(value)` returns exactly the same bytes as synchronous
+`encodeResource(value)`: it selects the compact candidate only when the entire
+file is strictly smaller, and otherwise returns the exact standard encoding.
+The JS graph capture uses the existing async encoder; deferred standard byte
+encoding, native tree analysis, dictionary/shape selection and numeric packing
+run on the worker. The compact analysis shares the synchronous implementation.
+
+`decodeResourceAsync(input)` accepts compact V8MR v1 and ordinary MessagePack.
+On the worker, it validates the resource envelope, all table entries (including
+unused entries), references and numeric blocks, then expands the resource into
+owned ordinary wire bytes. The existing worker tape parser and cooperative
+foreground builder then reconstruct the value. Unknown versions and malformed
+V8MR-prefixed input reject; they are never retried as ordinary MessagePack.
+These methods have the same input snapshots, realm ownership, cancellation and
+Promise rejection behavior as `encodeAsync` and `decodeAsync` below.
 
 ## Snapshot and ownership semantics
 
@@ -93,7 +112,15 @@ returns a rejected Promise, as the async JSON APIs do.
 
 The existing 256 MiB wire limit and 256-container nesting limit remain. Async
 jobs also require their captured native input, decoded code units and part/tape capacities to fit a
-256 MiB native budget, and at most 32 jobs may be pending per isolate. These
+256 MiB native budget, and at most 32 jobs across all four async MessagePack
+methods may be pending per isolate. Compact decode expansion accounts its
+input, expanded output and native tables together before building JS objects;
+expanded wire bytes also have the 256 MiB byte limit. Consequently a compact
+file may fit the input limit but reject because its expansion exceeds these
+limits. Resource encoding retains the synchronous codec's additional temporary
+native tree, analysis tables and candidate buffers; those transient allocations
+are not part of the captured-input/tape budget or an aggregate RSS bound. Its
+existing 256 MiB resource metadata and candidate byte limits still apply. These
 resource limits can reject a value that the synchronous API has enough memory
 to process. Finished output has its separate wire-byte limit; the limits do not
 constitute an aggregate process-memory guarantee. Native storage is accounted
@@ -123,6 +150,11 @@ Repeatable tests and measurement entry points:
 - `test/msgpack/async-numeric.js`: numeric tag widths, unsafe 64-bit integers,
   tape-block boundaries, truncated numeric arrays, native tape-budget rejection
   before materialization, and successful decoding after rejection.
+- `test/msgpack/async-resource.js`: exact compact/fallback wire parity, numeric
+  block boundaries, Unicode tables, snapshots, storage views, malformed resource
+  differential tests, expansion limits, realm ownership and the shared job bound.
+- `test/mjsunit/msgpack-async-resource.js`: interleaved standard and resource
+  synchronous/asynchronous APIs, long Unicode keys and shared caches.
 - `test/mjsunit/msgpack.js`: existing synchronous regression suite.
 - `tools/binary_serialization/run_async.py`: the 18-workload corpus plus tiny
   calls, public sync/async MessagePack and JSON, one/four jobs, shuffled fresh

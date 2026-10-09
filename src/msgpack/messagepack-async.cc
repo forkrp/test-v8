@@ -217,7 +217,7 @@ void CancelMessagePackTasks(Isolate* isolate) {
   for (auto& entry : states) entry.second->Cancel();
 }
 MaybeHandle<JSPromise> MessagePackAsync(Isolate* isolate, Handle<Object> value,
-                                        bool encode) {
+                                        bool encode, bool resource) {
   auto promise = isolate->factory()->NewJSPromise();
   v8::TryCatch caught(reinterpret_cast<v8::Isolate*>(isolate));
   auto* platform = V8::GetCurrentPlatform();
@@ -247,6 +247,7 @@ MaybeHandle<JSPromise> MessagePackAsync(Isolate* isolate, Handle<Object> value,
   try {
     auto data = std::make_shared<MessagePackAsyncData>();
     data->encode = encode;
+    data->resource = resource;
     if (encode) {
       if (!CaptureMessagePack(isolate, value, data.get())) {
         ThrowMessagePackError(isolate, data->error, true);

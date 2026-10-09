@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #ifndef V8_MSGPACK_MESSAGEPACK_H_
 #define V8_MSGPACK_MESSAGEPACK_H_
+#include <atomic>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -38,6 +39,7 @@ class MessagePackBuffer {
   // Legacy recipients receive malloc-owned memory even if pages were enabled.
   uint8_t* Release(size_t* mapping_size = nullptr);
   void Clear();
+  void Swap(MessagePackBuffer* other);
   void Rewind(size_t size) {
     DCHECK_LE(size, size_);
     size_ = size;
@@ -69,6 +71,11 @@ MaybeHandle<Object> DecodeMessagePack(
     bool resource = false);
 bool EncodeMessagePackResource(Isolate* isolate, Handle<Object> value,
                                MessagePackBuffer* output, std::string* error);
+// Native-only compact analysis of already validated, independently owned wire
+// bytes. The synchronous and worker encoders share exactly the same selection.
+bool EncodeMessagePackResourceBytes(
+    MessagePackBuffer* output, std::string* error,
+    const std::atomic<bool>* cancelled = nullptr);
 bool EncodeMessagePack(Isolate* isolate, Handle<Object> value,
                        std::vector<uint8_t>* output, std::string* error,
                        bool lossless_float32 = false);

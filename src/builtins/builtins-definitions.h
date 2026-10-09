@@ -660,6 +660,8 @@ namespace internal {
   CPP(MsgpackDecode)                                                           \
   CPP(MsgpackEncodeResource)                                                   \
   CPP(MsgpackDecodeResource)                                                   \
+  CPP(MsgpackEncodeResourceAsync)                                              \
+  CPP(MsgpackDecodeResourceAsync)                                              \
   CPP(JsonRawJson)                                                             \
   CPP(JsonIsRawJson)                                                           \
                                                                                \
