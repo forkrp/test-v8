@@ -6,6 +6,13 @@ blocks. See the [resource format](../../docs/msgpack-resource-format.md),
 [reproduction commands](../../docs/msgpack-resource-benchmarks.md). The historical
 native experiments below retain their original workload and build scopes.
 
+For `encodeResourceAsync` and `decodeResourceAsync`, use
+[`run_resource_async.py`](run_resource_async.py) and
+[`summarize_resource_async.py`](summarize_resource_async.py). The
+[resource async measurement procedure](../../docs/msgpack-resource-async-benchmarks.md)
+defines matched public API comparisons, submission versus completion timing,
+independent process repeats, identity audits and retained regressions.
+
 The encoder and decoder now include the 2026-10-05 native NEON pass described
 under **SIMD string processing** below, following the earlier decoder pass.
 The original nine-workload measurements are preserved under **Original Android

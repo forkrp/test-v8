@@ -161,6 +161,12 @@ Repeatable tests and measurement entry points:
   processes, warmups, timed GC, and retained submit/total samples. The native harness includes JSON UTF-8 byte transport and retains JSON
   string controls separately. Tiny calls use aggregate inner batches to avoid
   reporting ratios below clock resolution.
+- `tools/binary_serialization/run_resource_async.py`: matched resource/standard
+  MessagePack and JSON byte comparisons on both Android ABIs. It retains value,
+  exact wire, completed-result and fallback-selection checks; see
+  [the resource async measurement procedure](msgpack-resource-async-benchmarks.md).
+  The [Android resource async results](msgpack-resource-async-results.md) retain
+  both throughput gains and slower completion/submission cases.
 - `tools/binary_serialization/freeze_async.py`: current-link check, source and
   generated-header dependency closure, exact compiler commands and identity,
   GN arguments, and executable SHA-256.
