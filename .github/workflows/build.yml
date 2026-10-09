@@ -85,6 +85,7 @@ jobs:
           ls -l ./out/mac/obj
           mkdir dist
           cp ./out/mac/d8 ./dist/
+          cp ./out/mac/msgpack-resource ./dist/
           cp ./out/mac/obj/libv8_monolith.a ./dist/
           cp -r ./include ./dist/
 
@@ -119,6 +120,7 @@ jobs:
           mkdir v8-mac-fat
           lipo -create ./v8-mac-arm64/libv8_monolith.a ./v8-mac-x64/libv8_monolith.a -output ./v8-mac-fat/libv8_monolith.a
           lipo -create ./v8-mac-arm64/d8 ./v8-mac-x64/d8 -output ./v8-mac-fat/d8
+          lipo -create ./v8-mac-arm64/msgpack-resource ./v8-mac-x64/msgpack-resource -output ./v8-mac-fat/msgpack-resource
           cp -r ./v8-mac-arm64/include ./v8-mac-fat/
 
       - name: Pack dist files
@@ -222,6 +224,7 @@ jobs:
           ls -l ./out/ios/obj
           mkdir dist
           cp ./out/ios/obj/d8 ./dist/
+          cp ./out/ios/obj/msgpack-resource ./dist/
           cp ./out/ios/obj/libv8_monolith.a ./dist/
           cp -r ./include ./dist/
 
@@ -263,6 +266,7 @@ jobs:
           mkdir v8-ios-fat
           lipo -create ./v8-ios-arm64/libv8_monolith.a ./v8-ios-x64/libv8_monolith.a -output ./v8-ios-fat/libv8_monolith.a
           lipo -create ./v8-ios-arm64/d8 ./v8-ios-x64/d8 -output ./v8-ios-fat/d8
+          lipo -create ./v8-ios-arm64/msgpack-resource ./v8-ios-x64/msgpack-resource -output ./v8-ios-fat/msgpack-resource
           cp -r ./v8-ios-arm64/include ./v8-ios-fat/
           cp -r ./v8-ios-simulator-arm64 ./v8-ios-fat/
           rm -rf ./v8-ios-fat/v8-ios-simulator-arm64/include
@@ -418,6 +422,7 @@ jobs:
           ls -l ./out/android/obj
           mkdir dist
           cp ./out/android/d8 ./dist/
+          cp ./out/android/msgpack-resource ./dist/
           cp ./out/android/obj/libv8_monolith.a ./dist/
           cp -r ./include ./dist/
 
@@ -963,6 +968,7 @@ jobs:
           ls -l ./out/linux/obj
           mkdir dist
           cp ./out/linux/d8 ./dist/
+          cp ./out/linux/msgpack-resource ./dist/
           cp ./out/linux/obj/libv8_monolith.a ./dist/
           cp -r ./include ./dist/
 

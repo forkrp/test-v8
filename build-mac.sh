@@ -46,4 +46,4 @@ v8_enable_sandbox=false"
 
 gn gen out/mac --args="${ARGS}"
 
-ninja -C out/mac v8_monolith d8 # -v
+ninja -C out/mac v8_monolith d8 msgpack_resource # -v

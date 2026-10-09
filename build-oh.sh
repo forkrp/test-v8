@@ -60,6 +60,7 @@ fi
 
 echo "FINAL_ARGS:${FINAL_ARGS}"
 
-gn gen out/oh --args="${FINAL_ARGS}"
+# OpenHarmony builds are disabled; this platform is no longer supported.
+# gn gen out/oh --args="${FINAL_ARGS}"
 
-ninja -C out/oh v8_monolith d8 # -v
+# ninja -C out/oh v8_monolith d8 # -v

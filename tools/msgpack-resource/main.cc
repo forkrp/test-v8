@@ -6,7 +6,6 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
-#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -14,7 +13,10 @@
 
 #ifdef _WIN32
 #include <fcntl.h>
+#include <filesystem>
 #include <io.h>
+#else
+#include <sys/stat.h>
 #endif
 
 #include "include/libplatform/libplatform.h"
@@ -85,11 +87,31 @@ Options ParseOptions(int argc, char** argv) {
   if (options.input.empty() || options.output.empty())
     throw std::invalid_argument("An input and an explicit -o output are required");
   if (options.output != "-") {
+#ifdef _WIN32
     const auto output = std::filesystem::u8path(options.output);
-    if (std::filesystem::exists(output)) {
-      if (options.input != "-" &&
-          std::filesystem::equivalent(std::filesystem::u8path(options.input),
-                                      output)) {
+    const bool output_exists = std::filesystem::exists(output);
+    const bool same_file =
+        output_exists && options.input != "-" &&
+        std::filesystem::equivalent(std::filesystem::u8path(options.input),
+                                    output);
+#else
+    // stat also detects hardlink/symlink aliases and supports the existing
+    // macOS 10.13 and iOS 11 deployment targets (unlike std::filesystem).
+    struct stat output_stat;
+    const bool output_exists = stat(options.output.c_str(), &output_stat) == 0;
+    if (!output_exists && errno != ENOENT && errno != ENOTDIR) {
+      throw std::runtime_error("Cannot inspect output: " + options.output +
+                               ": " + std::strerror(errno));
+    }
+    struct stat input_stat;
+    const bool same_file =
+        output_exists && options.input != "-" &&
+        stat(options.input.c_str(), &input_stat) == 0 &&
+        input_stat.st_dev == output_stat.st_dev &&
+        input_stat.st_ino == output_stat.st_ino;
+#endif
+    if (output_exists) {
+      if (same_file) {
         throw std::invalid_argument("Input and output must be different files");
       }
       if (!options.force)
@@ -148,8 +170,13 @@ void WriteOutput(const Options& options, const i::MessagePackBuffer& bytes) {
     success = std::fflush(file) == 0 && success;
   } else {
     success = std::fclose(file) == 0 && success;
-    if (!success && !options.force)
+    if (!success && !options.force) {
+#ifdef _WIN32
       std::filesystem::remove(std::filesystem::u8path(options.output));
+#else
+      std::remove(options.output.c_str());
+#endif
+    }
   }
   if (!success) throw std::runtime_error("Failed writing output");
 }
