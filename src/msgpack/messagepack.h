@@ -34,6 +34,7 @@ class MessagePackBuffer {
   const uint8_t* data() const { return data_; }
   size_t size() const { return size_; }
   size_t capacity() const { return capacity_; }
+  bool use_pages() const { return use_pages_; }
   // With a mapping_size recipient, ownership includes the native allocation
   // kind. Zero denotes malloc/free; nonzero denotes an OS mapping of that size.
   // Legacy recipients receive malloc-owned memory even if pages were enabled.
@@ -76,6 +77,10 @@ bool EncodeMessagePackResource(Isolate* isolate, Handle<Object> value,
 bool EncodeMessagePackResourceBytes(
     MessagePackBuffer* output, std::string* error,
     const std::atomic<bool>* cancelled = nullptr);
+// A worker-owned root numeric capture can avoid constructing a native DOM.
+bool EncodeMessagePackResourceNumbers(MessagePackBuffer* output,
+    const uint8_t* numbers, uint32_t count, bool integers, std::string* error,
+    const std::atomic<bool>* cancelled);
 bool EncodeMessagePack(Isolate* isolate, Handle<Object> value,
                        std::vector<uint8_t>* output, std::string* error,
                        bool lossless_float32 = false);

@@ -107,3 +107,32 @@ a segmented collection.
 Keep raw samples, inputs, frozen binaries and runtime/build identities in the
 external evidence archive. Source Git should contain the reusable benchmark
 and report rather than multi-megabyte inputs or binaries.
+
+## Paired optimization measurements
+
+`tools/binary_serialization/compare_resource_async.py` compares two frozen full
+GN builds in adjacent before/after fresh processes. It shuffles both version
+order and ABI/workload/operation/codec/job blocks for each independent pass.
+All six codecs remain as controls, including current synchronous resource
+performance. It validates completed values, exact same-version wire, payload
+sizes, fallback selection and operation counters, and retains failed or
+overlapping samples separately. Resume requires unchanged identities, inputs,
+runner dependencies and device assets.
+
+```sh
+python3 tools/binary_serialization/compare_resource_async.py \
+  --before-arm64 /path/to/baseline-arm64 --before-arm32 /path/to/baseline-arm32 \
+  --after-arm64 /path/to/candidate-arm64 --after-arm32 /path/to/candidate-arm32 \
+  --output out/resource-async-paired --passes 3 --samples 13
+python3 tools/binary_serialization/summarize_resource_comparison.py \
+  out/resource-async-paired/results.json --output out/resource-async-paired-summary
+```
+
+The summary audits the complete Cartesian matrix, frozen binaries/runtimes and
+recorded compile input closures. Preserve the baseline checkout and candidate
+worktree until that audit completes. The baseline/optimized ratio measures the
+change in each API; current sync/async measures the remaining cost relative to
+the optimized synchronous implementation. Geometric means exclude tiny input
+and give each bulk workload equal weight. Keep all process medians and losses.
+Diagnostic relinks, instrumented stage timings and short pilot matrices must
+remain separate from acceptance data.

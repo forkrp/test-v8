@@ -24,7 +24,8 @@ class DirectMessagePackDecoder {
     values_.reserve(64);
   }
   Handle<Object> DecodeValue(uint32_t offset, size_t depth,
-                             Handle<String> role) {
+                             Handle<String> role, bool direct_record = false) {
+    direct_record_ = direct_record;
     cursor_ = begin_ + offset;
     return Value(depth, role);
   }
@@ -44,15 +45,39 @@ class DirectMessagePackDecoder {
   }
 #endif
   MaybeHandle<Object> DecodeResource() {
-    resource_ = std::make_unique<ResourceState>();
+    resource_ = std::make_shared<ResourceState>();
     if (!ResourceTables()) return {};
     return Decode();
+  }
+  bool RestoreResource(std::shared_ptr<void>* state,
+                       PersistentHandles* handles) {
+    if (*state) {
+      resource_ = std::static_pointer_cast<ResourceState>(*state);
+      return true;
+    }
+    resource_ = std::make_shared<ResourceState>();
+    resource_->handles = handles;
+    cursor_ = begin_ + 5;
+    if (!ResourceTables()) return false;
+    *state = resource_;
+    return true;
+  }
+  Handle<String> ResourceKey(uint32_t shape, uint32_t field) {
+    return resource_->shapes[shape].keys[field];
   }
 
  private:
   const MessagePackToken* TokenAt(const uint8_t* position) {
     if constexpr (!asynchronous) return nullptr;
     uint32_t offset = static_cast<uint32_t>(position - begin_);
+    if (async_->compact && offset < async_->resource_payload) {
+      const auto& tables = async_->resource_tables;
+      auto it = std::lower_bound(tables.begin(), tables.end(), offset,
+                                [](const MessagePackToken& token, uint32_t n) {
+                                  return token.offset < n;
+                                });
+      return it != tables.end() && it->offset == offset ? &*it : nullptr;
+    }
     const auto& tokens = async_->tokens;
     while (token_index_ < tokens.size() && tokens[token_index_].offset < offset)
       ++token_index_;
@@ -128,7 +153,8 @@ class DirectMessagePackDecoder {
     Handle<String> value;
   };
   Handle<String> StringValue(uint8_t tag, bool key) {
-    const MessagePackToken* token = TokenAt(cursor_ - 1);
+    const MessagePackToken* token = direct_record_ ? nullptr
+                                                  : TokenAt(cursor_ - 1);
     uint32_t size;
     const uint8_t* bytes;
     if (!Length(tag, &size) || !Read(size, &bytes)) return {};
@@ -229,7 +255,8 @@ class DirectMessagePackDecoder {
     return BigInt::FromUint64(isolate_, bits);
   }
   Handle<Object> Value(size_t depth, Handle<String> role) {
-    if (const MessagePackToken* token = TokenAt(cursor_);
+    if (const MessagePackToken* token =
+            asynchronous && async_->compact ? nullptr : TokenAt(cursor_);
         token && token->kind == MessagePackToken::kNumber) {
       cursor_ = begin_ + TokenEnd(*token);
       return isolate_->factory()->NewNumber(token->number);
@@ -673,7 +700,8 @@ class DirectMessagePackDecoder {
   }
   V8_INLINE bool NumericAt(const uint8_t** position, double* number) {
     const uint8_t* p = *position;
-    if (const MessagePackToken* token = TokenAt(p)) {
+    if (const MessagePackToken* token =
+            asynchronous && async_->compact ? nullptr : TokenAt(p)) {
       if (token->kind != MessagePackToken::kNumber) return false;
       *number = token->number;
       *position = begin_ + TokenEnd(*token);
@@ -1120,6 +1148,7 @@ class DirectMessagePackDecoder {
   std::string* error_;
   const MessagePackAsyncData* async_;
   size_t token_index_ = 0;
+  bool direct_record_ = false;
   Handle<WeakFixedArray> shapes_;
   Handle<HeapObject> object_prototype_;
   uint8_t replacement_[kDecodeShapeCacheEntries / kShapeCacheWays]{};
@@ -1130,7 +1159,7 @@ class DirectMessagePackDecoder {
   Prefix prefixes_[512]{};
   std::vector<Property> properties_;
   std::vector<Handle<Object>> values_;
-  std::unique_ptr<ResourceState> resource_;
+  std::shared_ptr<ResourceState> resource_;
 #ifdef MSGPACK_PROFILE_CACHE
   uint32_t hits_ = 0, empty_ = 0, collisions_ = 0, deprecated_ = 0;
   uint32_t direct_ = 0, failures_[4]{};

@@ -35,7 +35,10 @@ struct MessagePackToken {
     kString8,
     kString16,
     kDecodedString8,
-    kDecodedString16
+    kDecodedString16,
+    kResourceMap,
+    kResourceString,
+    kResourceNumbers
   };
   // A tag offset is strictly below the 256 MiB input limit.
   uint32_t offset : 28 = 0;
@@ -48,12 +51,19 @@ struct MessagePackToken {
     } string;
     struct {
       uint32_t count : 30;
+      // For resource maps, all_numbers marks a collapsed ASCII record. Maps
+      // never otherwise use numeric array classification.
       uint32_t all_numbers : 1;
       uint32_t all_smis : 1;
+      uint32_t auxiliary;
     } container;
   };
-  bool IsString() const { return kind >= kStringAscii; }
-  bool DecodedString() const { return kind >= kDecodedString8; }
+  bool IsString() const {
+    return kind >= kStringAscii && kind <= kDecodedString16;
+  }
+  bool DecodedString() const {
+    return kind == kDecodedString8 || kind == kDecodedString16;
+  }
   void SetString(messagepack_strings::Utf8Info info, bool decoded) {
     kind = decoded      ? (info.one_byte ? kDecodedString8 : kDecodedString16)
            : info.ascii ? kStringAscii
@@ -73,6 +83,11 @@ struct MessagePackToken {
   }
 };
 static_assert(sizeof(MessagePackToken) == 16);
+struct MessagePackResourceNumberBlock {
+  uint32_t offset;
+  uint16_t count;
+  uint8_t kind, scale;
+};
 // Fixed native blocks permit consumed tape storage to be released between
 // foreground slices without moving token indices or retaining token pointers.
 class MessagePackTape {
@@ -102,6 +117,16 @@ class MessagePackTape {
       --live_blocks_;
     }
   }
+  void Rewind(size_t count) {
+    DCHECK_LE(count, count_);
+    DCHECK_GE(count, base_);
+    size_t blocks = (count + kBlock - 1) / kBlock;
+    while (blocks_.size() > blocks) {
+      blocks_.pop_back();
+      --live_blocks_;
+    }
+    count_ = count;
+  }
 
  private:
   std::vector<std::unique_ptr<MessagePackToken[]>> blocks_;
@@ -121,11 +146,22 @@ struct MessagePackAsyncData {
 #endif
   std::vector<MessagePackEncodePart> parts;
   MessagePackTape tokens;
+  std::vector<MessagePackToken> resource_tables;
+  std::vector<uint16_t> resource_work;
+  std::vector<MessagePackResourceNumberBlock> resource_numbers;
+  std::vector<uint8_t> resource_shape_used, resource_string_used;
   std::string error;
   bool encode = false;
   bool resource = false;
+  bool compact = false;
+  uint32_t resource_payload = 0;
+  uint64_t resource_metadata = 0;
   size_t MemoryUsage() const {
     return input.capacity() + decoded_strings.capacity() + output.capacity() +
+           resource_tables.capacity() * sizeof(MessagePackToken) +
+           resource_work.capacity() * sizeof(uint16_t) +
+           resource_numbers.capacity() * sizeof(MessagePackResourceNumberBlock) +
+           resource_shape_used.capacity() + resource_string_used.capacity() +
            parts.capacity() * sizeof(MessagePackEncodePart) +
            tokens.capacity() * sizeof(MessagePackToken);
   }
@@ -135,6 +171,10 @@ struct MessagePackBuildFrame {
   Handle<JSObject> object;
   Handle<String> key;
   bool map;
+  int32_t shape = -1;
+  uint32_t packed_offset = 0;
+  uint32_t packed_count = 0;
+  uint32_t packed_position = 0;
 };
 
 bool CaptureMessagePack(Isolate*, Handle<Object>, MessagePackAsyncData*);
@@ -143,7 +183,8 @@ void RunMessagePackWorker(MessagePackAsyncData*);
 // foreground state; native token references never survive a call.
 bool BuildMessagePackSlice(Isolate*, MessagePackAsyncData*, PersistentHandles*,
                            Handle<Object> result, uint32_t* cursor,
-                           std::vector<MessagePackBuildFrame>* frames);
+                           std::vector<MessagePackBuildFrame>* frames,
+                           std::shared_ptr<void>* resource_state);
 MaybeHandle<JSPromise> MessagePackAsync(Isolate*, Handle<Object>, bool encode,
                                         bool resource = false);
 bool HasPendingMessagePackTasks(Isolate*);

@@ -28,12 +28,18 @@ file is strictly smaller, and otherwise returns the exact standard encoding.
 The JS graph capture uses the existing async encoder; deferred standard byte
 encoding, native tree analysis, dictionary/shape selection and numeric packing
 run on the worker. The compact analysis shares the synchronous implementation.
+An owned root numeric span reuses the same block packer directly, avoiding a
+second numeric DOM. Native strings borrow immutable owned bytes during analysis;
+selected output storage transfers to the result backing store without a copy.
 
 `decodeResourceAsync(input)` accepts compact V8MR v1 and ordinary MessagePack.
 On the worker, it validates the resource envelope, all table entries (including
-unused entries), references and numeric blocks, then expands the resource into
-owned ordinary wire bytes. The existing worker tape parser and cooperative
-foreground builder then reconstruct the value. Unknown versions and malformed
+unused entries), references and numeric blocks. It retains compact references
+and numeric block spans in an owned native tape instead of expanding ordinary
+wire bytes. The cooperative foreground builder restores shared dictionary
+strings and record keys once per operation, and fills packed numeric arrays
+directly from validated blocks. Bounded ASCII records can discard their scalar
+tape entries after validation and reuse the direct object builder. Unknown versions and malformed
 V8MR-prefixed input reject; they are never retried as ordinary MessagePack.
 These methods have the same input snapshots, realm ownership, cancellation and
 Promise rejection behavior as `encodeAsync` and `decodeAsync` below.
@@ -84,7 +90,12 @@ native data and an opaque completion task.
 
 Capture is synchronous for encoding. This is required to read JS values safely;
 its cost still grows with graph size. Decoding performs a synchronous byte copy.
-Worker dispatch and Promise scheduling add overhead to tiny values.
+The resource methods execute owned captures of at most 256 bytes inline to
+avoid worker dispatch and foreground task hops. Their returned Promise may
+already be settled; `.then` and `await` continuations still run through normal
+microtasks. The same platform and pending-job admission checks run first.
+The byte threshold bounds native capture size, rather than a mutable graph
+estimate; large operations continue to use workers and cooperative slices.
 
 Decode materialization is cooperative: large containers use rooted frames and
 foreground slices, with a 2 ms time budget checked at bounded work intervals
@@ -113,9 +124,11 @@ returns a rejected Promise, as the async JSON APIs do.
 The existing 256 MiB wire limit and 256-container nesting limit remain. Async
 jobs also require their captured native input, decoded code units and part/tape capacities to fit a
 256 MiB native budget, and at most 32 jobs across all four async MessagePack
-methods may be pending per isolate. Compact decode expansion accounts its
-input, expanded output and native tables together before building JS objects;
-expanded wire bytes also have the 256 MiB byte limit. Consequently a compact
+methods may be pending per isolate. Compact decode accounts owned input,
+tape capacities, decoded code units, numeric block metadata and native tables
+before building JS objects. Logical standard-wire expansion remains bounded
+at 256 MiB without allocating it; packed numeric arrays conservatively charge
+up to nine logical wire bytes per value. Consequently a compact
 file may fit the input limit but reject because its expansion exceeds these
 limits. Resource encoding retains the synchronous codec's additional temporary
 native tree, analysis tables and candidate buffers; those transient allocations

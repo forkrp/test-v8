@@ -7,11 +7,13 @@
 #define MSGPACK_NO_BOOST
 #include "src/msgpack/messagepack.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <string_view>
 #include <msgpack.hpp>
 #include <unordered_map>
 #include <unordered_set>
@@ -1899,7 +1901,8 @@ bool EncodeMessagePack(Isolate* isolate, Handle<Object> value,
 bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
                            PersistentHandles* handles, Handle<Object> result,
                            uint32_t* cursor,
-                           std::vector<MessagePackBuildFrame>* frames) {
+                           std::vector<MessagePackBuildFrame>* frames,
+                           std::shared_ptr<void>* resource_state) {
   DisallowJavascriptExecution no_js(isolate);
   try {
     Handle<FixedArray> cache;
@@ -1912,6 +1915,8 @@ bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
         isolate,
         base::Vector<const uint8_t>(data->input.data(), data->input.size()),
         &data->error, shapes, data);
+    if (data->compact && !decoder.RestoreResource(resource_state, handles))
+      return true;
     auto emit = [&](Handle<Object> value) {
       if (frames->empty()) {
         result.PatchValue(*value);
@@ -1944,6 +1949,43 @@ bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
         if (isolate->has_exception()) return true;
         if (work && base::TimeTicks::Now() >= deadline) return false;
       }
+      if (!frames->empty() && frames->back().packed_count &&
+          frames->back().index < frames->back().packed_count) {
+        auto& frame = frames->back();
+        DisallowGarbageCollection no_gc;
+        Tagged<JSArray> array = JSArray::cast(*frame.object);
+        bool doubles = array->HasDoubleElements();
+        Tagged<FixedArrayBase> storage = array->elements();
+        size_t written = 0;
+        while (written < 128 && frame.index < frame.packed_count) {
+          const auto& block = data->resource_numbers[frame.packed_offset];
+          unsigned width = messagepack_resources::kWidth[block.kind];
+          uint32_t n = std::min<uint32_t>(block.count - frame.packed_position,
+                                         static_cast<uint32_t>(128 - written));
+          for (uint32_t i = 0; i < n; ++i) {
+            double value = messagepack_resources::Number(
+                messagepack_resources::Load(
+                    data->input.data() + block.offset +
+                        (frame.packed_position + i) * width,
+                    width),
+                block.kind, block.scale);
+            if (doubles)
+              FixedDoubleArray::cast(storage)->set(frame.index++, value);
+            else
+              FixedArray::cast(storage)->set(
+                  frame.index++, Smi::FromInt(static_cast<int>(value)),
+                  SKIP_WRITE_BARRIER);
+          }
+          frame.packed_position += n;
+          written += n;
+          if (frame.packed_position == block.count) {
+            ++frame.packed_offset;
+            frame.packed_position = 0;
+          }
+        }
+        work += written - 1;
+        continue;
+      }
       if (!frames->empty() && *cursor == frames->back().end) {
         auto frame = frames->back();
         if (!frame.map)
@@ -1960,7 +2002,11 @@ bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
       if (*cursor == data->tokens.size()) return true;
       auto* parent = frames->empty() ? nullptr : &frames->back();
       const auto& token = data->tokens[*cursor];
-      if (parent && parent->map && !(parent->index & 1)) {
+      if (parent && parent->map && parent->shape >= 0)
+        parent->key.PatchValue(
+            *decoder.ResourceKey(parent->shape, parent->index));
+      if (parent && parent->map && parent->shape < 0 &&
+          !(parent->index & 1)) {
         Handle<Object> key =
             decoder.DecodeValue(token.offset, frames->size(), {});
         if (key.is_null()) return true;
@@ -1998,9 +2044,14 @@ bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
       Handle<String> role =
           parent && parent->map ? parent->key : Handle<String>();
       bool container = token.kind == MessagePackToken::kArray ||
-                       token.kind == MessagePackToken::kMap;
-      if (container && (token.next - *cursor > 256 || frames->size() > 16)) {
-        bool map = token.kind == MessagePackToken::kMap;
+                       token.kind == MessagePackToken::kMap ||
+                       token.kind == MessagePackToken::kResourceMap ||
+                       token.kind == MessagePackToken::kResourceNumbers;
+      uint32_t weight = data->compact ? data->resource_work[*cursor]
+                                      : token.next - *cursor;
+      if (container && (weight > 256 || frames->size() > 16)) {
+        bool map = token.kind == MessagePackToken::kMap ||
+                   token.kind == MessagePackToken::kResourceMap;
         Handle<JSObject> object;
         if (map)
           object = isolate->factory()->NewJSObject(isolate->object_function());
@@ -2015,6 +2066,12 @@ bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
         // stays zero and every unused slot is a valid hole until completion.
         MessagePackBuildFrame frame{
             token.next, 0, handles->NewHandle(object), {}, map};
+        if (token.kind == MessagePackToken::kResourceMap)
+          frame.shape = token.container.auxiliary;
+        if (token.kind == MessagePackToken::kResourceNumbers) {
+          frame.packed_offset = token.container.auxiliary;
+          frame.packed_count = token.container.count;
+        }
         if (map)
           frame.key = handles->NewHandle(isolate->factory()->empty_string());
         frames->push_back(frame);
@@ -2022,9 +2079,11 @@ bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
         continue;
       }
       Handle<Object> value =
-          decoder.DecodeValue(token.offset, frames->size(), role);
+          decoder.DecodeValue(token.offset, frames->size(), role,
+                              token.kind == MessagePackToken::kResourceMap &&
+                                  token.container.all_numbers);
       if (value.is_null()) return true;
-      work += token.next - *cursor - 1;
+      work += weight - 1;
       *cursor = token.next;
       if (!emit(value)) return true;
       if (!frames->empty() && frames->back().map) ++frames->back().index;
@@ -2077,21 +2136,52 @@ void MessagePackBuffer::Swap(MessagePackBuffer* other) {
   std::swap(mapped_, other->mapped_);
 }
 
+bool EncodeMessagePackResourceNumbers(MessagePackBuffer* output,
+    const uint8_t* numbers, uint32_t count, bool integers, std::string* error,
+    const std::atomic<bool>* cancelled) {
+  try {
+    MessagePackBuffer compact(output->use_pages());
+    ResourceEncoder encoder(&compact, cancelled);
+    encoder.EncodeNumbers(numbers, count, integers, output->size());
+    if (compact.size()) output->Swap(&compact);
+    return true;
+  } catch (const std::length_error&) {
+    return true;  // The independently validated standard bytes still fit.
+  } catch (const std::bad_alloc&) {
+    *error = "MessagePack native allocation failed";
+  } catch (const std::exception& e) {
+    *error = e.what();
+  }
+  output->Clear();
+  return false;
+}
 bool EncodeMessagePackResourceBytes(MessagePackBuffer* output,
                                     std::string* error,
                                     const std::atomic<bool>* cancelled) {
   try {
     if (cancelled && cancelled->load(std::memory_order_relaxed)) return true;
     size_t offset = 0;
-    auto tree = msgpack::unpack(reinterpret_cast<const char*>(output->data()),
-                                output->size(), offset);
-    MessagePackBuffer compact;
-    ResourceEncoder encoder(&compact, cancelled);
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    auto unpack_started = base::TimeTicks::Now();
+#endif
+    auto tree = msgpack::unpack(
+        reinterpret_cast<const char*>(output->data()), output->size(), offset,
+        [](msgpack::type::object_type, size_t, void*) { return true; });
+    // Tree strings borrow these owned, immutable bytes until compact writing
+    // finishes. The original buffer survives the swap in the local owner.
+    MessagePackBuffer compact(output->use_pages());
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    std::fprintf(stderr, "resource unpack=%.3f ms\n",
+                 (base::TimeTicks::Now() - unpack_started).InMillisecondsF());
+#endif
+    // At most one six-byte header is open per nesting level. If the final
+    // candidate can beat the standard bytes, this slack prevents temporary
+    // padding from crossing the byte limit. Near-limit inputs use body storage.
+    ResourceEncoder encoder(&compact, cancelled,
+                            output->size() <= kMaxOutputBytes - 6 * kMaxDepth);
     encoder.Encode(tree.get());
     if (compact.size() < output->size()) {
-      output->Clear();
-      std::memcpy(output->Append(compact.size()), compact.data(),
-                  compact.size());
+      output->Swap(&compact);
     }
     return true;
   } catch (const std::length_error&) {

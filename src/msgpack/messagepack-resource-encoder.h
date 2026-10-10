@@ -12,10 +12,18 @@ class ResourceEncoder {
  public:
   using Node = msgpack::object;
   explicit ResourceEncoder(MessagePackBuffer* output,
-                           const std::atomic<bool>* cancelled = nullptr)
-      : output_(output), cancelled_(cancelled) {}
+                           const std::atomic<bool>* cancelled = nullptr,
+                           bool inplace_extensions = true)
+      : output_(output), cancelled_(cancelled),
+        inplace_extensions_(inplace_extensions) {}
   void Encode(const Node& root) {
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    auto started = base::TimeTicks::Now();
+#endif
     Count(root);
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    auto counted = base::TimeTicks::Now();
+#endif
     for (auto& shape : shapes_) {
       CheckCancelled();
       size_t keys = 0;
@@ -38,6 +46,9 @@ class ResourceEncoder {
       if (literal > ref && str.count > literal / (literal - ref)) {
         str.id = static_cast<int>(id);
         selected_strings_.push_back(&str);
+        selected_string_index_.emplace(str.value, str.id);
+        minimum_string_ = std::min(minimum_string_, str.value.size());
+        maximum_string_ = std::max(maximum_string_, str.value.size());
       }
 #endif
     }
@@ -59,16 +70,50 @@ class ResourceEncoder {
     p.pack_array(static_cast<uint32_t>(selected_strings_.size()));
     for (const auto* str : selected_strings_) String(p, str->value);
     Write(root, output_);
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    auto finished = base::TimeTicks::Now();
+    std::fprintf(stderr, "resource count=%.3f write=%.3f ms\n",
+                 (counted - started).InMillisecondsF(),
+                 (finished - counted).InMillisecondsF());
+#endif
+  }
+  void EncodeNumbers(const uint8_t* bytes, uint32_t count, bool integers,
+                     size_t standard_size) {
+#if defined(MSGPACK_RESOURCE_NO_NUMBERS)
+    return;
+#endif
+    MessagePackBuffer body;
+    PackNumbers(count, [&](uint32_t i) {
+      if (integers) {
+        int32_t value;
+        std::memcpy(&value, bytes + size_t{i} * 4, 4);
+        return static_cast<double>(value);
+      }
+      double value;
+      std::memcpy(&value, bytes + size_t{i} * 8, 8);
+      return value;
+    }, &body);
+    // The empty shape/string envelope occupies eight bytes. This is the same
+    // complete candidate and strict size decision as the ordinary native tree.
+    if (8 + ExtensionSize(body.size()) >= standard_size) return;
+    ResourceByteWriter w(output_);
+    msgpack::packer<ResourceByteWriter> p(w);
+    w.write(reinterpret_cast<const char*>(messagepack_resources::kMagic), 5);
+    p.pack_array(3);
+    p.pack_array(0);
+    p.pack_array(0);
+    Extension(output_, messagepack_resources::kNumbers, body);
   }
 
  private:
   struct Shape {
-    std::vector<std::string> keys;
+    std::vector<std::string_view> keys;
     size_t count = 0;
     int id = -1;
+    const msgpack::object_kv* fields = nullptr;
   };
   struct Text {
-    std::string value;
+    std::string_view value;
     size_t count = 0;
     int id = -1;
   };
@@ -92,46 +137,94 @@ class ResourceEncoder {
                 : n < 65536                                       ? 4
                                                                   : 6);
   }
-  static std::string TextValue(const Node& n) {
-    return std::string(n.via.str.ptr, n.via.str.size);
+  static std::string_view TextValue(const Node& n) {
+    return std::string_view(n.via.str.ptr, n.via.str.size);
   }
   static void String(msgpack::packer<ResourceByteWriter>& p,
-                     const std::string& s) {
+                     std::string_view s) {
     p.pack_str(static_cast<uint32_t>(s.size()));
     p.pack_str_body(s.data(), static_cast<uint32_t>(s.size()));
   }
-  static std::string Signature(const Node& n) {
-    std::string signature;
-    for (uint32_t i = 0; i < n.via.map.size; ++i) {
-      const Node& key = n.via.map.ptr[i].key;
-      char length[4];
-      messagepack_resources::Store(reinterpret_cast<uint8_t*>(length),
-                                   key.via.str.size, 4);
-      signature.append(length, 4);
-      signature.append(key.via.str.ptr, key.via.str.size);
+  struct ShapeKey {
+    const msgpack::object_kv* fields;
+    uint32_t count;
+  };
+  struct ShapeHash {
+    size_t operator()(ShapeKey shape) const {
+      size_t hash = shape.count;
+      for (uint32_t i = 0; i < shape.count; ++i)
+        hash = (hash ^ std::hash<std::string_view>{}(
+                           TextValue(shape.fields[i].key))) * 16777619u;
+      return hash;
     }
-    return signature;
+  };
+  struct ShapeEqual {
+    bool operator()(ShapeKey a, ShapeKey b) const {
+      if (a.count != b.count) return false;
+      for (uint32_t i = 0; i < a.count; ++i)
+        if (TextValue(a.fields[i].key) != TextValue(b.fields[i].key))
+          return false;
+      return true;
+    }
+  };
+  static ShapeKey Signature(const Node& n) {
+    return {n.via.map.ptr, n.via.map.size};
+  }
+  size_t FindShape(const Node& n, bool create) {
+    ShapeKey key = Signature(n);
+    uint32_t slot = key.count * 31;
+    if (key.count) {
+      auto first = TextValue(key.fields[0].key);
+      slot += static_cast<uint32_t>(first.size()) * 17;
+      if (!first.empty()) slot += static_cast<uint8_t>(first.front());
+    }
+    uint32_t& cached = shape_cache_[slot & 63];
+    if (cached) {
+      const Shape& shape = shapes_[cached - 1];
+      if (ShapeEqual{}(key, {shape.fields,
+                            static_cast<uint32_t>(shape.keys.size())}))
+        return cached - 1;
+    }
+    auto found = shape_index_.find(key);
+    size_t index;
+    if (found != shape_index_.end()) {
+      index = found->second;
+    } else {
+      DCHECK(create);
+      index = shapes_.size();
+      Shape shape;
+      shape.fields = key.fields;
+      shape.keys.reserve(key.count);
+      for (uint32_t i = 0; i < key.count; ++i)
+        shape.keys.push_back(TextValue(key.fields[i].key));
+      shapes_.push_back(std::move(shape));
+      shape_index_.emplace(key, index);
+    }
+    cached = static_cast<uint32_t>(index + 1);
+    return index;
   }
   void Count(const Node& n) {
     CheckCancelled();
     if (n.type == msgpack::type::MAP) {
-      std::string sig = Signature(n);
-      auto inserted = shape_index_.emplace(sig, shapes_.size());
-      if (inserted.second) {
-        Shape s;
-        for (uint32_t i = 0; i < n.via.map.size; ++i)
-          s.keys.push_back(TextValue(n.via.map.ptr[i].key));
-        shapes_.push_back(std::move(s));
-      }
-      ++shapes_[inserted.first->second].count;
+      ++shapes_[FindShape(n, true)].count;
       for (uint32_t i = 0; i < n.via.map.size; ++i) Count(n.via.map.ptr[i].val);
     } else if (n.type == msgpack::type::ARRAY) {
       for (uint32_t i = 0; i < n.via.array.size; ++i) Count(n.via.array.ptr[i]);
     } else if (n.type == msgpack::type::STR) {
-      std::string value = TextValue(n);
+      std::string_view value = TextValue(n);
+      uint32_t slot = static_cast<uint32_t>(value.size()) * 31;
+      if (!value.empty())
+        slot += static_cast<uint8_t>(value.front()) * 17 +
+                static_cast<uint8_t>(value.back());
+      uint32_t& cached = text_cache_[slot & 127];
+      if (cached && strings_[cached - 1].value == value) {
+        ++strings_[cached - 1].count;
+        return;
+      }
       auto inserted = string_index_.emplace(value, strings_.size());
-      if (inserted.second) strings_.push_back({std::move(value), 0, -1});
+      if (inserted.second) strings_.push_back({value, 0, -1});
       ++strings_[inserted.first->second].count;
+      cached = static_cast<uint32_t>(inserted.first->second + 1);
     }
   }
   static void Extension(MessagePackBuffer* dest, int8_t type,
@@ -141,6 +234,28 @@ class ResourceEncoder {
     p.pack_ext(static_cast<uint32_t>(body.size()), type);
     p.pack_ext_body(reinterpret_cast<const char*>(body.data()),
                     static_cast<uint32_t>(body.size()));
+  }
+  // Reserve the largest header, write the body once, then close the gap for
+  // its canonical header. Offsets survive buffer growth; no pointer does.
+  static void FinishExtension(MessagePackBuffer* dest, size_t start,
+                              int8_t type) {
+    size_t size = dest->size() - start - 6;
+    size_t header = ExtensionSize(size) - size;
+    uint8_t* bytes = const_cast<uint8_t*>(dest->data()) + start;
+    if (header != 6) {
+      std::memmove(bytes + header, bytes + 6, size);
+      dest->Rewind(dest->size() - (6 - header));
+    }
+    if (size == 1 || size == 2 || size == 4 || size == 8 || size == 16) {
+      bytes[0] = static_cast<uint8_t>(0xd4 + base::bits::CountTrailingZeros(
+                                                    static_cast<uint32_t>(size)));
+      bytes[1] = static_cast<uint8_t>(type);
+    } else {
+      unsigned width = size < 256 ? 1 : size < 65536 ? 2 : 4;
+      bytes[0] = width == 1 ? 0xc7 : width == 2 ? 0xc8 : 0xc9;
+      messagepack_resources::Store(bytes + 1, size, width);
+      bytes[width + 1] = static_cast<uint8_t>(type);
+    }
   }
   static bool Numeric(const Node& n, double* value) {
     if (n.type == msgpack::type::POSITIVE_INTEGER &&
@@ -207,7 +322,10 @@ class ResourceEncoder {
             b.bytes.data() + i * messagepack_resources::kWidth[kind],
             static_cast<uint64_t>(ints[i]),
             messagepack_resources::kWidth[kind]);
-      if (messagepack_resources::kWidth[kind] == 1) break;
+      // Round(abs(x) * scale) is monotone in the positive scale. The first
+      // exact scale therefore has the narrowest integer range; later scales
+      // cannot improve its width. Equal-width choices already keep this scale.
+      break;
     }
     if (messagepack_resources::kWidth[b.kind] > 4) {
       bool exact = true;
@@ -248,19 +366,29 @@ class ResourceEncoder {
       if (!Numeric(n.via.array.ptr[i], &value)) return false;
     }
 
+    PackNumbers(n.via.array.size, [&](uint32_t i) {
+      double number;
+      CHECK(Numeric(n.via.array.ptr[i], &number));
+      return number;
+    }, body);
+    return true;
+  }
+  template <typename Reader>
+  void PackNumbers(uint32_t length, Reader read, MessagePackBuffer* body) {
     std::vector<Block> blocks;
-    for (uint32_t start = 0; start < n.via.array.size; start += 256) {
+    blocks.reserve((length + 255) / 256);
+    for (uint32_t start = 0; start < length; start += 256) {
       CheckCancelled();
-      uint32_t count = std::min<uint32_t>(256, n.via.array.size - start);
+      uint32_t count = std::min<uint32_t>(256, length - start);
       double numbers[256];
       for (uint32_t i = 0; i < count; ++i)
-        if (!Numeric(n.via.array.ptr[start + i], &numbers[i])) return false;
+        numbers[i] = read(start + i);
       blocks.push_back(PackBlock(numbers, count));
     }
     ResourceByteWriter w(body);
     msgpack::packer<ResourceByteWriter> p(w);
     p.pack_array(2);
-    p.pack_uint32(n.via.array.size);
+    p.pack_uint32(length);
     p.pack_array(static_cast<uint32_t>(blocks.size()));
     for (const auto& b : blocks) {
       p.pack_array(3);
@@ -270,24 +398,24 @@ class ResourceEncoder {
       p.pack_bin_body(reinterpret_cast<const char*>(b.bytes.data()),
                       static_cast<uint32_t>(b.bytes.size()));
     }
-    return true;
   }
   void Write(const Node& n, MessagePackBuffer* dest) {
     CheckCancelled();
     ResourceByteWriter w(dest);
     msgpack::packer<ResourceByteWriter> p(w);
     if (n.type == msgpack::type::STR) {
-      const auto& text = strings_[string_index_.at(TextValue(n))];
-      if (text.id >= 0) {
-        MessagePackBuffer ref;
-        ResourceByteWriter rw(&ref);
-        msgpack::packer<ResourceByteWriter> rp(rw);
-        rp.pack_uint32(text.id);
-        Extension(dest, messagepack_resources::kString, ref);
+      auto text = TextValue(n);
+      auto selected = selected_string_index_.end();
+      if (text.size() >= minimum_string_ && text.size() <= maximum_string_)
+        selected = selected_string_index_.find(text);
+      if (selected != selected_string_index_.end()) {
+        p.pack_ext(static_cast<uint32_t>(UIntSize(selected->second)),
+                   messagepack_resources::kString);
+        p.pack_uint32(selected->second);
       } else
         p.pack(n);
     } else if (n.type == msgpack::type::MAP) {
-      const Shape& shape = shapes_[shape_index_.at(Signature(n))];
+      const Shape& shape = shapes_[FindShape(n, false)];
       if (shape.id < 0) {
         p.pack_map(n.via.map.size);
         for (uint32_t i = 0; i < n.via.map.size; ++i) {
@@ -296,59 +424,72 @@ class ResourceEncoder {
         }
         return;
       }
-      MessagePackBuffer values;
-      ResourceByteWriter vw(&values);
-      msgpack::packer<ResourceByteWriter> vp(vw);
-      vp.pack_array(n.via.map.size);
-      std::vector<std::pair<size_t, size_t>> spans;
-      for (uint32_t i = 0; i < n.via.map.size; ++i) {
-        size_t start = values.size();
-        Write(n.via.map.ptr[i].val, &values);
-        spans.emplace_back(start, values.size() - start);
+      // Selected shapes have more than 12 key bytes. A record adds at most
+      // array(2) + uint32(id) + ext32 = 12 bytes to its value array, so the
+      // existing per-record profitability check always succeeds for them.
+      if (!inplace_extensions_) {
+        // A near-limit standard value leaves no room for temporary header
+        // padding. Preserve the canonical candidate with bounded body storage.
+        MessagePackBuffer body;
+        ResourceByteWriter body_writer(&body);
+        msgpack::packer<ResourceByteWriter> body_packer(body_writer);
+        body_packer.pack_array(2);
+        body_packer.pack_uint32(shape.id);
+        body_packer.pack_array(n.via.map.size);
+        for (uint32_t i = 0; i < n.via.map.size; ++i)
+          Write(n.via.map.ptr[i].val, &body);
+        Extension(dest, messagepack_resources::kShape, body);
+        return;
       }
-      MessagePackBuffer record;
-      ResourceByteWriter rw(&record);
-      msgpack::packer<ResourceByteWriter> rp(rw);
-      rp.pack_array(2);
-      rp.pack_uint32(shape.id);
-      rw.write(reinterpret_cast<const char*>(values.data()), values.size());
-      size_t keys = 0;
-      for (const auto& key : shape.keys) keys += StringSize(key.size());
-      if (ExtensionSize(record.size()) < values.size() + keys) {
-        Extension(dest, messagepack_resources::kShape, record);
-      } else {
-        p.pack_map(n.via.map.size);
-        for (uint32_t i = 0; i < n.via.map.size; ++i) {
-          p.pack(n.via.map.ptr[i].key);
-          w.write(reinterpret_cast<const char*>(values.data() + spans[i].first),
-                  spans[i].second);
+      size_t start = dest->size();
+      dest->Append(6);
+      p.pack_array(2);
+      p.pack_uint32(shape.id);
+      p.pack_array(n.via.map.size);
+      for (uint32_t i = 0; i < n.via.map.size; ++i)
+        Write(n.via.map.ptr[i].val, dest);
+      FinishExtension(dest, start, messagepack_resources::kShape);
+    } else if (n.type == msgpack::type::ARRAY) {
+      MessagePackBuffer packed;
+      if (Numbers(n, &packed)) {
+        struct Measure {
+          size_t size = 0;
+          void write(const char*, size_t n) { size += n; }
+        } measure;
+        msgpack::packer<Measure> plain(measure);
+        plain.pack_array(n.via.array.size);
+        for (uint32_t i = 0; i < n.via.array.size; ++i)
+          plain.pack(n.via.array.ptr[i]);
+        if (ExtensionSize(packed.size()) < measure.size) {
+          Extension(dest, messagepack_resources::kNumbers, packed);
+          return;
         }
       }
-    } else if (n.type == msgpack::type::ARRAY) {
-      MessagePackBuffer ordinary;
-      ResourceByteWriter ow(&ordinary);
-      msgpack::packer<ResourceByteWriter> op(ow);
-      op.pack_array(n.via.array.size);
+      p.pack_array(n.via.array.size);
       for (uint32_t i = 0; i < n.via.array.size; ++i)
-        Write(n.via.array.ptr[i], &ordinary);
-      MessagePackBuffer packed;
-      if (Numbers(n, &packed) && ExtensionSize(packed.size()) < ordinary.size())
-        Extension(dest, messagepack_resources::kNumbers, packed);
-      else
-        w.write(reinterpret_cast<const char*>(ordinary.data()),
-                ordinary.size());
+        Write(n.via.array.ptr[i], dest);
     } else
       p.pack(n);
   }
   MessagePackBuffer* output_;
   void CheckCancelled() const {
-    if (cancelled_ && cancelled_->load(std::memory_order_relaxed))
+    // Bound cancellation polling while avoiding an atomic load for every
+    // primitive field. Numeric blocks each contain at most 256 values.
+    if (cancelled_ && !(++cancel_check_ & 63) &&
+        cancelled_->load(std::memory_order_relaxed))
       throw std::runtime_error("MessagePack resource operation cancelled");
   }
   const std::atomic<bool>* cancelled_;
+  const bool inplace_extensions_;
+  mutable uint32_t cancel_check_ = 0;
   std::vector<Shape> shapes_;
   std::vector<Text> strings_;
   std::vector<Shape*> selected_shapes_;
   std::vector<Text*> selected_strings_;
-  std::unordered_map<std::string, size_t> shape_index_, string_index_;
+  std::unordered_map<ShapeKey, size_t, ShapeHash, ShapeEqual> shape_index_;
+  std::unordered_map<std::string_view, size_t> string_index_;
+  std::unordered_map<std::string_view, uint32_t> selected_string_index_;
+  uint32_t shape_cache_[64]{};
+  uint32_t text_cache_[128]{};
+  size_t minimum_string_ = SIZE_MAX, maximum_string_ = 0;
 };

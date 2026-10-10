@@ -464,7 +464,25 @@ void RunMessagePackWorker(MessagePackAsyncData* data) {
   try {
     if (data->encode) {
       Encode(data);
-      if (data->resource && !Cancelled(data))
+      bool numeric_root = false;
+      if (data->resource && !Cancelled(data) && data->parts.size() == 1) {
+        const auto& part = data->parts[0];
+        bool integers = part.kind == MessagePackEncodePart::kIntegers;
+        size_t width = integers ? 4 : 8;
+        uint32_t count = static_cast<uint32_t>(part.length / width);
+        size_t header = count < 16 ? 1 : count < 65536 ? 3 : 5;
+        uint8_t tag = count < 16 ? static_cast<uint8_t>(0x90 | count)
+                               : count < 65536 ? 0xdc : 0xdd;
+        numeric_root = (integers || part.kind == MessagePackEncodePart::kNumbers) &&
+            count >= 16 && part.offset == header &&
+            part.offset + part.length == data->input.size() &&
+            data->input.data()[0] == tag;
+        if (numeric_root)
+          EncodeMessagePackResourceNumbers(&data->output,
+              data->input.data() + part.offset, count, integers, &data->error,
+              &data->cancelled);
+      }
+      if (data->resource && !numeric_root && !Cancelled(data))
         EncodeMessagePackResourceBytes(
             data->parts.empty() ? &data->input : &data->output, &data->error,
             &data->cancelled);
@@ -472,9 +490,9 @@ void RunMessagePackWorker(MessagePackAsyncData* data) {
       if (data->resource && data->input.size() >= 4 &&
           std::memcmp(data->input.data(), messagepack_resources::kMagic, 4) ==
               0)
-        ResourceWireDecoder(data).Decode();
+        ResourceTapeDecoder(data).Decode();
       if (Cancelled(data)) return;
-      Parser(data).Parse();
+      if (!data->compact) Parser(data).Parse();
     }
   } catch (const std::bad_alloc&) {
     data->error = "MessagePack native allocation failed";

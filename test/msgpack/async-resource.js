@@ -79,6 +79,16 @@ async function main() {
         i => i % 2 ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER,
         i => i % 2 ? 0.1 : 1 / 3]) await parity(Array.from({length: count}, (_, i) => make(i)));
   }
+  // Root native numeric spans cover both array16 and array32 wire headers.
+  for (const count of [65535, 65536])
+    await parity(Array.from({length: count}, (_, i) => i / 10));
+  // Small ASCII records below the foreground frame-depth bound must retain
+  // their child tape; otherwise a resumed frame could finish as an empty map.
+  let nestedRecords = Array.from({length: 20}, (_, i) => ({
+    long_record_identifier: i, long_record_text: 'ASCII record ' + i}));
+  for (let i = 0; i < 40; ++i)
+    nestedRecords = {long_nested_record: nestedRecords, long_nested_index: i};
+  await parity(nestedRecords);
   const retained = [];
   for (const size of [63, 64, 65, 255, 256, 4095, 4096, 4097]) {
     const text = 'a中🌏é'.repeat(size);

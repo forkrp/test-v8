@@ -75,6 +75,10 @@ bool ResourceTables() {
   }
   resource_->shapes.resize(count);
   for (auto& shape : resource_->shapes) {
+    bool used = true;
+    if constexpr (asynchronous)
+      if (async_->compact)
+        used = async_->resource_shape_used[&shape - resource_->shapes.data()];
     uint32_t fields;
     if (!ArrayCount(&fields)) return false;
     if (fields > static_cast<size_t>(end_ - cursor_)) {
@@ -87,7 +91,7 @@ bool ResourceTables() {
       return false;
     }
     std::unordered_set<std::string> seen;
-    shape.keys.reserve(fields);
+    if (used) shape.keys.reserve(fields);
     for (uint32_t i = 0; i < fields; ++i) {
       const uint8_t* tag;
       if (!Read(1, &tag)) return false;
@@ -99,6 +103,10 @@ bool ResourceTables() {
       uint32_t size;
       if (!Length(*tag, &size) || size > static_cast<size_t>(end_ - cursor_))
         return false;
+      if (!used) {
+        cursor_ += size;
+        continue;  // The worker validated every unused table entry.
+      }
       std::string text(reinterpret_cast<const char*>(cursor_), size);
       cursor_ = start;
       if (!seen.insert(std::move(text)).second) {
@@ -109,7 +117,9 @@ bool ResourceTables() {
       if (key.is_null()) return false;
       uint32_t index;
       shape.indexed |= key->AsArrayIndex(&index);
-      shape.keys.push_back(key);
+      shape.keys.push_back(resource_->handles
+                               ? resource_->handles->NewHandle(key)
+                               : key);
     }
   }
   if (!ArrayCount(&count)) return false;
@@ -130,9 +140,20 @@ bool ResourceTables() {
       Fail("MessagePack resource dictionary entries must be strings");
       return false;
     }
+    if constexpr (asynchronous) {
+      if (async_->compact && !async_->resource_string_used[i]) {
+        uint32_t size;
+        const uint8_t* ignored;
+        if (!Length(*tag, &size) || !Read(size, &ignored)) return false;
+        resource_->strings.push_back({});
+        continue;
+      }
+    }
     Handle<String> value = StringValue(*tag, false);
     if (value.is_null()) return false;
-    resource_->strings.push_back(value);
+    resource_->strings.push_back(resource_->handles
+                                     ? resource_->handles->NewHandle(value)
+                                     : value);
   }
   return true;
 }
@@ -303,7 +324,9 @@ Handle<Object> ResourceObject(ResourceShape* schema, size_t start,
     if (!object->map()->is_dictionary_map() &&
         object->map()->NumberOfOwnDescriptors() == static_cast<int>(count)) {
       if (schema->map.is_null())
-        schema->map = handle(object->map(), isolate_);
+        schema->map = resource_->handles
+                          ? resource_->handles->NewHandle(object->map())
+                          : handle(object->map(), isolate_);
       else
         schema->map.PatchValue(object->map());
       schema->dense_layout = direct;
@@ -316,6 +339,7 @@ Handle<Object> ResourceObject(ResourceShape* schema, size_t start,
   return object;
 }
 struct ResourceState {
+  PersistentHandles* handles = nullptr;
   uint64_t metadata_bytes = 0;
   std::vector<ResourceShape> shapes;
   std::vector<Handle<String>> strings;

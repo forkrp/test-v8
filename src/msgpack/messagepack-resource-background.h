@@ -1,11 +1,10 @@
 // Copyright 2026 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license in LICENSE.
-// Included in the background codec's anonymous namespace. Expand compact
-// resources into owned standard wire bytes before the existing tape parser and
-// cooperative foreground builder run. No V8 handles or heap access belong here.
-class ResourceWireDecoder {
+// Validate compact input once and retain resource references in the native
+// tape. Numeric blocks remain owned wire spans, rather than one token per value.
+class ResourceTapeDecoder {
  public:
-  explicit ResourceWireDecoder(MessagePackAsyncData* data)
+  explicit ResourceTapeDecoder(MessagePackAsyncData* data)
       : data_(data), end_(data->input.size()) {}
   void Decode() {
     if (end_ < 5 || data_->input.data()[4] != 1)
@@ -14,61 +13,73 @@ class ResourceWireDecoder {
     if (ArrayCount() != 3) Fail("Malformed MessagePack resource envelope");
     uint32_t count = ArrayCount();
     if (count > end_ - pos_) Fail("Malformed MessagePack resource shape count");
-    Charge(uint64_t{count} * 48, uint64_t{count} * sizeof(shapes_[0]));
+    metadata_ = uint64_t{count} * 48;
+    CheckBudget(uint64_t{count} * sizeof(Shape));
     shapes_.resize(count);
+    data_->resource_shape_used.resize(count);
     for (auto& shape : shapes_) {
       CheckCancelled();
-      uint32_t fields = ArrayCount();
-      if (fields > end_ - pos_)
+      shape.count = ArrayCount();
+      if (shape.count > end_ - pos_)
         Fail("Malformed MessagePack resource field count");
-      Charge(uint64_t{fields} * 16, uint64_t{fields} * sizeof(Span));
-      shape.reserve(fields);
-      // Views reference immutable owned input; no string body is copied here.
+      metadata_ += uint64_t{shape.count} * 16;
+      CheckBudget(uint64_t{shape.count} * 96);
       std::unordered_set<std::string_view> seen;
-      CheckBudget(uint64_t{fields} * 64);
-      for (uint32_t i = 0; i < fields; ++i) {
-        Span key = String();
+      for (uint32_t i = 0; i < shape.count; ++i) {
+        Span key = String(true, true);
         if (!seen.insert(key.text).second)
           Fail("Duplicate MessagePack resource shape key");
-        shape.push_back(key);
+        shape.bytes += key.length;
       }
     }
     count = ArrayCount();
     if (count > end_ - pos_)
       Fail("Malformed MessagePack resource string count");
-    Charge(uint64_t{count} * 16, uint64_t{count} * sizeof(Span));
+    metadata_ += uint64_t{count} * 16;
+    CheckBudget(uint64_t{count} * sizeof(Span));
     strings_.reserve(count);
-    for (uint32_t i = 0; i < count; ++i) strings_.push_back(String());
+    data_->resource_string_used.resize(count);
+    for (uint32_t i = 0; i < count; ++i)
+      strings_.push_back(String(false, true));
+    data_->compact = true;
+    data_->resource_payload = static_cast<uint32_t>(pos_);
     Value(0, false);
     if (pos_ != end_) Fail("Trailing bytes after MessagePack value");
-    // Release the compact input before allocating the native tape. Swapping
-    // preserves malloc/page-mapping ownership and avoids another byte copy.
-    data_->input.Swap(&data_->output);
-    data_->output.Clear();
+    data_->resource_metadata = metadata_;
   }
 
  private:
+  struct Shape {
+    uint32_t count = 0;
+    uint64_t bytes = 0;
+  };
   struct Span {
     size_t offset, length;
     std::string_view text;
+    uint32_t table_index;
   };
   [[noreturn]] static void Fail(const char* message) {
     throw std::runtime_error(message);
   }
   void CheckCancelled() const {
-    if (Cancelled(data_)) Fail("MessagePack resource operation cancelled");
+    if (!(++cancel_check_ & 63) && Cancelled(data_))
+      Fail("MessagePack resource operation cancelled");
   }
   void CheckBudget(uint64_t temporary = 0) const {
-    if (data_->MemoryUsage() + std::max(metadata_, table_bytes_) + temporary >
+    if (metadata_ > MessagePackAsyncData::kNativeLimit)
+      throw std::length_error("MessagePack resource metadata limit exceeded");
+    uint64_t tables = shapes_.capacity() * sizeof(Shape) +
+                      strings_.capacity() * sizeof(Span);
+    if (data_->MemoryUsage() + metadata_ + tables + temporary >
         MessagePackAsyncData::kNativeLimit)
       throw std::length_error("MessagePack async native memory limit exceeded");
   }
-  void Charge(uint64_t bytes, uint64_t native_bytes) {
-    metadata_ += bytes;
-    table_bytes_ += native_bytes;
-    if (metadata_ > MessagePackAsyncData::kNativeLimit)
-      throw std::length_error("MessagePack resource metadata limit exceeded");
-    CheckBudget();
+  void Wire(uint64_t bytes) {
+    wire_bytes_ += bytes;
+    // Keep the existing logical expansion bound without allocating expanded
+    // bytes. Packed numbers use a conservative maximum of nine bytes/value.
+    if (wire_bytes_ > MessagePackAsyncData::kNativeLimit)
+      throw std::length_error("MessagePack async native memory limit exceeded");
   }
   uint64_t Read(size_t n) {
     if (n > end_ - pos_) Fail("Truncated MessagePack input");
@@ -87,10 +98,12 @@ class ResourceWireDecoder {
   uint32_t Length(uint8_t tag) {
     if ((tag & 0xe0) == 0xa0) return tag & 31;
     if ((tag & 0xf0) == 0x80 || (tag & 0xf0) == 0x90) return tag & 15;
-    return static_cast<uint32_t>(
-        Read(tag == 0xd9                                   ? 1
-             : (tag == 0xda || tag == 0xdc || tag == 0xde) ? 2
-                                                           : 4));
+    return static_cast<uint32_t>(Read(
+        tag == 0xd9 ? 1
+        : (tag == 0xda || tag == 0xdc || tag == 0xde) ? 2 : 4));
+  }
+  static size_t ContainerHeader(uint32_t count) {
+    return count < 16 ? 1 : count < 65536 ? 3 : 5;
   }
   uint32_t ArrayCount(bool check_limit = true) {
     uint8_t tag = static_cast<uint8_t>(Read(1));
@@ -110,7 +123,42 @@ class ResourceWireDecoder {
     if (value > UINT32_MAX) Fail("Malformed MessagePack resource integer");
     return static_cast<uint32_t>(value);
   }
-  Span String() {
+  void Transcode(MessagePackToken* token, const Span& span) {
+    auto info = token->StringInfo();
+    if (info.ascii || span.text.size() <= 64 || token->DecodedString()) return;
+    size_t width = info.one_byte ? 1 : 2;
+    size_t count = span.text.size();
+    const auto* bytes = reinterpret_cast<const uint8_t*>(span.text.data());
+    size_t needed = static_cast<size_t>(info.length) * width;
+    CheckBudget(needed);
+    if (width == 2 && (data_->decoded_strings.size() & 1))
+      data_->decoded_strings.Append(1)[0] = 0;
+    size_t offset = data_->decoded_strings.size();
+    uint8_t* output = data_->decoded_strings.Append(needed);
+    CheckBudget();
+    size_t produced = 0;
+    for (size_t i = 0; i < count;) {
+      CheckCancelled();
+      size_t n = std::min<size_t>(4096, count - i);
+      if (i + n < count)
+        while ((bytes[i + n] & 0xc0) == 0x80) --n;
+      if (width == 1) {
+        auto* end = messagepack_strings::DecodeUtf8(bytes + i, n, 0,
+                                                   output + produced);
+        produced = static_cast<size_t>(end - output);
+      } else {
+        auto* start = reinterpret_cast<uint16_t*>(output);
+        auto* end = messagepack_strings::DecodeUtf8(bytes + i, n, 0,
+                                                   start + produced / 2);
+        produced = static_cast<size_t>(end - start) * 2;
+      }
+      i += n;
+    }
+    DCHECK_EQ(produced, needed);
+    info.ascii_prefix = static_cast<int>(offset);
+    token->SetString(info, true);
+  }
+  Span String(bool key, bool table, MessagePackToken* token = nullptr) {
     CheckCancelled();
     size_t start = pos_;
     uint8_t tag = static_cast<uint8_t>(Read(1));
@@ -120,8 +168,7 @@ class ResourceWireDecoder {
     if (count > static_cast<uint32_t>(String::kMaxLength))
       Fail("Invalid MessagePack UTF-8 string");
     const uint8_t* bytes = data_->input.data() + pos_;
-    // Also validate unused table entries. Split only at UTF-8 boundaries so
-    // cancellation stays bounded even for large dictionary values and keys.
+    messagepack_strings::Utf8Info info;
     for (size_t i = 0; i < count;) {
       CheckCancelled();
       size_t n = std::min<size_t>(4096, count - i);
@@ -129,26 +176,46 @@ class ResourceWireDecoder {
         while (n && (bytes[i + n] & 0xc0) == 0x80) --n;
         if (!n) Fail("Invalid MessagePack UTF-8 string");
       }
-      messagepack_strings::Utf8Info info;
-      if (!messagepack_strings::ScanUtf8(bytes + i, n, &info))
+      messagepack_strings::Utf8Info chunk;
+      if (!messagepack_strings::ScanUtf8(bytes + i, n, &chunk))
         Fail("Invalid MessagePack UTF-8 string");
+      if (info.ascii)
+        info.ascii_prefix += chunk.ascii ? static_cast<int>(n)
+                                        : chunk.ascii_prefix;
+      info.length += chunk.length;
+      info.ascii &= chunk.ascii;
+      info.one_byte &= chunk.one_byte;
       i += n;
     }
+    if (info.length > String::kMaxLength)
+      throw std::length_error("MessagePack string limit exceeded");
     pos_ += count;
-    return {start, pos_ - start,
-            std::string_view(reinterpret_cast<const char*>(bytes), count)};
-  }
-  void Copy(size_t offset, size_t length) {
-    for (size_t i = 0; i < length;) {
-      CheckCancelled();
-      size_t n = std::min<size_t>(4096, length - i);
-      std::memcpy(data_->output.Append(n), data_->input.data() + offset + i, n);
+    MessagePackToken value;
+    value.offset = static_cast<uint32_t>(start);
+    value.SetString(info, false);
+    Span span{start, pos_ - start,
+              std::string_view(reinterpret_cast<const char*>(bytes), count),
+              static_cast<uint32_t>(data_->resource_tables.size())};
+    if (table) {
+      data_->resource_tables.push_back(value);
       CheckBudget();
-      i += n;
+    } else {
+      if (!key) Transcode(&value, span);
+      *token = value;
     }
+    return span;
   }
-  void Copy(const Span& span) { Copy(span.offset, span.length); }
-  void Numbers(size_t depth) {
+  uint32_t Append(const MessagePackToken& token) {
+    if (!(data_->tokens.size() % MessagePackTape::kBlock))
+      CheckBudget(MessagePackTape::kBlock * sizeof(MessagePackToken));
+    uint32_t index = static_cast<uint32_t>(data_->tokens.size());
+    data_->tokens.push_back(token);
+    size_t capacity = data_->resource_work.capacity();
+    data_->resource_work.push_back(1);
+    if (data_->resource_work.capacity() != capacity) CheckBudget();
+    return index;
+  }
+  void Numbers(size_t depth, MessagePackToken* token) {
     if (depth >= 256)
       throw std::length_error("MessagePack nesting limit exceeded");
     if (ArrayCount() != 2) Fail("Malformed MessagePack resource numeric array");
@@ -157,11 +224,13 @@ class ResourceWireDecoder {
         count > static_cast<uint32_t>(FixedArray::kMaxLength) ||
         blocks > (end_ - pos_) / 4)
       Fail("Malformed MessagePack resource numeric count");
-    Writer writer(&data_->output);
-    msgpack::packer<Writer> packer(writer);
-    packer.pack_array(count);
+    token->kind = MessagePackToken::kResourceNumbers;
+    token->container = {};
+    token->container.count = count;
+    token->container.auxiliary =
+        static_cast<uint32_t>(data_->resource_numbers.size());
+    token->container.all_numbers = token->container.all_smis = true;
     uint32_t total = 0;
-    bool smi = true;
     for (uint32_t i = 0; i < blocks; ++i) {
       CheckCancelled();
       if (ArrayCount() != 3)
@@ -179,37 +248,47 @@ class ResourceWireDecoder {
         Fail("Invalid MessagePack resource numeric block size");
       size_t start = pos_;
       Skip(bytes);
-      for (uint32_t j = 0; j < bytes / width; ++j) {
-        uint64_t bits = messagepack_resources::Load(
-            data_->input.data() + start + j * width, width);
-        if (kind < 8 && width == 8 &&
-            std::fabs(messagepack_resources::Number(bits, kind, 0)) >
-                kSafeInteger)
-          Fail("MessagePack resource packed integer exceeds safe range");
-        Number(&packer, messagepack_resources::Number(bits, kind, scale));
+      if (kind < 8 && width == 8) {
+        for (uint32_t j = 0; j < bytes / width; ++j) {
+          uint64_t bits = messagepack_resources::Load(
+              data_->input.data() + start + j * width, width);
+          if (std::fabs(messagepack_resources::Number(bits, kind, 0)) >
+              kSafeInteger)
+            Fail("MessagePack resource packed integer exceeds safe range");
+        }
       }
-      total += bytes / width;
-      smi &= kind <= 3 && scale == 0;
+      data_->resource_numbers.push_back(
+          {static_cast<uint32_t>(start), static_cast<uint16_t>(bytes / width),
+           static_cast<uint8_t>(kind), static_cast<uint8_t>(scale)});
       CheckBudget();
+      total += bytes / width;
+      token->container.all_smis &= kind <= 3 && scale == 0;
     }
     if (total != count) Fail("MessagePack resource numeric count mismatch");
-    if (!smi && count > static_cast<uint32_t>(FixedDoubleArray::kMaxLength))
+    if (!token->container.all_smis &&
+        count > static_cast<uint32_t>(FixedDoubleArray::kMaxLength))
       throw std::length_error("MessagePack resource container limit exceeded");
+    Wire(ContainerHeader(count) + uint64_t{count} * 9);
   }
-  void Extension(uint8_t tag, size_t depth) {
-    uint32_t size =
-        tag >= 0xd4 && tag <= 0xd8
-            ? uint32_t{1} << (tag - 0xd4)
-            : static_cast<uint32_t>(Read(size_t{1} << (tag - 0xc7)));
+  uint32_t Extension(uint8_t tag, size_t depth, MessagePackToken* token) {
+    uint32_t size = tag >= 0xd4 && tag <= 0xd8
+                        ? uint32_t{1} << (tag - 0xd4)
+                        : static_cast<uint32_t>(Read(size_t{1} << (tag - 0xc7)));
     uint8_t type = static_cast<uint8_t>(Read(1));
     if (size > end_ - pos_) Fail("Truncated MessagePack resource extension");
     size_t saved_end = end_;
     end_ = pos_ + size;
+    uint32_t work = 1;
     if (type == messagepack_resources::kString) {
       uint32_t index = UInt();
       if (index >= strings_.size())
         Fail("Invalid MessagePack resource string reference");
-      Copy(strings_[index]);
+      data_->resource_string_used[index] = 1;
+      Transcode(&data_->resource_tables[strings_[index].table_index],
+                strings_[index]);
+      token->kind = MessagePackToken::kResourceString;
+      token->string = {index, 0};
+      Wire(strings_[index].length);
     } else if (type == messagepack_resources::kShape) {
       if (ArrayCount() != 2) Fail("Malformed MessagePack resource record");
       uint32_t index = UInt();
@@ -218,38 +297,72 @@ class ResourceWireDecoder {
       uint32_t count = ArrayCount(false);
       if (depth >= 256)
         throw std::length_error("MessagePack nesting limit exceeded");
-      if (count != shapes_[index].size())
+      if (count != shapes_[index].count)
         Fail("MessagePack resource field count mismatch");
       if (count > end_ - pos_) Fail("Malformed MessagePack container count");
-      Writer writer(&data_->output);
-      msgpack::packer<Writer> packer(writer);
-      packer.pack_map(count);
-      CheckBudget();
-      for (const Span& key : shapes_[index]) {
-        Copy(key);
-        Value(depth + 1, false);
-      }
+      data_->resource_shape_used[index] = 1;
+      token->kind = MessagePackToken::kResourceMap;
+      token->container = {};
+      token->container.count = count;
+      token->container.auxiliary = index;
+      Wire(ContainerHeader(count) + shapes_[index].bytes);
+      work = std::min<uint32_t>(65535, count + 1);
+      for (uint32_t i = 0; i < count; ++i)
+        work = std::min<uint32_t>(65535, work + Value(depth + 1, false));
     } else if (type == messagepack_resources::kNumbers) {
-      Numbers(depth);
+      Numbers(depth, token);
+      work = std::min<uint32_t>(65535, token->container.count + 1);
     } else {
       Fail("Unknown MessagePack resource extension");
     }
     if (pos_ != end_) Fail("Trailing MessagePack resource extension bytes");
     end_ = saved_end;
+    return work;
   }
-  void Value(size_t depth, bool key) {
+  void Number(uint8_t tag, MessagePackToken* token) {
+    token->kind = MessagePackToken::kNumber;
+    if (tag <= 0x7f || tag >= 0xe0) {
+      token->number = tag <= 0x7f ? tag : static_cast<int8_t>(tag);
+      return;
+    }
+    size_t n = tag == 0xca ? 4 : tag == 0xcb ? 8
+                                           : size_t{1} << ((tag - 0xcc) & 3);
+    uint64_t bits = Read(n);
+    if (tag == 0xca) {
+      uint32_t word = static_cast<uint32_t>(bits);
+      float value;
+      std::memcpy(&value, &word, 4);
+      token->number = value;
+    } else if (tag == 0xcb) {
+      std::memcpy(&token->number, &bits, 8);
+    } else if (tag >= 0xd0 && (bits & (uint64_t{1} << (n * 8 - 1)))) {
+      if (n < 8) bits |= ~uint64_t{0} << (n * 8);
+      int64_t value;
+      std::memcpy(&value, &bits, 8);
+      if (value < -static_cast<int64_t>(kSafeInteger))
+        token->kind = MessagePackToken::kOther;
+      else
+        token->number = static_cast<double>(value);
+    } else if (bits > kSafeInteger) {
+      token->kind = MessagePackToken::kOther;
+    } else {
+      token->number = static_cast<double>(bits);
+    }
+  }
+  uint32_t Value(size_t depth, bool key) {
     CheckCancelled();
     size_t start = pos_;
     uint8_t tag = static_cast<uint8_t>(Read(1));
     if (key && !IsString(tag)) Fail("MessagePack object keys must be strings");
+    MessagePackToken token;
+    token.offset = static_cast<uint32_t>(start);
+    uint32_t index = Append(token), work = 1;
     if (IsString(tag)) {
       pos_ = start;
-      Copy(String());
-      return;
-    }
-    bool map = (tag & 0xf0) == 0x80 || tag == 0xde || tag == 0xdf;
-    bool array = (tag & 0xf0) == 0x90 || tag == 0xdc || tag == 0xdd;
-    if (map || array) {
+      Wire(String(key, false, &token).length);
+    } else if ((tag & 0xf0) == 0x80 || tag == 0xde || tag == 0xdf ||
+               (tag & 0xf0) == 0x90 || tag == 0xdc || tag == 0xdd) {
+      bool map = (tag & 0xf0) == 0x80 || tag == 0xde || tag == 0xdf;
       uint32_t count = Length(tag);
       if (depth >= 256)
         throw std::length_error("MessagePack nesting limit exceeded");
@@ -257,27 +370,59 @@ class ResourceWireDecoder {
         Fail("Malformed MessagePack container count");
       if (count > static_cast<uint32_t>(FixedArray::kMaxLength))
         throw std::length_error("MessagePack container limit exceeded");
-      Copy(start, pos_ - start);
+      Wire(pos_ - start);
+      token.kind = map ? MessagePackToken::kMap : MessagePackToken::kArray;
+      token.container = {};
+      token.container.count = count;
+      token.container.all_numbers = token.container.all_smis = !map;
       for (uint32_t i = 0; i < count; ++i) {
-        if (map) Value(depth + 1, true);
-        Value(depth + 1, false);
+        if (map)
+          work = std::min<uint32_t>(65535, work + Value(depth + 1, true));
+        size_t child = data_->tokens.size();
+        work = std::min<uint32_t>(65535, work + Value(depth + 1, false));
+        const auto& value = data_->tokens[child];
+        if (!map) {
+          token.container.all_numbers &= value.kind == MessagePackToken::kNumber;
+          token.container.all_smis &= value.kind == MessagePackToken::kNumber &&
+              value.number >= Smi::kMinValue && value.number <= Smi::kMaxValue &&
+              std::trunc(value.number) == value.number &&
+              !(value.number == 0 && std::signbit(value.number));
+        }
       }
-      return;
+    } else if ((tag >= 0xc7 && tag <= 0xc9) || (tag >= 0xd4 && tag <= 0xd8)) {
+      work = Extension(tag, depth, &token);
+    } else {
+      if (tag <= 0x7f || tag >= 0xe0 || (tag >= 0xca && tag <= 0xd3))
+        Number(tag, &token);
+      else if (!(tag == 0xc0 || tag == 0xc2 || tag == 0xc3))
+        Fail("Unsupported MessagePack value");
+      Wire(pos_ - start);
     }
-    if ((tag >= 0xc7 && tag <= 0xc9) || (tag >= 0xd4 && tag <= 0xd8)) {
-      Extension(tag, depth);
-      return;
+    if (token.kind == MessagePackToken::kResourceMap && work <= 256 &&
+        depth <= 16) {
+      bool ascii = true;
+      for (size_t child = index + 1; child < data_->tokens.size(); ++child) {
+        const auto& value = data_->tokens[child];
+        ascii &= !value.IsString() ||
+                 value.kind == MessagePackToken::kStringAscii;
+      }
+      if (ascii) {
+        // This bounded subtree can use the direct builder. Scalar tape entries
+        // add no validation or slicing benefit; retain only its record span.
+        data_->tokens.Rewind(index + 1);
+        data_->resource_work.resize(index + 1);
+        token.container.all_numbers = true;  // Direct ASCII record marker.
+      }
     }
-    if (tag >= 0xca && tag <= 0xd3)
-      Skip(tag == 0xca ? 4 : tag == 0xcb ? 8 : size_t{1} << ((tag - 0xcc) & 3));
-    else if (!(tag <= 0x7f || tag >= 0xe0 || tag == 0xc0 || tag == 0xc2 ||
-               tag == 0xc3))
-      Fail("Unsupported MessagePack value");
-    Copy(start, pos_ - start);
+    token.next = static_cast<uint32_t>(data_->tokens.size());
+    data_->tokens[index] = token;
+    data_->resource_work[index] = static_cast<uint16_t>(work);
+    return work;
   }
   MessagePackAsyncData* data_;
   size_t pos_ = 0, end_;
-  uint64_t metadata_ = 0, table_bytes_ = 0;
-  std::vector<std::vector<Span>> shapes_;
+  uint64_t metadata_ = 0, wire_bytes_ = 0;
+  mutable uint32_t cancel_check_ = 0;
+  std::vector<Shape> shapes_;
   std::vector<Span> strings_;
 };

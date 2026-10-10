@@ -1216,6 +1216,34 @@ TEST_WITH_PLATFORM(MessagePackResourceAsyncWorkersAndSlices, JsonTestPlatform) {
   printf("MessagePack resource async foreground slices: %d\n", slices);
 }
 
+TEST_WITH_PLATFORM(MessagePackResourceAsyncSmallInline, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  CompileRun("var smallOriginal = {id:42,name:'small',ok:true};"
+             "var smallWire = MSGPACK.encodeResource(smallOriginal);");
+  auto encoded = CompileRun("MSGPACK.encodeResourceAsync(smallOriginal)")
+                     .As<v8::Promise>();
+  auto decoded = CompileRun("MSGPACK.decodeResourceAsync(smallWire)")
+                     .As<v8::Promise>();
+  CHECK_EQ(v8::Promise::kFulfilled, encoded->State());
+  CHECK_EQ(v8::Promise::kFulfilled, decoded->State());
+  CHECK(!isolate->HasPendingBackgroundTasks());
+  CHECK(!runner->RunOne());
+  CompileRun("var smallThenCalled = false;"
+             "MSGPACK.encodeResourceAsync(1).then(() => smallThenCalled=true);");
+  // CompileRun may run the automatic checkpoint at script return. Explicit
+  // checkpoints retain normal Promise microtask semantics in the public tests.
+  isolate->PerformMicrotaskCheckpoint();
+  CHECK(CompileRun("smallThenCalled")->IsTrue());
+  auto malformed = CompileRun(
+      "MSGPACK.decodeResourceAsync(new Uint8Array([0x81]))")
+                       .As<v8::Promise>();
+  CHECK_EQ(v8::Promise::kRejected, malformed->State());
+  CHECK(malformed->Result()->IsNativeError());
+}
+
 TEST_WITH_PLATFORM(MessagePackAsyncNativeAccounting, JsonTestPlatform) {
   auto isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);

@@ -74,7 +74,8 @@ class State {
         if (!bytes.is_null()) result_.PatchValue(*bytes);
       } else
         done = BuildMessagePackSlice(isolate_, data_.get(), handles_.get(),
-                                     result_, &cursor_, &frames_);
+                                     result_, &cursor_, &frames_,
+                                     &resource_state_);
     }
     if (!data_->encode) {
       data_->tokens.DiscardBefore(cursor_);
@@ -101,6 +102,8 @@ class State {
  private:
   void Account() {
     int64_t bytes = sizeof(*this) + static_cast<int64_t>(data_->MemoryUsage());
+    if (resource_state_)
+      bytes += static_cast<int64_t>(data_->resource_metadata);
     int64_t delta = bytes - accounted_;
     accounted_ = bytes;
     if (delta)
@@ -110,6 +113,7 @@ class State {
   void ReleaseRoots() {
     if (!handles_) return;
     frames_.clear();
+    resource_state_.reset();
     handles_.reset();
     data_.reset();
     reinterpret_cast<v8::Isolate*>(isolate_)
@@ -123,6 +127,7 @@ class State {
   Handle<Object> result_;
   std::shared_ptr<MessagePackAsyncData> data_;
   std::vector<MessagePackBuildFrame> frames_;
+  std::shared_ptr<void> resource_state_;
   uint32_t cursor_ = 0;
   int64_t accounted_ = 0;
 };
@@ -266,6 +271,37 @@ MaybeHandle<JSPromise> MessagePackAsync(Isolate* isolate, Handle<Object> value,
       std::memcpy(data->input.Append(length),
                   static_cast<const uint8_t*>(backing->buffer_start()) + offset,
                   length);
+    }
+    // Dispatch and two task hops dominate tiny resources. Bound inline work
+    // by the owned snapshot, not a mutable JS graph estimate. Promise handlers
+    // still execute as microtasks and all platform/job admission checks above
+    // remain in force. Larger resources retain workers and cooperative slices.
+    if (resource && data->input.size() <= 256) {
+      Handle<Object> result;
+      if (encode) {
+        RunMessagePackWorker(data.get());
+        if (data->error.empty())
+          result = MessagePackOutput(
+              isolate, data->parts.empty() ? &data->input : &data->output);
+      } else if (!DecodeMessagePack(
+                      isolate,
+                      base::Vector<const uint8_t>(data->input.data(),
+                                                  data->input.size()),
+                      &data->error, MessagePackDecodeMode::kDirect, true)
+                      .ToHandle(&result)) {
+        // Decode reports either its native error or an existing V8 exception.
+      }
+      if (!data->error.empty() && !isolate->has_exception())
+        ThrowMessagePackError(isolate, data->error, encode);
+      if (result.is_null() && !isolate->has_exception())
+        ThrowMessagePackError(isolate, "MessagePack native operation failed",
+                              encode);
+      if (isolate->has_exception())
+        Reject(isolate, promise, &caught);
+      else if (JSPromise::Resolve(promise, result).is_null())
+        Reject(isolate, promise, &caught);
+      return isolate->is_execution_terminating() ? MaybeHandle<JSPromise>()
+                                                 : promise;
     }
     auto state = std::make_shared<State>(isolate, promise, data);
     // Construct tasks before registering so a native allocation failure leaves
