@@ -126,6 +126,12 @@ between slices and their external-memory accounting is reduced. Numeric arrays a
 length until completion. Decoder key/map handles remain valid throughout each
 slice. No V8 heap address is retained in the worker data.
 
+When resource output falls back to standard MessagePack, bounded ASCII maps
+also use a validated descriptor rather than a full scalar tape. The scan limits
+each subtree to 256 logical values and depth 16; other subtrees use the normal
+tape. Container descriptors retain logical work independently of physical tape
+size, preserving cooperative frame decisions after child maps collapse.
+
 The time budget is cooperative rather than a hard deadline. A single allocation,
 GC, or large string materialization can exceed it. The performance runner
 records the submission portion and end-to-end batch latency separately so

@@ -354,6 +354,58 @@ class Parser {
       throw std::length_error("MessagePack async native memory limit exceeded");
     data_->tokens.push_back(token);
   }
+  bool ScanAscii(size_t depth, bool key, uint32_t* work) {
+    if (Cancelled(data_) || depth > 16 || *work >= 256) return false;
+    ++*work;
+    uint8_t tag = static_cast<uint8_t>(Read(1));
+    bool string = (tag & 0xe0) == 0xa0 || (tag >= 0xd9 && tag <= 0xdb);
+    if (key && !string)
+      throw std::runtime_error("MessagePack object keys must be strings");
+    if (string) {
+      uint32_t n = Length(tag);
+      if (n > data_->input.size() - pos_)
+        throw std::runtime_error("Truncated MessagePack input");
+      if (n > static_cast<uint32_t>(String::kMaxLength))
+        throw std::runtime_error("Invalid MessagePack UTF-8 string");
+      for (size_t i = 0; i < n; i += 4096) {
+        if (Cancelled(data_) || !messagepack_strings::IsAscii(
+            data_->input.data() + pos_ + i, std::min<size_t>(4096, n - i))) return false;
+      }
+      pos_ += n;
+      return true;
+    }
+    bool map = (tag & 0xf0) == 0x80 || tag == 0xde || tag == 0xdf;
+    bool array = (tag & 0xf0) == 0x90 || tag == 0xdc || tag == 0xdd;
+    if (map || array) {
+      uint32_t n = Length(tag);
+      if (n > (data_->input.size() - pos_) / (map ? 2 : 1))
+        throw std::runtime_error("Malformed MessagePack container count");
+      if (n > (256 - *work) / (map ? 2 : 1)) return false;
+      for (uint32_t i = 0; i < n; ++i) {
+        if (map && !ScanAscii(depth + 1, true, work)) return false;
+        if (!ScanAscii(depth + 1, false, work)) return false;
+      }
+      return true;
+    }
+    if (tag >= 0xca && tag <= 0xd3) {
+      size_t n = tag == 0xca   ? 4
+                 : tag == 0xcb ? 8
+                               : size_t{1} << ((tag - 0xcc) & 3);
+      if (n > data_->input.size() - pos_)
+        throw std::runtime_error("Truncated MessagePack input");
+      pos_ += n;
+      return true;
+    }
+    return tag <= 0x7f || tag >= 0xe0 || tag == 0xc0 || tag == 0xc2 ||
+           tag == 0xc3;
+  }
+  static uint32_t Weight(const MessagePackToken& token) {
+    return token.kind == MessagePackToken::kArray ||
+                   token.kind == MessagePackToken::kMap ||
+                   token.kind == MessagePackToken::kAsciiMap
+               ? token.container.auxiliary
+               : 1;
+  }
   void Value(size_t depth, bool key) {
     if (Cancelled(data_)) return;
     size_t index = data_->tokens.size();
@@ -486,9 +538,32 @@ class Parser {
       // The wire count is 32 bits. Validate it before narrowing to the tape's
       // 30-bit field; admitted input is at most 256 MiB, so a valid count fits.
       token.container.count = count;
+      token.container.auxiliary = 1;
+      // A bounded ASCII map needs validation and one descriptor, rather than
+      // scalar tape allocations and numeric conversions that will be reparsed.
+      if (data_->resource && map && count <= 128 && depth <= 16) {
+        size_t start = pos_;
+        uint32_t work = 1;
+        bool valid = true;
+        for (uint32_t i = 0; i < count && valid; ++i)
+          valid = ScanAscii(depth + 1, true, &work) &&
+                  ScanAscii(depth + 1, false, &work);
+        if (valid) {
+          token.kind = MessagePackToken::kAsciiMap;
+          token.container.auxiliary = work;
+          token.next = static_cast<uint32_t>(data_->tokens.size());
+          data_->tokens[index] = token;
+          return;
+        }
+        pos_ = start;
+      }
       for (uint32_t i = 0; i < token.container.count; ++i) {
         if (Cancelled(data_)) return;
-        if (map) Value(depth + 1, true);
+        if (map) {
+          Value(depth + 1, true);
+          token.container.auxiliary =
+              std::min<uint32_t>(65535, token.container.auxiliary + 1);
+        }
         MessagePackToken number;
         const MessagePackToken* child;
         uint8_t next = pos_ < data_->input.size() ? data_->input.data()[pos_] : 0xc1;
@@ -506,6 +581,8 @@ class Parser {
           child = &data_->tokens[index];
         }
         const auto& value = *child;
+        token.container.auxiliary = std::min<uint32_t>(
+            65535, token.container.auxiliary + Weight(value));
         if (!map)
           token.container.all_numbers &=
               value.kind == MessagePackToken::kNumber;

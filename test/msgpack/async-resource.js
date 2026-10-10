@@ -65,6 +65,11 @@ async function main() {
   // Force worker routing while keeping the record array small enough for
   // recursive foreground materialization.
   await parity([uniqueRecords, 'x'.repeat(70000)]);
+  // Collapsed ordinary maps retain logical subtree work, even when the
+  // physical tape contains only a root array and two map descriptors.
+  const manyFields = Object.fromEntries(Array.from({length: 127}, (_, i) =>
+      ['field_' + i, i % 2 ? i / 10 : 'value-' + i]));
+  await differential(MSGPACK.encode([manyFields, manyFields]));
   for (const name of ['encodeResourceAsync', 'decodeResourceAsync']) {
     const d = Object.getOwnPropertyDescriptor(MSGPACK, name);
     check(d.writable && d.configurable && !d.enumerable);

@@ -49,7 +49,8 @@ struct MessagePackToken {
     kResourceMap,
     kResourceString,
     kResourceNumbers,
-    kResourceRecord
+    kResourceRecord,
+    kAsciiMap
   };
   // A tag offset is strictly below the 256 MiB input limit.
   uint32_t offset : 28 = 0;

@@ -268,7 +268,9 @@ class DirectMessagePackDecoder {
   }
   Handle<Object> Value(size_t depth, Handle<String> role) {
     if (const MessagePackToken* token =
-            asynchronous && async_->compact ? nullptr : TokenAt(cursor_);
+            asynchronous && (async_->compact || direct_record_)
+                ? nullptr
+                : TokenAt(cursor_);
         token && token->kind == MessagePackToken::kNumber) {
       cursor_ = begin_ + TokenEnd(*token);
       return isolate_->factory()->NewNumber(token->number);
@@ -713,7 +715,8 @@ class DirectMessagePackDecoder {
   V8_INLINE bool NumericAt(const uint8_t** position, double* number) {
     const uint8_t* p = *position;
     if (const MessagePackToken* token =
-            asynchronous && async_->compact ? nullptr : TokenAt(p)) {
+            asynchronous && (async_->compact || direct_record_) ? nullptr
+                                                                : TokenAt(p)) {
       if (token->kind != MessagePackToken::kNumber) return false;
       *number = token->number;
       *position = begin_ + TokenEnd(*token);

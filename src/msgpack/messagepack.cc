@@ -2087,12 +2087,18 @@ bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
       }
       bool container = token.kind == MessagePackToken::kArray ||
                        token.kind == MessagePackToken::kMap ||
+                       token.kind == MessagePackToken::kAsciiMap ||
                        token.kind == MessagePackToken::kResourceMap ||
                        token.kind == MessagePackToken::kResourceNumbers;
       uint32_t weight = data->compact ? data->resource_work[*cursor]
-                                      : token.next - *cursor;
+                        : (token.kind == MessagePackToken::kArray ||
+                           token.kind == MessagePackToken::kMap ||
+                           token.kind == MessagePackToken::kAsciiMap)
+                            ? token.container.auxiliary
+                            : token.next - *cursor;
       if (container && (weight > 256 || frames->size() > 16)) {
         bool map = token.kind == MessagePackToken::kMap ||
+                   token.kind == MessagePackToken::kAsciiMap ||
                    token.kind == MessagePackToken::kResourceMap;
         Handle<JSObject> object;
         if (map)
@@ -2125,8 +2131,9 @@ bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
               ? decoder.DecodeRecord(token, frames->size(), role)
               : decoder.DecodeValue(
                     token.offset, frames->size(), role,
-                    token.kind == MessagePackToken::kResourceMap &&
-                        token.container.all_numbers);
+                    token.kind == MessagePackToken::kAsciiMap ||
+                        (token.kind == MessagePackToken::kResourceMap &&
+                         token.container.all_numbers));
       if (value.is_null()) return true;
       work += weight - 1;
       *cursor = token.next;

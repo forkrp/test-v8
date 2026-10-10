@@ -132,7 +132,11 @@ python3 tools/binary_serialization/summarize_resource_comparison.py \
 
 The summary audits the complete Cartesian matrix, frozen binaries/runtimes and
 recorded compile input closures. Preserve the baseline checkout and candidate
-worktree until that audit completes. The baseline/optimized ratio measures the
+worktree until that audit completes, or preserve a complete hash-verified input
+closure: embedded `compileInputCopies`, or a sibling directory named
+`<frozen-directory>-input-copies` with `index.json` mapping original paths to
+saved files. The summary verifies the complete key set and every saved digest.
+The baseline/optimized ratio measures the
 change in each API; current sync/async measures the remaining cost relative to
 the optimized synchronous implementation. Geometric means exclude tiny input
 and give each bulk workload equal weight. Keep all process medians and losses.

@@ -62,12 +62,17 @@ def main():
             if sha(directory/'source-patch.diff') != manifest['sourcePatch']['sha256']:
                 raise RuntimeError('Saved source patch changed')
             copies = manifest.get('compileInputCopies')
+            copy_root = directory
+            sidecar = directory.with_name(directory.name + '-input-copies')
+            if copies is None and (sidecar/'index.json').is_file():
+                copies = json.loads((sidecar/'index.json').read_text())
+                copy_root = sidecar
             if copies is not None and set(copies) != set(manifest['compileInputs']):
                 raise RuntimeError('Incomplete saved compile input closure')
             for path, value in manifest['compileInputs'].items():
                 # Verify saved baseline inputs when the checkout has advanced;
                 # otherwise verify the live, frozen compile dependency closure.
-                checked = directory/copies[path] if copies is not None else Path(path)
+                checked = copy_root/copies[path] if copies is not None else Path(path)
                 if sha(checked) != value:
                     raise RuntimeError('Compile input changed: ' + path)
     medians = {key: dict(totalMs=statistics.median(v['totalMs'] for v in rows),
