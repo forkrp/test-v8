@@ -3,6 +3,9 @@
 The following measurements compare public synchronous/asynchronous resource
 MessagePack, standard MessagePack and JSON with owned UTF-8 byte transport.
 The native engine is frozen at `b0bfe07be049c154f1232c2d5a6afb6843484ca9`.
+This is the original implementation baseline. See
+[the subsequent paired optimization report](msgpack-resource-async-optimized-results.md)
+for the optimized engine, current sync comparisons and retained regressions.
 The reusable benchmark and audited measurement procedure are described in
 [msgpack-resource-async-benchmarks.md](msgpack-resource-async-benchmarks.md).
 

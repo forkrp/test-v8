@@ -4,8 +4,10 @@ The resource counterparts are `MSGPACK.encodeResourceAsync(value)` and
 `MSGPACK.decodeResourceAsync(bytes)`. Their functional contract is described in
 [msgpack-async.md](msgpack-async.md). Performance comparisons must use the same
 linked engine for both synchronous and asynchronous public APIs.
-The completed Android comparison is in
-[msgpack-resource-async-results.md](msgpack-resource-async-results.md).
+The original Android comparison is in
+[msgpack-resource-async-results.md](msgpack-resource-async-results.md). The paired
+optimization results, remaining sync costs and slower cells are in
+[msgpack-resource-async-optimized-results.md](msgpack-resource-async-optimized-results.md).
 
 ## Measurement procedure
 
