@@ -99,10 +99,20 @@ microtasks. The same platform and pending-job admission checks run first.
 The byte threshold bounds native capture size, rather than a mutable graph
 estimate; large operations continue to use workers and cooperative slices.
 
+Compact inputs of at most 64 KiB can also use the direct decoder after a bounded
+structural cost probe. The probe caps tables at 64 shapes, 512 keys and 256
+strings, nesting at 32, and estimated work at 32,768 units (object and array
+allocations carry extra weight). It skips UTF-8 bodies and numeric conversion;
+the direct decoder performs full validation and construction once. This
+reduces dispatch and duplicate parsing for small resources. The returned
+Promise can be settled before return, with normal microtask continuations.
+Such calls spend more of their small completion cost on the caller; the work
+estimate and byte cap are bounds rather than a hard time guarantee.
+
 Decode materialization is cooperative: large containers use rooted frames and
-foreground slices, with a 2 ms time budget checked at bounded work intervals
-and a 65,536-unit work-loop bound. Completing the current small subtree or
-numeric batch can exceed that loop bound by a bounded chunk. Small subtrees reuse the tuned synchronous builders
+foreground slices, with a 2 ms time budget checked at bounded work intervals. Resource decode uses
+this time budget without forcing another task solely at 65,536 work units.
+Standard decode retains the additional work-loop bound. Small subtrees reuse the tuned synchronous builders
 with the prevalidated native tape. Consumed fixed tape blocks are released
 between slices and their external-memory accounting is reduced. Numeric arrays are filled in allocation-free
 128-element batches. Every unfinished array has initialized slots and a zero
@@ -144,7 +154,11 @@ result before materialization/transfer.
 
 Android ARM32 uses independently owned page mappings for sufficiently large
 capture, input and output byte buffers, retaining the synchronous output
-ownership policy. No mutable buffer pool or cross-thread realm cache is added.
+ownership policy. Resource decode can retain one input buffer and one decoded-character buffer
+per isolate, each capped at 8 MiB. Retained capacity stays charged to V8 external
+memory; borrowing transfers that charge to the pending job. Cancellation and
+isolate disposal release the cache. Workers use exclusively owned snapshots,
+and realm handles stay on the foreground thread.
 
 ## Validation and performance evidence
 

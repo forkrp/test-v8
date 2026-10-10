@@ -231,6 +231,37 @@ void Encode(MessagePackAsyncData* data) {
                data->input.size() - cursor);
 }
 
+V8_NOINLINE bool DecodeBoundedString(MessagePackAsyncData* data,
+                                     const uint8_t* bytes, uint32_t count,
+                                     messagepack_strings::Utf8Info* info,
+                                     MessagePackToken* token) {
+  if (messagepack_strings::IsAscii(bytes, count)) {
+    info->length = static_cast<int>(count);
+    token->SetString(*info, false);
+    return true;
+  }
+  // Keep scratch out of recursive parser frames, including scalar builds.
+  alignas(16) uint16_t scratch[4096];
+  if (!messagepack_strings::ScanDecodeUtf8(bytes, count, info, scratch))
+    return false;
+  size_t width = info->one_byte ? 1 : 2;
+  if (width == 2 && (data->decoded_strings.size() & 1))
+    data->decoded_strings.Append(1)[0] = 0;
+  size_t offset = data->decoded_strings.size();
+  size_t needed = static_cast<size_t>(info->length) * width;
+  uint8_t* chars = data->decoded_strings.Append(needed);
+  if (width == 2)
+    std::memcpy(chars, scratch, needed);
+  else
+    messagepack_strings::NarrowDecodedString(
+        scratch, static_cast<size_t>(info->length), chars);
+  if (data->MemoryUsage() > MessagePackAsyncData::kNativeLimit)
+    throw std::length_error("MessagePack async native memory limit exceeded");
+  info->ascii_prefix = static_cast<int>(offset);
+  token->SetString(*info, true);
+  return true;
+}
+
 #include "src/msgpack/messagepack-resource-background.h"
 
 class Parser {
@@ -371,63 +402,70 @@ class Parser {
         info = memo->info;
         decoded_string = memo->decoded;
       } else {
-        // Split at UTF-8 codepoint boundaries and retain aggregate width info.
-        for (size_t i = 0; i < count;) {
-          if (Cancelled(data_)) return;
-          size_t n = std::min<size_t>(4096, count - i);
-          if (i + n < count) {
-            while (n && (bytes[i + n] & 0xc0) == 0x80) --n;
-            if (!n)
-              throw std::runtime_error("Invalid MessagePack UTF-8 string");
-          }
-          messagepack_strings::Utf8Info chunk_info;
-          if (!messagepack_strings::ScanUtf8(bytes + i, n, &chunk_info))
+        if (!key && count > 64 && count <= 4096) {
+          if (!DecodeBoundedString(data_, bytes, count, &info, &token))
             throw std::runtime_error("Invalid MessagePack UTF-8 string");
-          if (info.ascii)
-            info.ascii_prefix += chunk_info.ascii ? static_cast<int>(n)
-                                                  : chunk_info.ascii_prefix;
-          info.length += chunk_info.length;
-          info.ascii &= chunk_info.ascii;
-          info.one_byte &= chunk_info.one_byte;
-          i += n;
-        }
-        if (info.length > String::kMaxLength)
-          throw std::length_error("MessagePack string limit exceeded");
-        // Transcode long value strings on the worker. Keys and small strings
-        // retain the tuned foreground path; all staged code units are owned.
-        if (!key && !info.ascii && count > 64) {
-          size_t width = info.one_byte ? 1 : 2;
-          size_t bytes_needed = static_cast<size_t>(info.length) * width;
-          if (width == 2 && (data_->decoded_strings.size() & 1))
-            data_->decoded_strings.Append(1)[0] = 0;
-          size_t offset = data_->decoded_strings.size();
-          uint8_t* decoded = data_->decoded_strings.Append(bytes_needed);
-          if (data_->MemoryUsage() > MessagePackAsyncData::kNativeLimit)
-            throw std::length_error(
-                "MessagePack async native memory limit exceeded");
-          size_t produced = 0;
+          decoded_string = token.DecodedString();
+        } else {
+          // Split at UTF-8 codepoint boundaries and retain aggregate width
+          // info.
           for (size_t i = 0; i < count;) {
             if (Cancelled(data_)) return;
             size_t n = std::min<size_t>(4096, count - i);
-            if (i + n < count)
-              while ((bytes[i + n] & 0xc0) == 0x80) --n;
-            if (width == 1) {
-              uint8_t* end = messagepack_strings::DecodeUtf8(
-                  bytes + i, n, 0, decoded + produced);
-              produced = static_cast<size_t>(end - decoded);
-            } else {
-              uint16_t* start = reinterpret_cast<uint16_t*>(decoded);
-              uint16_t* end = messagepack_strings::DecodeUtf8(
-                  bytes + i, n, 0, start + produced / 2);
-              produced = static_cast<size_t>(end - start) * 2;
+            if (i + n < count) {
+              while (n && (bytes[i + n] & 0xc0) == 0x80) --n;
+              if (!n)
+                throw std::runtime_error("Invalid MessagePack UTF-8 string");
             }
+            messagepack_strings::Utf8Info chunk_info;
+            if (!messagepack_strings::ScanUtf8(bytes + i, n, &chunk_info))
+              throw std::runtime_error("Invalid MessagePack UTF-8 string");
+            if (info.ascii)
+              info.ascii_prefix += chunk_info.ascii ? static_cast<int>(n)
+                                                    : chunk_info.ascii_prefix;
+            info.length += chunk_info.length;
+            info.ascii &= chunk_info.ascii;
+            info.one_byte &= chunk_info.one_byte;
             i += n;
           }
-          DCHECK_EQ(produced, bytes_needed);
-          // This field is a code-unit buffer offset for staged strings, and
-          // remains an ASCII prefix length for the ordinary UTF-8 path.
-          info.ascii_prefix = static_cast<int>(offset);
-          decoded_string = true;
+          if (info.length > String::kMaxLength)
+            throw std::length_error("MessagePack string limit exceeded");
+          // Transcode long value strings on the worker. Keys and small strings
+          // retain the tuned foreground path; all staged code units are owned.
+          if (!key && !info.ascii && count > 64) {
+            size_t width = info.one_byte ? 1 : 2;
+            size_t bytes_needed = static_cast<size_t>(info.length) * width;
+            if (width == 2 && (data_->decoded_strings.size() & 1))
+              data_->decoded_strings.Append(1)[0] = 0;
+            size_t offset = data_->decoded_strings.size();
+            uint8_t* decoded = data_->decoded_strings.Append(bytes_needed);
+            if (data_->MemoryUsage() > MessagePackAsyncData::kNativeLimit)
+              throw std::length_error(
+                  "MessagePack async native memory limit exceeded");
+            size_t produced = 0;
+            for (size_t i = 0; i < count;) {
+              if (Cancelled(data_)) return;
+              size_t n = std::min<size_t>(4096, count - i);
+              if (i + n < count)
+                while ((bytes[i + n] & 0xc0) == 0x80) --n;
+              if (width == 1) {
+                uint8_t* end = messagepack_strings::DecodeUtf8(
+                    bytes + i, n, 0, decoded + produced);
+                produced = static_cast<size_t>(end - decoded);
+              } else {
+                uint16_t* start = reinterpret_cast<uint16_t*>(decoded);
+                uint16_t* end = messagepack_strings::DecodeUtf8(
+                    bytes + i, n, 0, start + produced / 2);
+                produced = static_cast<size_t>(end - start) * 2;
+              }
+              i += n;
+            }
+            DCHECK_EQ(produced, bytes_needed);
+            // This field is a code-unit buffer offset for staged strings, and
+            // remains an ASCII prefix length for the ordinary UTF-8 path.
+            info.ascii_prefix = static_cast<int>(offset);
+            decoded_string = true;
+          }
         }
         if (memo)
           *memo = {bytes, count, info, static_cast<bool>(decoded_string)};

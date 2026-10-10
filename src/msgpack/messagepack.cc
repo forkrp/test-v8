@@ -1940,7 +1940,7 @@ bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
     const auto deadline =
         base::TimeTicks::Now() + base::TimeDelta::FromMilliseconds(2);
     size_t next_check = 0;
-    for (size_t work = 0; work < 65536; ++work) {
+    for (size_t work = 0; data->resource || work < 65536; ++work) {
       if (work >= next_check) {
         next_check = work + 128;
         StackLimitCheck check(isolate);
@@ -1959,23 +1959,31 @@ bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
         size_t written = 0;
         while (written < 128 && frame.index < frame.packed_count) {
           const auto& block = data->resource_numbers[frame.packed_offset];
-          unsigned width = messagepack_resources::kWidth[block.kind];
+          const unsigned kind = block.kind, scale = block.scale;
+          unsigned width = messagepack_resources::kWidth[kind];
           uint32_t n = std::min<uint32_t>(block.count - frame.packed_position,
                                          static_cast<uint32_t>(128 - written));
+          uint32_t position = frame.index;
           for (uint32_t i = 0; i < n; ++i) {
-            double value = messagepack_resources::Number(
-                messagepack_resources::Load(
-                    data->input.data() + block.offset +
-                        (frame.packed_position + i) * width,
-                    width),
-                block.kind, block.scale);
-            if (doubles)
-              FixedDoubleArray::cast(storage)->set(frame.index++, value);
-            else
-              FixedArray::cast(storage)->set(
-                  frame.index++, Smi::FromInt(static_cast<int>(value)),
-                  SKIP_WRITE_BARRIER);
+            uint64_t bits = messagepack_resources::Load(
+                data->input.data() + block.offset +
+                    (frame.packed_position + i) * width,
+                width);
+            if (doubles) {
+              double value = messagepack_resources::Number(bits, kind, scale);
+              FixedDoubleArray::cast(storage)->set(position++, value);
+            } else {
+              // Worker classification guarantees unscaled 8/16-bit integers.
+              // Avoid integer-to-double-to-integer round trips and ARM32's
+              // general 64-bit conversion helpers for Smi storage.
+              int value = kind == 1   ? static_cast<int8_t>(bits)
+                          : kind == 3 ? static_cast<int16_t>(bits)
+                                      : static_cast<int>(bits);
+              FixedArray::cast(storage)->set(position++, Smi::FromInt(value),
+                                             SKIP_WRITE_BARRIER);
+            }
           }
+          frame.index = position;
           frame.packed_position += n;
           written += n;
           if (frame.packed_position == block.count) {
@@ -2043,6 +2051,40 @@ bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
       }
       Handle<String> role =
           parent && parent->map ? parent->key : Handle<String>();
+      if (parent && !parent->map && token.kind == MessagePackToken::kNumber) {
+        double numbers[128];
+        uint32_t stop = *cursor;
+        size_t count = 0;
+        int boxes = 0;
+        while (stop < parent->end && count < 128) {
+          const auto& number = data->tokens[stop];
+          if (number.kind != MessagePackToken::kNumber) break;
+          numbers[count++] = number.number;
+          boxes += !IsSmiDouble(number.number);
+          stop = number.next;
+        }
+        FoldedMutableHeapNumberAllocation allocation(isolate, boxes);
+        DisallowGarbageCollection no_gc;
+        FoldedMutableHeapNumberAllocator allocator(isolate, &allocation, no_gc);
+        ReadOnlyRoots roots(isolate);
+        Tagged<FixedArray> storage =
+            FixedArray::cast(JSArray::cast(*parent->object)->elements());
+        WriteBarrierMode mode = storage->GetWriteBarrierMode(no_gc);
+        uint32_t position = parent->index;
+        for (size_t i = 0; i < count; ++i) {
+          Tagged<Object> value =
+              IsSmiDouble(numbers[i])
+                  ? Tagged<Object>(Smi::FromInt(static_cast<int>(numbers[i])))
+                  : Tagged<Object>(allocator.AllocateNext(
+                        roots, Float64::FromBits(
+                                   base::bit_cast<uint64_t>(numbers[i]))));
+          storage->set(position++, value, mode);
+        }
+        parent->index = position;
+        *cursor = stop;
+        work += count - 1;
+        continue;
+      }
       bool container = token.kind == MessagePackToken::kArray ||
                        token.kind == MessagePackToken::kMap ||
                        token.kind == MessagePackToken::kResourceMap ||
@@ -2079,9 +2121,12 @@ bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
         continue;
       }
       Handle<Object> value =
-          decoder.DecodeValue(token.offset, frames->size(), role,
-                              token.kind == MessagePackToken::kResourceMap &&
-                                  token.container.all_numbers);
+          token.kind == MessagePackToken::kResourceRecord
+              ? decoder.DecodeRecord(token, frames->size(), role)
+              : decoder.DecodeValue(
+                    token.offset, frames->size(), role,
+                    token.kind == MessagePackToken::kResourceMap &&
+                        token.container.all_numbers);
       if (value.is_null()) return true;
       work += weight - 1;
       *cursor = token.next;

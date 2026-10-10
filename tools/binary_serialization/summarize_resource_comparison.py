@@ -61,10 +61,14 @@ def main():
                 raise RuntimeError('Compiler identity changed')
             if sha(directory/'source-patch.diff') != manifest['sourcePatch']['sha256']:
                 raise RuntimeError('Saved source patch changed')
+            copies = manifest.get('compileInputCopies')
+            if copies is not None and set(copies) != set(manifest['compileInputs']):
+                raise RuntimeError('Incomplete saved compile input closure')
             for path, value in manifest['compileInputs'].items():
-                # The baseline checkout and candidate worktree remain frozen
-                # until this audit; verify their complete recorded closures.
-                if sha(path) != value:
+                # Verify saved baseline inputs when the checkout has advanced;
+                # otherwise verify the live, frozen compile dependency closure.
+                checked = directory/copies[path] if copies is not None else Path(path)
+                if sha(checked) != value:
                     raise RuntimeError('Compile input changed: ' + path)
     medians = {key: dict(totalMs=statistics.median(v['totalMs'] for v in rows),
                          submitMs=statistics.median(v['submitMs'] for v in rows),

@@ -67,6 +67,20 @@ inline void Store(uint8_t* p, uint64_t bits, unsigned width) {
   }
 }
 inline double Number(uint64_t bits, unsigned kind, unsigned scale) {
+  if (kind < 6) {
+    // These representations fit native 32-bit registers. In particular ARM32
+    // must not sign-extend them only to call a 64-bit software conversion.
+    double value;
+    if (kind & 1) {
+      int32_t n = kind == 1   ? static_cast<int8_t>(bits)
+                  : kind == 3 ? static_cast<int16_t>(bits)
+                              : static_cast<int32_t>(bits);
+      value = static_cast<double>(n);
+    } else {
+      value = static_cast<double>(static_cast<uint32_t>(bits));
+    }
+    return scale ? value / kScale[scale] : value;
+  }
   if (kind == 8) {
     uint32_t word = static_cast<uint32_t>(bits);
     float n;

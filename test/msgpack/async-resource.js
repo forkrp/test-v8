@@ -55,6 +55,16 @@ async function parity(value) {
   return bytes;
 }
 async function main() {
+  // A small root array is materialized recursively rather than with frames.
+  // Record descriptors must retain extension offsets, never alias a field's
+  // string token offset. Unique values also exercise string-cache misses.
+  const uniqueRecords = Array.from({length: 20}, (_, i) => ({
+    name: 'unique-name-' + i + '-' + String(i).repeat(40),
+    enabled: i % 2 === 0, id: i
+  }));
+  // Force worker routing while keeping the record array small enough for
+  // recursive foreground materialization.
+  await parity([uniqueRecords, 'x'.repeat(70000)]);
   for (const name of ['encodeResourceAsync', 'decodeResourceAsync']) {
     const d = Object.getOwnPropertyDescriptor(MSGPACK, name);
     check(d.writable && d.configurable && !d.enumerable);
@@ -99,6 +109,31 @@ async function main() {
     gc();
   }
   for (const bytes of retained) await differential(bytes);
+  // Exercise strict fused UTF-8 validation on workers, including vector lane
+  // boundaries. Padding prevents the small-resource foreground route.
+  const workerPadding = Array.from(MSGPACK.encode('x'.repeat(70000)));
+  for (const text of ['é'.repeat(50), '中'.repeat(30), '🌏'.repeat(25),
+      'asciié中🌏'.repeat(20)])
+    await parity([text, 'x'.repeat(70000)]);
+  const invalidUtf8 = [[0xc0, 0x80], [0xc2, 0x41], [0xe0, 0x80, 0x80],
+      [0xed, 0xa0, 0x80], [0xf0, 0x80, 0x80, 0x80],
+      [0xf4, 0x90, 0x80, 0x80], [0xff], [0x80]];
+  for (const size of [65, 4096]) {
+    const header = Array.from(MSGPACK.encode('a'.repeat(size))).slice(0, -size);
+    for (const invalid of invalidUtf8) {
+      for (const offset of [0, 15, 23, size - invalid.length]) {
+        const body = new Uint8Array(size).fill(0x61);
+        body.set(invalid, offset);
+        const root = [0x92, ...header, ...body, ...workerPadding];
+        await differential(resource([], [], root));
+        await differential(new Uint8Array(root));
+      }
+    }
+    // A valid leading byte cannot consume the following value as continuation.
+    const body = new Uint8Array(size).fill(0x61);
+    body.set([0xe2, 0x82], size - 2);
+    await differential(resource([], [], [0x92, ...header, ...body, ...workerPadding]));
+  }
   const indexed = Array.from({length: 300}, (_, i) => {
     const v = {'10': i, '2': i + 1, long_property: 'repeated'.repeat(30)};
     Object.defineProperty(v, '__proto__', {value: i, enumerable: true});
@@ -184,9 +219,13 @@ async function main() {
   check(Object.getPrototypeOf(foreign) === Realm.eval(realm, 'Array.prototype'));
   check(Object.getPrototypeOf(foreign[0]) === Realm.eval(realm, 'Object.prototype'));
   Realm.dispose(realm);
-  const jobs = Array.from({length: 40}, (_, i) => i % 4 === 0 ? MSGPACK.encodeAsync(indexed) :
-      i % 4 === 1 ? MSGPACK.decodeAsync(MSGPACK.encode(indexed)) :
-      i % 4 === 2 ? MSGPACK.encodeResourceAsync(indexed) : MSGPACK.decodeResourceAsync(compact));
+  const queuedValue = {records: indexed, padding: 'x'.repeat(70000)};
+  const queuedStandard = MSGPACK.encode(queuedValue);
+  const queuedCompact = MSGPACK.encodeResource(queuedValue);
+  check(queuedCompact.length > 65536);
+  const jobs = Array.from({length: 40}, (_, i) => i % 4 === 0 ? MSGPACK.encodeAsync(queuedValue) :
+      i % 4 === 1 ? MSGPACK.decodeAsync(queuedStandard) :
+      i % 4 === 2 ? MSGPACK.encodeResourceAsync(queuedValue) : MSGPACK.decodeResourceAsync(queuedCompact));
   const outcomes = await Promise.allSettled(jobs);
   check(outcomes.filter(x => x.status === 'rejected').length === 8, 'shared job bound');
   for (const out of outcomes) if (out.status === 'rejected') check(out.reason instanceof RangeError);

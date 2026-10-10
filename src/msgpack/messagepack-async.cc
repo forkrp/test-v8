@@ -6,6 +6,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <unordered_map>
+#ifdef MSGPACK_RESOURCE_TIMINGS
+#include <cstdio>
+#endif
 
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
@@ -23,11 +26,214 @@ namespace v8::internal {
 namespace {
 class State;
 using States = std::unordered_map<State*, std::shared_ptr<State>>;
+struct DecodeBuffers {
+  MessagePackBuffer input, strings;
+  size_t bytes() const {
+    return sizeof(*this) + input.capacity() + strings.capacity();
+  }
+};
 struct Jobs {
   base::Mutex mutex;
   std::unordered_map<Isolate*, States> jobs;
+  std::unordered_map<Isolate*, std::unique_ptr<DecodeBuffers>> buffers;
 };
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(Jobs, GetJobs)
+constexpr size_t kCachedDecodeBufferLimit = 8 * 1024 * 1024;
+bool SmallResourcePlan(const MessagePackAsyncData& data) {
+  const auto& input = data.input;
+  if (input.size() > 65536 || input.size() < 8 ||
+      std::memcmp(input.data(), "V8MR\x01\x93", 6) != 0)
+    return false;
+  size_t position = 6;
+  auto read = [&](size_t width, uint32_t* value) {
+    if (width > input.size() - position) return false;
+    uint32_t n = 0;
+    for (size_t i = 0; i < width; ++i) n = (n << 8) | input.data()[position++];
+    *value = n;
+    return true;
+  };
+  auto array = [&](uint32_t* count) {
+    uint32_t tag;
+    if (!read(1, &tag)) return false;
+    if ((tag & 0xf0) == 0x90) {
+      *count = tag & 15;
+      return true;
+    }
+    return tag == 0xdc ? read(2, count) : tag == 0xdd && read(4, count);
+  };
+  auto string = [&]() {
+    uint32_t tag, length;
+    if (!read(1, &tag)) return false;
+    if ((tag & 0xe0) == 0xa0)
+      length = tag & 31;
+    else if (tag >= 0xd9 && tag <= 0xdb) {
+      if (!read(size_t{1} << (tag - 0xd9), &length)) return false;
+    } else
+      return false;
+    if (length > input.size() - position) return false;
+    position += length;
+    return true;
+  };
+  uint32_t count, fields, keys = 0;
+  uint32_t shape_fields[64];
+  if (!array(&count) || count > 64) return false;
+  uint32_t shapes = count;
+  for (uint32_t i = 0; i < count; ++i) {
+    if (!array(&fields) || fields > 64 || keys + fields > 512) return false;
+    keys += fields;
+    shape_fields[i] = fields;
+    for (uint32_t j = 0; j < fields; ++j)
+      if (!string()) return false;
+  }
+  if (!array(&count) || count > 256) return false;
+  uint32_t strings = count;
+  for (uint32_t i = 0; i < count; ++i)
+    if (!string()) return false;
+  uint32_t work = keys + strings;
+  auto value = [&](auto&& self, size_t depth) -> bool {
+    if (depth > 32 || work >= 32768) return false;
+    ++work;
+    uint32_t tag;
+    if (!read(1, &tag)) return false;
+    if ((tag & 0xe0) == 0xa0 || (tag >= 0xd9 && tag <= 0xdb)) {
+      --position;
+      return string();
+    }
+    if (tag <= 0x7f || tag >= 0xe0 || tag == 0xc0 || tag == 0xc2 || tag == 0xc3)
+      return true;
+    if (tag >= 0xca && tag <= 0xd3) {
+      uint32_t ignored;
+      return read(tag == 0xca   ? 4
+                  : tag == 0xcb ? 8
+                                : size_t{1} << ((tag - 0xcc) & 3),
+                  &ignored);
+    }
+    bool map = (tag & 0xf0) == 0x80 || tag == 0xde || tag == 0xdf;
+    bool list = (tag & 0xf0) == 0x90 || tag == 0xdc || tag == 0xdd;
+    uint32_t size;
+    if (map || list) {
+      work += map ? 7 : 3;
+      if ((tag & 0xf0) == (map ? 0x80 : 0x90))
+        size = tag & 15;
+      else if (!read(tag == 0xdc || tag == 0xde ? 2 : 4, &size))
+        return false;
+      if (size > 32768 - std::min(work, uint32_t{32768})) return false;
+      for (uint32_t i = 0; i < size; ++i) {
+        if (map && !self(self, depth + 1)) return false;
+        if (!self(self, depth + 1)) return false;
+      }
+      return work <= 32768;
+    }
+    if ((tag >= 0xc7 && tag <= 0xc9) || (tag >= 0xd4 && tag <= 0xd8)) {
+      if (tag >= 0xd4)
+        size = uint32_t{1} << (tag - 0xd4);
+      else if (!read(size_t{1} << (tag - 0xc7), &size))
+        return false;
+      uint32_t type;
+      if (!read(1, &type) || size > input.size() - position) return false;
+      size_t limit = position + size;
+      auto integer = [&](uint32_t* n) {
+        uint32_t t;
+        if (!read(1, &t)) return false;
+        if (t <= 127) {
+          *n = t;
+          return true;
+        }
+        return t >= 0xcc && t <= 0xce && read(size_t{1} << (t - 0xcc), n);
+      };
+      if (type == 0x51) {
+        uint32_t n;
+        if (!integer(&n) || n >= strings) return false;
+      } else if (type == 0x50) {
+        uint32_t fields, index;
+        if (!array(&fields) || fields != 2 || !integer(&index) ||
+            index >= shapes || !array(&fields) || fields != shape_fields[index])
+          return false;
+        work += 7;
+        for (uint32_t i = 0; i < fields; ++i)
+          if (!self(self, depth + 1)) return false;
+      } else
+        return false;
+      return position == limit && work <= 32768;
+    }
+    return false;
+  };
+  return value(value, 0) && position == input.size();
+}
+void BorrowDecodeBuffers(Isolate* isolate, MessagePackAsyncData* data,
+                         size_t length) {
+  size_t bytes = 0;
+  {
+    auto* jobs = GetJobs();
+    base::MutexGuard lock(&jobs->mutex);
+    auto it = jobs->buffers.find(isolate);
+    if (it == jobs->buffers.end()) return;
+    auto& buffers = *it->second;
+    if (buffers.input.capacity() >= length) {
+      bytes += buffers.input.capacity();
+      buffers.input.Swap(&data->input);
+      data->input.Clear();
+    }
+    if (buffers.strings.capacity() &&
+        buffers.strings.capacity() <= length * 2) {
+      bytes += buffers.strings.capacity();
+      buffers.strings.Swap(&data->decoded_strings);
+      data->decoded_strings.Clear();
+    }
+  }
+  // Transfer accounting to the pending State outside the registry mutex.
+  if (bytes)
+    reinterpret_cast<v8::Isolate*>(isolate)
+        ->AdjustAmountOfExternalAllocatedMemory(-static_cast<int64_t>(bytes));
+}
+void RecycleDecodeBuffers(Isolate* isolate, MessagePackBuffer* input,
+                          MessagePackBuffer* strings) {
+  int64_t delta = 0;
+  try {
+    auto* jobs = GetJobs();
+    base::MutexGuard lock(&jobs->mutex);
+    bool eligible = (input->capacity() >= 32768 &&
+                     input->capacity() <= kCachedDecodeBufferLimit) ||
+                    (strings->capacity() >= 32768 &&
+                     strings->capacity() <= kCachedDecodeBufferLimit);
+    if (eligible) {
+      auto it = jobs->buffers.find(isolate);
+      size_t before = it == jobs->buffers.end() ? 0 : it->second->bytes();
+      if (it == jobs->buffers.end()) {
+        auto cache = std::make_unique<DecodeBuffers>();
+        it = jobs->buffers.emplace(isolate, std::move(cache)).first;
+      }
+      auto& entry = it->second;
+      auto retain = [](MessagePackBuffer* buffer, MessagePackBuffer* cached) {
+        if (buffer->capacity() >= 32768 &&
+            buffer->capacity() <= kCachedDecodeBufferLimit &&
+            buffer->capacity() >= cached->capacity()) {
+          buffer->Clear();
+          buffer->Swap(cached);
+        }
+      };
+      retain(input, &entry->input);
+      retain(strings, &entry->strings);
+      delta =
+          static_cast<int64_t>(entry->bytes()) - static_cast<int64_t>(before);
+    }
+  } catch (const std::bad_alloc&) {
+    // Reuse is optional; an allocation failure must not escape a completion.
+  }
+  // Discard replaced/unretained allocations before charging the retained
+  // cache. Neither a V8 allocation nor a GC runs while the mutex is held.
+  {
+    MessagePackBuffer discard;
+    input->Swap(&discard);
+  }
+  {
+    MessagePackBuffer discard;
+    strings->Swap(&discard);
+  }
+  if (delta)
+    reinterpret_cast<v8::Isolate*>(isolate)
+        ->AdjustAmountOfExternalAllocatedMemory(delta);
+}
 void Reject(Isolate* isolate, Handle<JSPromise> promise, v8::TryCatch* caught) {
   DCHECK(isolate->has_exception());
   if (isolate->is_execution_terminating()) {
@@ -55,10 +261,17 @@ class State {
   ~State() { DCHECK(!handles_); }
   void Cancel() {
     data_->cancelled.store(true, std::memory_order_relaxed);
-    ReleaseRoots();
+    ReleaseRoots(false);
   }
   bool Run() {
     if (!handles_) return true;
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    uint64_t profile_begin = MessagePackProfileNow();
+    if (!data_->profile_first)
+      data_->profile_first = profile_begin;
+    else
+      data_->profile_queue += profile_begin - data_->profile_last;
+#endif
     HandleScope scope(isolate_);
     SaveAndSwitchContext context(isolate_, *context_);
     v8::TryCatch caught(reinterpret_cast<v8::Isolate*>(isolate_));
@@ -66,6 +279,10 @@ class State {
     if (check.InterruptRequested())
       USE(isolate_->stack_guard()->HandleInterrupts());
     Account();  // Worker writes have been published through the task runner.
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    uint64_t profile_build = MessagePackProfileNow();
+    data_->profile_account += profile_build - profile_begin;
+#endif
     bool done = true;
     if (!isolate_->has_exception() && data_->error.empty()) {
       if (data_->encode) {
@@ -77,10 +294,38 @@ class State {
                                      result_, &cursor_, &frames_,
                                      &resource_state_);
     }
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    uint64_t profile_built = MessagePackProfileNow();
+    data_->profile_build += profile_built - profile_build;
+    ++data_->profile_slices;
+#endif
     if (!data_->encode) {
       data_->tokens.DiscardBefore(cursor_);
       Account();
     }
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    data_->profile_last = MessagePackProfileNow();
+    data_->profile_account += data_->profile_last - profile_built;
+    if (done && data_->resource && !data_->encode) {
+      std::fprintf(
+          stderr,
+          "resource async copy=%.3f setup=%.3f worker_queue=%.3f worker=%.3f "
+          "foreground_queue=%.3f build=%.3f account=%.3f slices=%llu "
+          "native_total=%.3f ms\n",
+          data_->profile_capture / 1e6,
+          (data_->profile_queued - data_->profile_start -
+           data_->profile_capture) /
+              1e6,
+          (data_->profile_worker_start - data_->profile_queued) / 1e6,
+          (data_->profile_worker_end - data_->profile_worker_start) / 1e6,
+          (data_->profile_first - data_->profile_worker_end +
+           data_->profile_queue) /
+              1e6,
+          data_->profile_build / 1e6, data_->profile_account / 1e6,
+          static_cast<unsigned long long>(data_->profile_slices),
+          (data_->profile_last - data_->profile_start) / 1e6);
+    }
+#endif
     if (!isolate_->has_exception() && !data_->error.empty())
       ThrowMessagePackError(isolate_, data_->error, data_->encode);
     if (isolate_->has_exception())
@@ -89,13 +334,31 @@ class State {
       return false;
     else if (JSPromise::Resolve(promise_, result_).is_null())
       Reject(isolate_, promise_, &caught);
-    ReleaseRoots();
-    auto* jobs = GetJobs();
-    base::MutexGuard lock(&jobs->mutex);
-    auto it = jobs->jobs.find(isolate_);
-    DCHECK(it != jobs->jobs.end());
-    it->second.erase(this);
-    if (it->second.empty()) jobs->jobs.erase(it);
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    bool profile_cleanup = data_->resource && !data_->encode;
+    uint64_t profile_end = data_->profile_last;
+    uint64_t profile_start = data_->profile_start;
+#endif
+    bool recycle_buffers = data_->resource && !data_->encode;
+    ReleaseRoots(recycle_buffers);
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    if (profile_cleanup) {
+      uint64_t end = MessagePackProfileNow();
+      std::fprintf(stderr,
+                   "resource cleanup settle_release=%.3f total=%.3f ms\n",
+                   (end - profile_end) / 1e6, (end - profile_start) / 1e6);
+    }
+#endif
+    {
+      auto* jobs = GetJobs();
+      base::MutexGuard lock(&jobs->mutex);
+      auto it = jobs->jobs.find(isolate_);
+      DCHECK(it != jobs->jobs.end());
+      it->second.erase(this);
+      if (it->second.empty()) jobs->jobs.erase(it);
+    }
+    if (recycle_buffers)
+      RecycleDecodeBuffers(isolate_, &recycled_input_, &recycled_strings_);
     return true;
   }
 
@@ -110,11 +373,15 @@ class State {
       reinterpret_cast<v8::Isolate*>(isolate_)
           ->AdjustAmountOfExternalAllocatedMemory(delta);
   }
-  void ReleaseRoots() {
+  void ReleaseRoots(bool recycle) {
     if (!handles_) return;
     frames_.clear();
     resource_state_.reset();
     handles_.reset();
+    if (recycle && data_->resource && !data_->encode) {
+      data_->input.Swap(&recycled_input_);
+      data_->decoded_strings.Swap(&recycled_strings_);
+    }
     data_.reset();
     reinterpret_cast<v8::Isolate*>(isolate_)
         ->AdjustAmountOfExternalAllocatedMemory(-accounted_);
@@ -130,6 +397,7 @@ class State {
   std::shared_ptr<void> resource_state_;
   uint32_t cursor_ = 0;
   int64_t accounted_ = 0;
+  MessagePackBuffer recycled_input_, recycled_strings_;
 };
 class Completion final : public CancelableTask {
  public:
@@ -161,7 +429,13 @@ class Worker final : public CancelableTask {
         runner_(std::move(runner)),
         completion_(std::move(completion)) {}
   void RunInternal() override {
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    data_->profile_worker_start = MessagePackProfileNow();
+#endif
     RunMessagePackWorker(data_.get());
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    data_->profile_worker_end = MessagePackProfileNow();
+#endif
     runner_->PostNonNestableTask(std::move(completion_));
   }
 
@@ -211,13 +485,26 @@ bool HasPendingMessagePackTasks(Isolate* isolate) {
 }
 void CancelMessagePackTasks(Isolate* isolate) {
   States states;
+  std::unique_ptr<DecodeBuffers> buffers;
   auto* jobs = GetJobs();
   {
     base::MutexGuard lock(&jobs->mutex);
     auto it = jobs->jobs.find(isolate);
-    if (it == jobs->jobs.end()) return;
-    states.swap(it->second);
-    jobs->jobs.erase(it);
+    if (it != jobs->jobs.end()) {
+      states.swap(it->second);
+      jobs->jobs.erase(it);
+    }
+    auto cached = jobs->buffers.find(isolate);
+    if (cached != jobs->buffers.end()) {
+      buffers = std::move(cached->second);
+      jobs->buffers.erase(cached);
+    }
+  }
+  if (buffers) {
+    size_t bytes = buffers->bytes();
+    buffers.reset();
+    reinterpret_cast<v8::Isolate*>(isolate)
+        ->AdjustAmountOfExternalAllocatedMemory(-static_cast<int64_t>(bytes));
   }
   for (auto& entry : states) entry.second->Cancel();
 }
@@ -253,6 +540,9 @@ MaybeHandle<JSPromise> MessagePackAsync(Isolate* isolate, Handle<Object> value,
     auto data = std::make_shared<MessagePackAsyncData>();
     data->encode = encode;
     data->resource = resource;
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    data->profile_start = MessagePackProfileNow();
+#endif
     if (encode) {
       if (!CaptureMessagePack(isolate, value, data.get())) {
         ThrowMessagePackError(isolate, data->error, true);
@@ -268,15 +558,21 @@ MaybeHandle<JSPromise> MessagePackAsync(Isolate* isolate, Handle<Object> value,
         return isolate->is_execution_terminating() ? MaybeHandle<JSPromise>()
                                                    : promise;
       }
+      if (resource && length > 65536)
+        BorrowDecodeBuffers(isolate, data.get(), length);
       std::memcpy(data->input.Append(length),
                   static_cast<const uint8_t*>(backing->buffer_start()) + offset,
                   length);
     }
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    data->profile_capture = MessagePackProfileNow() - data->profile_start;
+#endif
     // Dispatch and two task hops dominate tiny resources. Bound inline work
     // by the owned snapshot, not a mutable JS graph estimate. Promise handlers
     // still execute as microtasks and all platform/job admission checks above
     // remain in force. Larger resources retain workers and cooperative slices.
-    if (resource && data->input.size() <= 256) {
+    if (resource &&
+        (data->input.size() <= 256 || (!encode && SmallResourcePlan(*data)))) {
       Handle<Object> result;
       if (encode) {
         RunMessagePackWorker(data.get());
@@ -324,8 +620,12 @@ MaybeHandle<JSPromise> MessagePackAsync(Isolate* isolate, Handle<Object> value,
       state->Cancel();
       throw;
     }
+#ifdef MSGPACK_RESOURCE_TIMINGS
+    data->profile_queued = MessagePackProfileNow();
+#endif
     platform->CallOnWorkerThread(std::move(task));
-    return promise;
+    return isolate->is_execution_terminating() ? MaybeHandle<JSPromise>()
+                                               : promise;
   } catch (const std::bad_alloc&) {
     ThrowMessagePackError(isolate, "MessagePack native allocation failed",
                           encode);

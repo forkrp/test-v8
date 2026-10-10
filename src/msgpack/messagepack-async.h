@@ -6,12 +6,22 @@
 #include <atomic>
 #include <memory>
 #include <vector>
+#ifdef MSGPACK_RESOURCE_TIMINGS
+#include <chrono>
+#endif
 
 #include "src/msgpack/messagepack-string.h"
 #include "src/msgpack/messagepack.h"
 #include "src/objects/objects.h"
 
 namespace v8::internal {
+#ifdef MSGPACK_RESOURCE_TIMINGS
+inline uint64_t MessagePackProfileNow() {
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(
+             std::chrono::steady_clock::now().time_since_epoch())
+      .count();
+}
+#endif
 class BackingStore;
 class PersistentHandles;
 class JSPromise;
@@ -38,7 +48,8 @@ struct MessagePackToken {
     kDecodedString16,
     kResourceMap,
     kResourceString,
-    kResourceNumbers
+    kResourceNumbers,
+    kResourceRecord
   };
   // A tag offset is strictly below the 256 MiB input limit.
   uint32_t offset : 28 = 0;
@@ -88,6 +99,9 @@ struct MessagePackResourceNumberBlock {
   uint16_t count;
   uint8_t kind, scale;
 };
+struct MessagePackResourceRecord {
+  uint32_t offset, shape;
+};
 // Fixed native blocks permit consumed tape storage to be released between
 // foreground slices without moving token indices or retaining token pointers.
 class MessagePackTape {
@@ -133,6 +147,12 @@ class MessagePackTape {
   size_t count_ = 0, base_ = 0, live_blocks_ = 0;
 };
 struct MessagePackAsyncData {
+#ifdef MSGPACK_RESOURCE_TIMINGS
+  uint64_t profile_start = 0, profile_capture = 0, profile_queued = 0;
+  uint64_t profile_worker_start = 0, profile_worker_end = 0;
+  uint64_t profile_first = 0, profile_last = 0, profile_queue = 0;
+  uint64_t profile_build = 0, profile_account = 0, profile_slices = 0;
+#endif
   static constexpr size_t kNativeLimit = 256 * 1024 * 1024;
   std::atomic<bool> cancelled{false};
 #if defined(V8_TARGET_OS_ANDROID) && defined(V8_TARGET_ARCH_ARM)
@@ -149,6 +169,7 @@ struct MessagePackAsyncData {
   std::vector<MessagePackToken> resource_tables;
   std::vector<uint16_t> resource_work;
   std::vector<MessagePackResourceNumberBlock> resource_numbers;
+  std::vector<MessagePackResourceRecord> resource_records;
   std::vector<uint8_t> resource_shape_used, resource_string_used;
   std::string error;
   bool encode = false;
@@ -160,7 +181,9 @@ struct MessagePackAsyncData {
     return input.capacity() + decoded_strings.capacity() + output.capacity() +
            resource_tables.capacity() * sizeof(MessagePackToken) +
            resource_work.capacity() * sizeof(uint16_t) +
-           resource_numbers.capacity() * sizeof(MessagePackResourceNumberBlock) +
+           resource_numbers.capacity() *
+               sizeof(MessagePackResourceNumberBlock) +
+           resource_records.capacity() * sizeof(MessagePackResourceRecord) +
            resource_shape_used.capacity() + resource_string_used.capacity() +
            parts.capacity() * sizeof(MessagePackEncodePart) +
            tokens.capacity() * sizeof(MessagePackToken);

@@ -29,6 +29,15 @@ class DirectMessagePackDecoder {
     cursor_ = begin_ + offset;
     return Value(depth, role);
   }
+  Handle<Object> DecodeRecord(const MessagePackToken& token, size_t depth,
+                              Handle<String> role) {
+    const auto& record = async_->resource_records[token.container.auxiliary];
+    cursor_ = begin_ + record.offset;
+    direct_record_ = true;
+    return Container<true>(0, depth, role, true,
+                           &resource_->shapes[record.shape],
+                           token.container.count);
+  }
   MaybeHandle<Object> Decode() {
     Handle<Object> value = Value(0, {});
     if (value.is_null()) return {};
@@ -174,6 +183,9 @@ class DirectMessagePackDecoder {
     if (token) {
       DCHECK(token->IsString());
       info = token->StringInfo();
+    } else if (direct_record_) {
+      // Every literal in this bounded record passed the worker's ASCII scan.
+      info.length = static_cast<int>(size);
     } else if (!ScanUtf8(bytes, size, &info)) {
       Fail("Invalid MessagePack UTF-8 string");
       return {};
@@ -770,6 +782,15 @@ class DirectMessagePackDecoder {
       *number = value;
     } else if (tag == 0xcb) {
       std::memcpy(number, &bits, sizeof(*number));
+    } else if (bytes <= 4) {
+      if (tag >= 0xd0) {
+        int32_t value = bytes == 1   ? static_cast<int8_t>(bits)
+                        : bytes == 2 ? static_cast<int16_t>(bits)
+                                     : static_cast<int32_t>(bits);
+        *number = static_cast<double>(value);
+      } else {
+        *number = static_cast<double>(static_cast<uint32_t>(bits));
+      }
     } else if (tag >= 0xd0 && (bits & (uint64_t{1} << (bytes * 8 - 1)))) {
       if (bytes < 8) bits |= ~uint64_t{0} << (bytes * 8);
       int64_t value;
@@ -920,9 +941,10 @@ class DirectMessagePackDecoder {
 #endif
   template <bool resource_shape = false>
   Handle<Object> Container(uint8_t tag, size_t depth, Handle<String> role,
-                           bool map, ResourceShape* schema = nullptr) {
-    uint32_t count;
-    if (!Length(tag, &count)) return {};
+                           bool map, ResourceShape* schema = nullptr,
+                           uint32_t supplied_count = UINT32_MAX) {
+    uint32_t count = supplied_count;
+    if (count == UINT32_MAX && !Length(tag, &count)) return {};
     if (depth >= kMaxDepth) return Fail("MessagePack nesting limit exceeded");
     if (resource_shape && count != schema->keys.size())
       return Fail("MessagePack resource field count mismatch");

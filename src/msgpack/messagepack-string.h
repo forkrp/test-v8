@@ -258,6 +258,125 @@ inline bool ScanUtf8(const uint8_t* s, size_t n, Utf8Info* info) {
   return ScanUtf8Body(s, n, info);
 }
 
+// Strict validation and UTF-16 decoding in one bounded worker pass. Uniform
+// two/three-byte runs need no general continuation carry masks or second scan.
+// The caller reserves at least n code units; no vector accesses cross n.
+inline bool ScanDecodeUtf8(const uint8_t* s, size_t n, Utf8Info* info,
+                           uint16_t* output) {
+  uint16_t* out = output;
+  for (size_t i = 0; i < n;) {
+#ifdef V8_MSGPACK_NEON
+    if (n - i >= 16 && s[i] < 0x80) {
+      auto bytes = vld1q_u8(s + i);
+      if (!Any(vcgeq_u8(bytes, vdupq_n_u8(0x80)))) {
+        vst1q_u16(out, vmovl_u8(vget_low_u8(bytes)));
+        vst1q_u16(out + 8, vmovl_u8(vget_high_u8(bytes)));
+        i += 16;
+        out += 16;
+        continue;
+      }
+    }
+#endif
+    while (i < n && s[i] < 0x80) *out++ = s[i++];
+    if (i == n) break;
+    if (info->ascii) info->ascii_prefix = static_cast<int>(i);
+    info->ascii = false;
+#ifdef V8_MSGPACK_NEON
+    if (n - i >= 16 && s[i] >= 0xc2 && s[i] <= 0xdf) {
+      auto b = vld2_u8(s + i);
+      auto valid = vand_u8(vcge_u8(b.val[0], vdup_n_u8(0xc2)),
+                           vcle_u8(b.val[0], vdup_n_u8(0xdf)));
+      valid = vand_u8(
+          valid, vceq_u8(vand_u8(b.val[1], vdup_n_u8(0xc0)), vdup_n_u8(0x80)));
+      if (All(valid)) {
+        auto chars = vorrq_u16(
+            vshlq_n_u16(vmovl_u8(vand_u8(b.val[0], vdup_n_u8(31))), 6),
+            vmovl_u8(vand_u8(b.val[1], vdup_n_u8(63))));
+        vst1q_u16(out, chars);
+        info->one_byte &= All(vcle_u8(b.val[0], vdup_n_u8(0xc3)));
+        i += 16;
+        out += 8;
+        continue;
+      }
+    }
+    if (n - i >= 24 && s[i] >= 0xe0 && s[i] <= 0xef) {
+      auto b = vld3_u8(s + i);
+      auto valid = vand_u8(vcge_u8(b.val[0], vdup_n_u8(0xe0)),
+                           vcle_u8(b.val[0], vdup_n_u8(0xef)));
+      valid = vand_u8(
+          valid,
+          vand_u8(
+              vceq_u8(vand_u8(b.val[1], vdup_n_u8(0xc0)), vdup_n_u8(0x80)),
+              vceq_u8(vand_u8(b.val[2], vdup_n_u8(0xc0)), vdup_n_u8(0x80))));
+      valid =
+          vand_u8(valid, vorr_u8(vmvn_u8(vceq_u8(b.val[0], vdup_n_u8(0xe0))),
+                                 vcge_u8(b.val[1], vdup_n_u8(0xa0))));
+      valid =
+          vand_u8(valid, vorr_u8(vmvn_u8(vceq_u8(b.val[0], vdup_n_u8(0xed))),
+                                 vclt_u8(b.val[1], vdup_n_u8(0xa0))));
+      if (All(valid)) {
+        auto chars = vorrq_u16(
+            vshlq_n_u16(vmovl_u8(vand_u8(b.val[0], vdup_n_u8(15))), 12),
+            vorrq_u16(
+                vshlq_n_u16(vmovl_u8(vand_u8(b.val[1], vdup_n_u8(63))), 6),
+                vmovl_u8(vand_u8(b.val[2], vdup_n_u8(63)))));
+        vst1q_u16(out, chars);
+        info->one_byte = false;
+        i += 24;
+        out += 8;
+        continue;
+      }
+    }
+#endif
+    uint8_t lead = s[i++];
+    unsigned follow;
+    uint32_t cp;
+    if (lead >= 0xc2 && lead <= 0xdf) {
+      follow = 1;
+      cp = lead & 31;
+    } else if (lead >= 0xe0 && lead <= 0xef) {
+      follow = 2;
+      cp = lead & 15;
+    } else if (lead >= 0xf0 && lead <= 0xf4) {
+      follow = 3;
+      cp = lead & 7;
+    } else
+      return false;
+    if (follow > n - i) return false;
+    for (unsigned j = 0; j < follow; ++j) {
+      uint8_t c = s[i++];
+      if ((c & 0xc0) != 0x80) return false;
+      cp = (cp << 6) | (c & 63);
+    }
+    if ((follow == 1 && cp < 0x80) || (follow == 2 && cp < 0x800) ||
+        (follow == 3 && cp < 0x10000) || cp > 0x10ffff ||
+        (cp >= 0xd800 && cp <= 0xdfff))
+      return false;
+    info->one_byte &= cp <= 0xff;
+    if (cp > 0xffff) {
+      cp -= 0x10000;
+      *out++ = static_cast<uint16_t>(0xd800 + (cp >> 10));
+      *out++ = static_cast<uint16_t>(0xdc00 + (cp & 1023));
+    } else
+      *out++ = static_cast<uint16_t>(cp);
+  }
+  info->length = static_cast<int>(out - output);
+  return true;
+}
+
+inline void NarrowDecodedString(const uint16_t* input, size_t count,
+                                uint8_t* output) {
+  size_t i = 0;
+#ifdef V8_MSGPACK_NEON
+  for (; count - i >= 16; i += 16) {
+    auto low = vmovn_u16(vld1q_u16(input + i));
+    auto high = vmovn_u16(vld1q_u16(input + i + 8));
+    vst1q_u8(output + i, vcombine_u8(low, high));
+  }
+#endif
+  for (; i < count; ++i) output[i] = static_cast<uint8_t>(input[i]);
+}
+
 // The immutable input has passed ScanUtf8. SIMD handles ASCII and regular
 // two/three-byte runs; mixed widths and supplementary characters use scalar
 // code. Stores write only the exact number of decoded code units.

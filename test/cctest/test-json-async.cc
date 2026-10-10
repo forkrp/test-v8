@@ -17,6 +17,7 @@
 #include "src/json/json-stringifier-async.h"
 #include "src/json/json-stringifier-escape.h"
 #include "src/json/json-stringifier.h"
+#include "src/msgpack/messagepack-async.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/objects-inl.h"
@@ -1278,6 +1279,37 @@ TEST_WITH_PLATFORM(MessagePackAsyncNativeAccounting, JsonTestPlatform) {
   CHECK_LE(isolate->AdjustAmountOfExternalAllocatedMemory(0), baseline_native + static_cast<int64_t>(bytes->ByteLength()) + 4096);
   printf("MessagePack native accounting: baseline=%zu encoded=%zu decoded=%zu payload=%zu\n",
          before.external_memory(), encoded.external_memory(), decoded.external_memory(), bytes->ByteLength());
+}
+
+TEST_WITH_PLATFORM(MessagePackResourceAsyncBufferReuseAccounting,
+                   JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  CompileRun(
+      "var text = '中'.repeat(100000); var bytes = "
+      "MSGPACK.encodeResource(text)");
+  int64_t before = isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  auto first =
+      CompileRun("MSGPACK.decodeResourceAsync(bytes)").As<v8::Promise>();
+  while (isolate->HasPendingBackgroundTasks()) CHECK(runner->RunOne(isolate));
+  CHECK_EQ(v8::Promise::kFulfilled, first->State());
+  CHECK(first->Result()->StrictEquals(CompileRun("text")));
+  int64_t cached = isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  CHECK_GE(cached, before + 500000);
+  CHECK_LE(cached, before + 16 * 1024 * 1024 + 4096);
+  auto second =
+      CompileRun("MSGPACK.decodeResourceAsync(bytes)").As<v8::Promise>();
+  int64_t pending = isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  CHECK_GE(pending, cached);
+  CHECK_LE(pending, cached + 4096);
+  while (isolate->HasPendingBackgroundTasks()) CHECK(runner->RunOne(isolate));
+  CHECK_EQ(v8::Promise::kFulfilled, second->State());
+  CHECK(second->Result()->StrictEquals(CompileRun("text")));
+  CHECK_LE(isolate->AdjustAmountOfExternalAllocatedMemory(0), cached + 4096);
+  i::CancelMessagePackTasks(CcTest::i_isolate());
+  CHECK_LE(isolate->AdjustAmountOfExternalAllocatedMemory(0), before + 4096);
 }
 
 TEST_WITH_PLATFORM(MessagePackAsyncCompleteWireAccounting, JsonTestPlatform) {
