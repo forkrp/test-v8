@@ -31,6 +31,8 @@ run on the worker. The compact analysis shares the synchronous implementation.
 An owned root numeric span reuses the same block packer directly, avoiding a
 second numeric DOM. Native strings borrow immutable owned bytes during analysis;
 selected output storage transfers to the result backing store without a copy.
+Bounded repeated long strings reuse worker-owned encoded spans after exact
+code-unit comparison; cache offsets remain valid across output relocation.
 
 `decodeResourceAsync(input)` accepts compact V8MR v1 and ordinary MessagePack.
 On the worker, it validates the resource envelope, all table entries (including

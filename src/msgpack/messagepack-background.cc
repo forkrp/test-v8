@@ -151,18 +151,51 @@ void String(MessagePackAsyncData* data, msgpack::packer<Writer>* packer,
     if (!pass) packer->pack_str(static_cast<uint32_t>(total));
   }
 }
+template <bool memoize>
 void Encode(MessagePackAsyncData* data) {
   // A capture with no deferred parts is already complete wire bytes.
   // Foreground completion transfers that owned buffer directly.
   if (data->parts.empty()) return;
   Writer writer(&data->output);
   msgpack::packer<Writer> packer(writer);
+  struct StringMemo {
+    uint32_t input, length, output, wire;
+    MessagePackEncodePart::Kind kind;
+  } strings[128];
+  uint64_t valid[2]{};
   size_t cursor = 0;
   for (const auto& part : data->parts) {
     if (Cancelled(data)) return;
     writer.write(reinterpret_cast<const char*>(data->input.data() + cursor),
                  part.offset - cursor);
     const uint8_t* bytes = data->input.data() + part.offset;
+    bool memo = memoize &&
+        (part.kind == MessagePackEncodePart::kString8 ||
+         part.kind == MessagePackEncodePart::kString16) &&
+        part.length >= 256 && part.length <= 4096;
+    uint32_t slot = 0;
+    size_t wire_start = data->output.size();
+    if (memo) {
+      // A bounded fingerprint selects a slot; every hit compares all owned
+      // code units. Cache offsets survive output growth and page relocation.
+      uint32_t first, middle, last;
+      std::memcpy(&first, bytes, 4);
+      std::memcpy(&middle, bytes + part.length / 2, 4);
+      std::memcpy(&last, bytes + part.length - 4, 4);
+      uint32_t hash = first * 16777619u ^ middle * 31u ^ last ^ part.length;
+      hash ^= hash >> 16;
+      slot = hash & 127;
+      if (valid[slot / 64] & (uint64_t{1} << (slot & 63))) {
+        const auto& entry = strings[slot];
+        if (entry.kind == part.kind && entry.length == part.length &&
+            std::memcmp(data->input.data() + entry.input, bytes, part.length) == 0) {
+          uint8_t* output = data->output.Append(entry.wire);
+          std::memcpy(output, data->output.data() + entry.output, entry.wire);
+          cursor = part.offset + part.length;
+          continue;
+        }
+      }
+    }
     if (part.kind == MessagePackEncodePart::kString8) {
       String<uint8_t>(data, &packer, bytes, part.length);
     } else if (part.kind == MessagePackEncodePart::kString16) {
@@ -184,6 +217,13 @@ void Encode(MessagePackAsyncData* data) {
           Number(&packer, n);
         }
       }
+    }
+    if (memo) {
+      strings[slot] = {part.offset, part.length,
+                      static_cast<uint32_t>(wire_start),
+                      static_cast<uint32_t>(data->output.size() - wire_start),
+                      part.kind};
+      valid[slot / 64] |= uint64_t{1} << (slot & 63);
     }
     cursor = part.offset + part.length;
   }
@@ -463,7 +503,19 @@ class Parser {
 void RunMessagePackWorker(MessagePackAsyncData* data) {
   try {
     if (data->encode) {
-      Encode(data);
+      bool memoize = false;
+      if (data->resource)
+        for (const auto& part : data->parts)
+          if ((part.kind == MessagePackEncodePart::kString8 ||
+               part.kind == MessagePackEncodePart::kString16) &&
+              part.length >= 256 && part.length <= 4096) {
+            memoize = true;
+            break;
+          }
+      // Keep the numeric/ordinary writer's inlining and register allocation
+      // separate from the larger resource string-memo path.
+      if (memoize) Encode<true>(data);
+      else Encode<false>(data);
       bool numeric_root = false;
       if (data->resource && !Cancelled(data) && data->parts.size() == 1) {
         const auto& part = data->parts[0];
