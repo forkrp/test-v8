@@ -109,6 +109,13 @@ Promise can be settled before return, with normal microtask continuations.
 Such calls spend more of their small completion cost on the caller; the work
 estimate and byte cap are bounds rather than a hard time guarantee.
 
+A flat packed-number root with empty shape/string tables can use the same
+direct route up to 256 KiB, 131,072 elements and 1,024 blocks. The probe reads
+block headers and skips numeric bytes; full validation remains in the decoder.
+Packed 64-bit integers keep the worker path. These bounded arrays avoid task
+hops when the remaining worker validation is cheaper than dispatch itself.
+The owned inline snapshot is charged as external memory until completion.
+
 Decode materialization is cooperative: large containers use rooted frames and
 foreground slices, with a 2 ms time budget checked at bounded work intervals. Resource decode uses
 this time budget without forcing another task solely at 65,536 work units.

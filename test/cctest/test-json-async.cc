@@ -1312,6 +1312,47 @@ TEST_WITH_PLATFORM(MessagePackResourceAsyncBufferReuseAccounting,
   CHECK_LE(isolate->AdjustAmountOfExternalAllocatedMemory(0), before + 4096);
 }
 
+TEST_WITH_PLATFORM(MessagePackResourceAsyncPackedInlineLimits,
+                   JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  CompileRun(
+      "var packedInput = Array.from({length:131072}, (_,i)=>i%256);"
+      "var packedWire = MSGPACK.encodeResource(packedInput);");
+  CHECK(CompileRun("packedWire.length < 262144 && packedWire[0] === 86")
+            ->IsTrue());
+  int64_t before = isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  auto decoded =
+      CompileRun("MSGPACK.decodeResourceAsync(packedWire)").As<v8::Promise>();
+  CHECK_EQ(v8::Promise::kFulfilled, decoded->State());
+  CHECK(!isolate->HasPendingBackgroundTasks());
+  CHECK(!runner->RunOne());
+  CHECK_LE(isolate->AdjustAmountOfExternalAllocatedMemory(0), before + 4096);
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("packedResult"), decoded->Result())
+            .FromJust());
+  CHECK(CompileRun("packedResult.length === 131072 && "
+                   "packedResult.every((v,i)=>v===i%256)")
+            ->IsTrue());
+  for (const char* source :
+       {"MSGPACK.encodeResource(Array.from({length:131073}, (_,i)=>i%256))",
+        "MSGPACK.encodeResource(Array.from({length:40000}, "
+        "(_,i)=>i+0.123456789))"}) {
+    auto bytes = CompileRun(source);
+    CHECK(context->Global()
+              ->Set(context.local(), v8_str("packedLarger"), bytes)
+              .FromJust());
+    auto pending = CompileRun("MSGPACK.decodeResourceAsync(packedLarger)")
+                       .As<v8::Promise>();
+    CHECK_EQ(v8::Promise::kPending, pending->State());
+    CHECK(isolate->HasPendingBackgroundTasks());
+    while (isolate->HasPendingBackgroundTasks()) CHECK(runner->RunOne(isolate));
+    CHECK_EQ(v8::Promise::kFulfilled, pending->State());
+  }
+}
+
 TEST_WITH_PLATFORM(MessagePackAsyncCompleteWireAccounting, JsonTestPlatform) {
   auto isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);

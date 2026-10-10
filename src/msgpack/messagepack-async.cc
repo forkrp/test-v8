@@ -39,6 +39,87 @@ struct Jobs {
 };
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(Jobs, GetJobs)
 constexpr size_t kCachedDecodeBufferLimit = 8 * 1024 * 1024;
+constexpr size_t kInlinePackedInputLimit = 256 * 1024;
+bool PackedResourcePrefix(const uint8_t* bytes, size_t length) {
+  return length >= 8 && length <= kInlinePackedInputLimit &&
+         std::memcmp(bytes, "V8MR\x01\x93\x90\x90", 8) == 0;
+}
+bool SmallPackedResourcePlan(const MessagePackAsyncData& data) {
+  const auto& input = data.input;
+  if (!PackedResourcePrefix(input.data(), input.size())) return false;
+  size_t position = 8;
+  auto read = [&](size_t width, uint32_t* value) {
+    if (width > input.size() - position) return false;
+    uint32_t n = 0;
+    for (size_t i = 0; i < width; ++i) n = (n << 8) | input.data()[position++];
+    *value = n;
+    return true;
+  };
+  auto integer = [&](uint32_t* n) {
+    uint32_t tag;
+    if (!read(1, &tag)) return false;
+    if (tag <= 127) {
+      *n = tag;
+      return true;
+    }
+    return tag >= 0xcc && tag <= 0xce && read(size_t{1} << (tag - 0xcc), n);
+  };
+  auto array = [&](uint32_t* count) {
+    uint32_t tag;
+    if (!read(1, &tag)) return false;
+    if ((tag & 0xf0) == 0x90) {
+      *count = tag & 15;
+      return true;
+    }
+    return tag == 0xdc ? read(2, count) : tag == 0xdd && read(4, count);
+  };
+  uint32_t tag, bytes, type;
+  if (!read(1, &tag)) return false;
+  if (tag >= 0xd4 && tag <= 0xd8)
+    bytes = uint32_t{1} << (tag - 0xd4);
+  else if (tag < 0xc7 || tag > 0xc9 || !read(size_t{1} << (tag - 0xc7), &bytes))
+    return false;
+  if (!read(1, &type) || type != 0x52 || bytes != input.size() - position)
+    return false;
+  uint32_t fields, count, blocks;
+  if (!array(&fields) || fields != 2 || !integer(&count) || !count ||
+      count > 131072 || !array(&blocks) || !blocks || blocks > 1024 ||
+      blocks > count)
+    return false;
+  uint32_t total = 0;
+  for (uint32_t i = 0; i < blocks; ++i) {
+    uint32_t kind, scale;
+    if (!array(&fields) || fields != 3 || !integer(&kind) || kind > 9 ||
+        kind == 6 || kind == 7 || !integer(&scale) || scale > 9 ||
+        (kind >= 8 && scale) || !read(1, &tag) || tag < 0xc4 || tag > 0xc6 ||
+        !read(size_t{1} << (tag - 0xc4), &bytes))
+      return false;
+    static constexpr unsigned widths[] = {1, 1, 2, 2, 4, 4, 8, 8, 4, 8};
+    unsigned width = widths[kind];
+    if (!bytes || bytes > input.size() - position || bytes % width ||
+        bytes / width > 256 || bytes / width > count - total)
+      return false;
+    total += bytes / width;
+    position += bytes;
+  }
+  // This is a cost probe. The direct decoder still validates every block and
+  // scalar. Flat packed arrays allocate one backing store rather than a graph.
+  return position == input.size() && total == count;
+}
+class InlineMemoryCharge {
+ public:
+  InlineMemoryCharge(Isolate* isolate, size_t bytes)
+      : isolate_(reinterpret_cast<v8::Isolate*>(isolate)), bytes_(bytes) {
+    isolate_->AdjustAmountOfExternalAllocatedMemory(bytes_);
+  }
+  ~InlineMemoryCharge() {
+    isolate_->AdjustAmountOfExternalAllocatedMemory(-bytes_);
+  }
+
+ private:
+  v8::Isolate* isolate_;
+  int64_t bytes_;
+};
 bool SmallResourcePlan(const MessagePackAsyncData& data) {
   const auto& input = data.input;
   if (input.size() > 65536 || input.size() < 8 ||
@@ -558,11 +639,11 @@ MaybeHandle<JSPromise> MessagePackAsync(Isolate* isolate, Handle<Object> value,
         return isolate->is_execution_terminating() ? MaybeHandle<JSPromise>()
                                                    : promise;
       }
-      if (resource && length > 65536)
+      const uint8_t* bytes =
+          static_cast<const uint8_t*>(backing->buffer_start()) + offset;
+      if (resource && length > 65536 && !PackedResourcePrefix(bytes, length))
         BorrowDecodeBuffers(isolate, data.get(), length);
-      std::memcpy(data->input.Append(length),
-                  static_cast<const uint8_t*>(backing->buffer_start()) + offset,
-                  length);
+      std::memcpy(data->input.Append(length), bytes, length);
     }
 #ifdef MSGPACK_RESOURCE_TIMINGS
     data->profile_capture = MessagePackProfileNow() - data->profile_start;
@@ -571,8 +652,10 @@ MaybeHandle<JSPromise> MessagePackAsync(Isolate* isolate, Handle<Object> value,
     // by the owned snapshot, not a mutable JS graph estimate. Promise handlers
     // still execute as microtasks and all platform/job admission checks above
     // remain in force. Larger resources retain workers and cooperative slices.
-    if (resource &&
-        (data->input.size() <= 256 || (!encode && SmallResourcePlan(*data)))) {
+    if (resource && (data->input.size() <= 256 ||
+                     (!encode && (SmallResourcePlan(*data) ||
+                                  SmallPackedResourcePlan(*data))))) {
+      InlineMemoryCharge charge(isolate, data->MemoryUsage());
       Handle<Object> result;
       if (encode) {
         RunMessagePackWorker(data.get());
