@@ -41,7 +41,7 @@ class DirectMessagePackDecoder {
   Handle<Object> DecodeStreamRecord(uint32_t body, uint32_t shape, bool ascii) {
     cursor_ = begin_ + body;
     direct_record_ = ascii;
-    auto* schema = &resource_->shapes[shape];
+    auto* schema = &resource_->shapes.at(shape);
     return Container<true>(0, 1, {}, true, schema,
                            static_cast<uint32_t>(schema->keys.size()));
   }

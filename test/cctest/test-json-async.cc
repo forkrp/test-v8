@@ -1412,7 +1412,7 @@ TEST_WITH_PLATFORM(MessagePackResourceAsyncRecordStreaming, JsonTestPlatform) {
     std::shared_ptr<i::MessagePackAsyncData> data_;
     std::shared_ptr<Gate> gate_;
   };
-  for (int mode = 0; mode < 3; ++mode) {
+  for (int mode = 0; mode < 4; ++mode) {
     CompileRun(
         "var streamOriginal = Array.from({length:4096}, (_,i) => "
         "({id:i,name:'item-'+i,group:'group-'+(i%7),enabled:!!(i&1)}));"
@@ -1426,7 +1426,7 @@ TEST_WITH_PLATFORM(MessagePackResourceAsyncRecordStreaming, JsonTestPlatform) {
         data->input.Append(wire->ByteLength()),
         static_cast<const uint8_t*>(backing->Data()) + wire->ByteOffset(),
         wire->ByteLength());
-    if (mode == 1) {
+    if (mode == 1 || mode == 3) {
       CHECK_EQ(0xc3, data->input.data()[data->input.size() - 1]);
       const_cast<uint8_t*>(data->input.data())[data->input.size() - 1] = 0xc1;
     }
@@ -1443,14 +1443,26 @@ TEST_WITH_PLATFORM(MessagePackResourceAsyncRecordStreaming, JsonTestPlatform) {
     std::vector<i::MessagePackBuildFrame> frames;
     std::shared_ptr<void> state;
     uint32_t cursor = 0;
-    for (int attempts = 0; cursor < 32; ++attempts) {
-      CHECK_LT(attempts, 100);
-      CHECK(!i::BuildMessagePackSlice(internal, data.get(), roots.get(), result,
-                                      &cursor, &frames, &state));
+    if (mode == 3) {
+      // Inject a native foreground exception after the worker published this
+      // record and stopped. The worker no longer reads its descriptor. The
+      // build must report into its own error, leaving the worker error alone.
+      data->resource_stream->records[0].shape = 64;
+      CHECK(i::BuildMessagePackSlice(internal, data.get(), roots.get(), result,
+                                     &cursor, &frames, &state));
+      CHECK_EQ(0, cursor);
+      CHECK(data->error.empty());
+      CHECK(!data->resource_stream->error.empty());
+    } else {
+      for (int attempts = 0; cursor < 32; ++attempts) {
+        CHECK_LT(attempts, 100);
+        CHECK(!i::BuildMessagePackSlice(internal, data.get(), roots.get(),
+                                        result, &cursor, &frames, &state));
+      }
+      CHECK_EQ(32, cursor);
+      CHECK(data->resource_stream->error.empty());
     }
-    CHECK_EQ(32, cursor);
     CHECK_EQ(0, i::Smi::ToInt(i::JSArray::cast(*result)->length()));
-    CHECK(data->resource_stream->error.empty());
     CompileRun("streamOriginal[0].id=999;streamWire.fill(0xc1)");
     isolate->LowMemoryNotification();
     if (mode == 2) data->cancelled.store(true, std::memory_order_relaxed);
@@ -1474,6 +1486,8 @@ TEST_WITH_PLATFORM(MessagePackResourceAsyncRecordStreaming, JsonTestPlatform) {
               ->IsTrue());
     } else {
       CHECK(!data->error.empty());
+      if (mode == 3)
+        CHECK(data->error != data->resource_stream->error);
       CHECK_LT(data->resource_stream->published.load(std::memory_order_acquire),
                4096);
       CHECK_EQ(0, i::Smi::ToInt(i::JSArray::cast(*result)->length()));
@@ -1481,7 +1495,7 @@ TEST_WITH_PLATFORM(MessagePackResourceAsyncRecordStreaming, JsonTestPlatform) {
   }
   printf(
       "MessagePack record streaming: concurrent prefix, moving GC, "
-      "late malformed input and cancellation passed\n");
+      "late malformed input, cancellation and foreground exception passed\n");
 }
 
 TEST_WITH_PLATFORM(MessagePackResourceAsyncPreparedRecords, JsonTestPlatform) {

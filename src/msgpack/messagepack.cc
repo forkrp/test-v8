@@ -2212,11 +2212,14 @@ bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
     }
     return false;
   } catch (const std::bad_alloc&) {
-    data->error = "MessagePack native allocation failed";
+    (data->resource_stream ? data->resource_stream->error : data->error) =
+        "MessagePack native allocation failed";
   } catch (const std::exception& e) {
-    data->error = e.what();
+    (data->resource_stream ? data->resource_stream->error : data->error) =
+        e.what();
   } catch (...) {
-    data->error = "Native MessagePack exception";
+    (data->resource_stream ? data->resource_stream->error : data->error) =
+        "Native MessagePack exception";
   }
   return true;
 }
