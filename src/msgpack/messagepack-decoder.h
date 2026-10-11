@@ -38,6 +38,13 @@ class DirectMessagePackDecoder {
                            &resource_->shapes[record.shape],
                            token.container.count);
   }
+  Handle<Object> DecodeStreamRecord(uint32_t body, uint32_t shape, bool ascii) {
+    cursor_ = begin_ + body;
+    direct_record_ = ascii;
+    auto* schema = &resource_->shapes[shape];
+    return Container<true>(0, 1, {}, true, schema,
+                           static_cast<uint32_t>(schema->keys.size()));
+  }
   MaybeHandle<Object> Decode() {
     Handle<Object> value = Value(0, {});
     if (value.is_null()) return {};

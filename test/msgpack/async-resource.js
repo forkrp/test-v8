@@ -235,6 +235,52 @@ async function main() {
   check(outcomes.filter(x => x.status === 'rejected').length === 8, 'shared job bound');
   for (const out of outcomes) if (out.status === 'rejected') check(out.reason instanceof RangeError);
   await parity({after: 'limit'});
+  // Record streaming publishes only validated prefixes. Exercise literal
+  // Unicode, numeric bit patterns, indexed keys and a malformed last record.
+  for (const variant of ['ascii', 'unicode', 'numbers', 'indexed']) {
+    const records = Array.from({length:2500}, (_, i) => {
+      const value = {id:i, name:(variant === 'unicode' ? 'item-中-' : 'item-') + i,
+        group:'group-' + (i % 7), score:i % 5 === 0 ? -0 : i / 10,
+        enabled:!!(i & 1)};
+      if (variant === 'numbers') value.number = [NaN, Infinity, -Infinity,
+          -0, 9007199254740993n][i % 5];
+      if (variant === 'indexed') {
+        value['0'] = i;
+        Object.defineProperty(value, '__proto__',
+            {value:i, writable:true, enumerable:true, configurable:true});
+      }
+      return value;
+    });
+    const wire = MSGPACK.encodeResource(records);
+    const expected = MSGPACK.decodeResource(wire);
+    const captured = wire.slice();
+    const pending = MSGPACK.decodeResourceAsync(captured);
+    captured.fill(0xc1); records[0].id = 999; gc();
+    equal(await pending, expected);
+    const concurrent = await Promise.all(Array.from({length:4}, () =>
+        MSGPACK.decodeResourceAsync(wire)));
+    for (const value of concurrent) equal(value, expected);
+    if (variant === 'ascii') {
+      const malformed = MSGPACK.encodeResource(Array.from({length:4096},
+          (_,i) => ({id:i,name:'item-'+i,group:'group-'+(i%7),enabled:!!(i&1)})));
+      check(malformed[malformed.length-1] === 0xc3);
+      malformed[malformed.length-1] = 0xc1;
+      await rejects(MSGPACK.decodeResourceAsync(malformed), SyntaxError);
+      for (let i = 0; i < 24; ++i) {
+        const mutated = wire.slice();
+        const index = i < 6 ? i : (i * 7919) % mutated.length;
+        mutated[index] ^= 0x80;
+        await differential(mutated);
+      }
+    }
+  }
+  for (const count of [1023, 1024, 4096, 4097]) {
+    const records = Array.from({length:count}, (_,i) =>
+        ({id:i,name:'item-'+i+'-'.repeat(count < 2000 ? 45 : 5),
+          group:'group-'+(i%7),enabled:!!(i&1)}));
+    const wire = MSGPACK.encodeResource(records);
+    equal(await MSGPACK.decodeResourceAsync(wire), MSGPACK.decodeResource(wire));
+  }
   print('PASS: resource async exact bytes, compact/fallback, snapshots, GC, realms, malformed inputs, native/job limits');
 }
 main().catch(e => { print(e.stack || e); quit(1); });

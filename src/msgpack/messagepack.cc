@@ -1898,6 +1898,73 @@ bool EncodeMessagePack(Isolate* isolate, Handle<Object> value,
     return false;
   }
 }
+bool BuildMessagePackStreamSlice(Isolate* isolate, MessagePackAsyncData* data,
+                                 PersistentHandles* handles,
+                                 Handle<Object> result, uint32_t* cursor,
+                                 std::shared_ptr<void>* resource_state) {
+  auto* stream = data->resource_stream.get();
+  Handle<FixedArray> cache;
+  if (!GetMessagePackRealmCache(isolate).ToHandle(&cache)) return true;
+  Handle<WeakFixedArray> shapes(
+      handle(WeakFixedArray::cast(cache->get(1)), isolate));
+  DirectMessagePackDecoder<false> decoder(
+      isolate,
+      base::Vector<const uint8_t>(data->input.data(), data->input.size()),
+      &stream->error, shapes);
+  if (!decoder.RestoreResource(resource_state, handles)) return true;
+  if (!IsJSArray(*result)) {
+    auto array = isolate->factory()->NewJSArray(
+        PACKED_ELEMENTS, 0, static_cast<int>(stream->records.size()),
+        ArrayStorageAllocationMode::INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+    result.PatchValue(*array);
+  }
+  auto array = Handle<JSArray>::cast(result);
+  const auto deadline =
+      base::TimeTicks::Now() + base::TimeDelta::FromMilliseconds(2);
+  uint32_t work = 0, next_check = 0;
+  Handle<Object> batch[64];
+  uint32_t batched = 0;
+  auto flush = [&]() {
+    if (!batched) return;
+    DisallowGarbageCollection no_gc;
+    Tagged<FixedArray> storage = FixedArray::cast(array->elements());
+    WriteBarrierMode mode = storage->GetWriteBarrierMode(no_gc);
+    for (uint32_t i = 0; i < batched; ++i)
+      storage->set((*cursor)++, *batch[i], mode);
+    batched = 0;
+  };
+  while (*cursor + batched < stream->records.size()) {
+    if (work >= next_check) {
+      next_check = work + 128;
+      StackLimitCheck check(isolate);
+      if (check.InterruptRequested())
+        USE(isolate->stack_guard()->HandleInterrupts());
+      if (isolate->has_exception()) return true;
+      if (work && base::TimeTicks::Now() >= deadline) {
+        flush();
+        return false;
+      }
+    }
+    if (*cursor + batched >=
+        stream->published.load(std::memory_order_acquire)) {
+      flush();
+      return false;
+    }
+    const auto& record = stream->records[*cursor + batched];
+    bool ascii = record.shape & MessagePackResourceStream::kAscii;
+    uint32_t shape = record.shape & ~MessagePackResourceStream::kAscii;
+    Handle<Object> value =
+        decoder.DecodeStreamRecord(record.body, shape, ascii);
+    if (value.is_null()) return true;
+    batch[batched++] = value;
+    if (batched == 64) flush();
+    work += record.work;
+  }
+  flush();
+  if (!stream->complete.load(std::memory_order_acquire)) return false;
+  array->set_length(Smi::FromInt(*cursor));
+  return true;
+}
 bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
                            PersistentHandles* handles, Handle<Object> result,
                            uint32_t* cursor,
@@ -1905,6 +1972,9 @@ bool BuildMessagePackSlice(Isolate* isolate, MessagePackAsyncData* data,
                            std::shared_ptr<void>* resource_state) {
   DisallowJavascriptExecution no_js(isolate);
   try {
+    if (data->resource_stream)
+      return BuildMessagePackStreamSlice(isolate, data, handles, result, cursor,
+                                         resource_state);
     Handle<FixedArray> cache;
     if (!GetMessagePackRealmCache(isolate).ToHandle(&cache)) return true;
     Handle<WeakFixedArray> shapes(

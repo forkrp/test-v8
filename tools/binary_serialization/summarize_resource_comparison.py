@@ -21,8 +21,9 @@ def main():
     if not report.get('finishedUtc'):
         raise RuntimeError('Matrix is incomplete')
     config = report['config']
+    operations = config.get('operations', ['encode', 'decode'])
     expected = set(itertools.product(['before', 'after'], ['arm64', 'arm32'],
-        config['workloads'], ['encode', 'decode'], config['codecs'], config['jobs'],
+        config['workloads'], operations, config['codecs'], config['jobs'],
         range(config['passes'])))
     actual = []
     groups = defaultdict(list)
@@ -81,7 +82,7 @@ def main():
                for key, rows in groups.items()}
     comparisons = []
     for abi, name, op, codec, jobs in itertools.product(['arm64', 'arm32'],
-            config['workloads'], ['encode', 'decode'], config['codecs'], config['jobs']):
+            config['workloads'], operations, config['codecs'], config['jobs']):
         before = medians['before', abi, name, op, codec, jobs]
         after = medians['after', abi, name, op, codec, jobs]
         comparisons.append(dict(abi=abi, workload=name, operation=op, codec=codec, jobs=jobs,
@@ -92,7 +93,7 @@ def main():
     def gm(values):
         return math.exp(statistics.mean(math.log(x) for x in values))
     aggregates = []
-    for abi, op, jobs in itertools.product(['arm64', 'arm32'], ['encode', 'decode'], config['jobs']):
+    for abi, op, jobs in itertools.product(['arm64', 'arm32'], operations, config['jobs']):
         names = [n for n in config['workloads'] if n != 'tiny']
         def time(version, name, codec):
             return medians[version, abi, name, op, codec, jobs]['totalMs']

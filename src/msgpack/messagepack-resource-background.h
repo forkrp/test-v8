@@ -1,12 +1,84 @@
 // Copyright 2026 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license in LICENSE.
 // Validate compact input once and retain resource references in the native
-// tape. Numeric blocks remain owned wire spans, rather than one token per value.
+// tape. Numeric blocks remain owned wire spans, rather than one token per
+// value.
 class ResourceTapeDecoder {
  public:
-  explicit ResourceTapeDecoder(MessagePackAsyncData* data)
-      : data_(data), end_(data->input.size()) {}
+  explicit ResourceTapeDecoder(MessagePackAsyncData* data,
+                               const std::function<void()>& records_ready)
+      : data_(data), end_(data->input.size()), records_ready_(records_ready) {}
   void Decode() {
+    Header();
+    if (TryStream()) return;
+    Value(0, false);
+    if (pos_ != end_) Fail("Trailing bytes after MessagePack value");
+    data_->resource_metadata = metadata_;
+  }
+  bool Prepare() {
+    Header();
+    return TryStream(true);
+  }
+  void Resume(const std::function<void()>& ready) {
+    records_ready_ = ready;
+    struct Clear {
+      std::function<void()>* callback;
+      ~Clear() { *callback = {}; }
+    } clear{&records_ready_};
+    ready_at_ = record_cursor_ + 32;
+    ValidateRecords(
+        static_cast<uint32_t>(data_->resource_stream->records.size()));
+  }
+  static bool Candidate(const MessagePackBuffer& input) {
+    if (input.size() <= 65536 || input.size() > 256 * 1024 ||
+        std::memcmp(input.data(), "V8MR\x01\x93", 6))
+      return false;
+    size_t pos = 6, chars = 0;
+    auto read = [&](size_t n, uint32_t* value) {
+      if (n > input.size() - pos) return false;
+      *value = 0;
+      for (size_t i = 0; i < n; ++i)
+        *value = (*value << 8) | input.data()[pos++];
+      return true;
+    };
+    auto array = [&](uint32_t* count) {
+      uint32_t tag;
+      if (!read(1, &tag)) return false;
+      if ((tag & 0xf0) == 0x90) {
+        *count = tag & 15;
+        return true;
+      }
+      return tag == 0xdc ? read(2, count) : tag == 0xdd && read(4, count);
+    };
+    auto string = [&]() {
+      uint32_t tag, size;
+      if (!read(1, &tag)) return false;
+      if ((tag & 0xe0) == 0xa0)
+        size = tag & 31;
+      else if (tag < 0xd9 || tag > 0xdb ||
+               !read(size_t{1} << (tag - 0xd9), &size))
+        return false;
+      if (size > input.size() - pos || size > 65536 - chars) return false;
+      chars += size;
+      pos += size;
+      return true;
+    };
+    uint32_t shapes, fields, strings, count, keys = 0;
+    if (!array(&shapes) || !shapes || shapes > 64) return false;
+    for (uint32_t i = 0; i < shapes; ++i) {
+      if (!array(&fields) || fields > 512 - keys) return false;
+      keys += fields;
+      for (uint32_t j = 0; j < fields; ++j)
+        if (!string()) return false;
+    }
+    if (!array(&strings) || strings > 256) return false;
+    for (uint32_t i = 0; i < strings; ++i)
+      if (!string()) return false;
+    return array(&count) && count >= 1024 && count <= 4096;
+  }
+
+ private:
+  void Header() {
     if (end_ < 5 || data_->input.data()[4] != 1)
       Fail("Unsupported MessagePack resource version");
     pos_ = 5;
@@ -43,12 +115,8 @@ class ResourceTapeDecoder {
       strings_.push_back(String(false, true));
     data_->compact = true;
     data_->resource_payload = static_cast<uint32_t>(pos_);
-    Value(0, false);
-    if (pos_ != end_) Fail("Trailing bytes after MessagePack value");
     data_->resource_metadata = metadata_;
   }
-
- private:
   struct Shape {
     uint32_t count = 0;
     uint64_t bytes = 0;
@@ -68,9 +136,11 @@ class ResourceTapeDecoder {
   void CheckBudget(uint64_t temporary = 0) const {
     if (metadata_ > MessagePackAsyncData::kNativeLimit)
       throw std::length_error("MessagePack resource metadata limit exceeded");
-    uint64_t tables = shapes_.capacity() * sizeof(Shape) +
-                      strings_.capacity() * sizeof(Span);
-    if (data_->MemoryUsage() + metadata_ + tables + temporary >
+    uint64_t tables =
+        shapes_.capacity() * sizeof(Shape) + strings_.capacity() * sizeof(Span);
+    uint64_t stream =
+        data_->resource_stream ? data_->resource_stream->ExtraMemory() : 0;
+    if (data_->MemoryUsage() + metadata_ + tables + temporary + stream >
         MessagePackAsyncData::kNativeLimit)
       throw std::length_error("MessagePack async native memory limit exceeded");
   }
@@ -217,7 +287,8 @@ class ResourceTapeDecoder {
     return span;
   }
   uint32_t Append(const MessagePackToken& token) {
-    if (!(data_->tokens.size() % MessagePackTape::kBlock))
+    if (!(data_->tokens.size() % MessagePackTape::kBlock) &&
+        data_->tokens.size() == data_->tokens.capacity())
       CheckBudget(MessagePackTape::kBlock * sizeof(MessagePackToken));
     uint32_t index = static_cast<uint32_t>(data_->tokens.size());
     data_->tokens.push_back(token);
@@ -542,10 +613,148 @@ class ResourceTapeDecoder {
     data_->resource_work[index] = static_cast<uint16_t>(work);
     return work;
   }
+  bool TryStream(bool prepare = false) {
+    // Streaming overlaps validation with construction; it never moves large
+    // graph construction into submission. Bound each record's wire span and
+    // the whole input so one record is an appropriate cooperative work unit.
+    if ((!prepare && !records_ready_) || pos_ >= end_ || end_ > 1024 * 1024 ||
+        shapes_.size() > 64 || strings_.size() > 256)
+      return false;
+    size_t keys = 0;
+    for (const auto& shape : shapes_) keys += shape.count;
+    if (keys > 512) return false;
+    for (const auto& token : data_->resource_tables)
+      if (token.kind != MessagePackToken::kStringAscii) return false;
+    size_t start = pos_;
+    uint8_t tag = data_->input.data()[pos_];
+    if ((tag & 0xf0) != 0x90 && tag != 0xdc && tag != 0xdd) return false;
+    uint32_t count = ArrayCount();
+    if (count < 512 || count > 20000) {
+      pos_ = start;
+      return false;
+    }
+    size_t root_header_end = pos_;
+    auto stream = std::make_shared<MessagePackResourceStream>();
+    stream->records.reserve(count);
+    for (uint32_t i = 0; i < count; ++i) {
+      size_t record_start = pos_;
+      uint8_t marker = static_cast<uint8_t>(Read(1));
+      uint32_t length;
+      if (marker >= 0xd4 && marker <= 0xd8)
+        length = uint32_t{1} << (marker - 0xd4);
+      else if (marker >= 0xc7 && marker <= 0xc9)
+        length = static_cast<uint32_t>(Read(size_t{1} << (marker - 0xc7)));
+      else {
+        pos_ = start;
+        return false;
+      }
+      uint8_t type = static_cast<uint8_t>(Read(1));
+      if (type != messagepack_resources::kShape || length > 512 ||
+          length > end_ - pos_) {
+        pos_ = start;
+        return false;
+      }
+      size_t limit = pos_ + length;
+      if (ArrayCount() != 2) Fail("Malformed MessagePack resource record");
+      uint32_t shape = UInt();
+      if (shape >= shapes_.size())
+        Fail("Invalid MessagePack resource shape reference");
+      uint32_t fields = ArrayCount(false);
+      if (fields != shapes_[shape].count || pos_ > limit)
+        Fail("MessagePack resource field count mismatch");
+      stream->records.push_back({static_cast<uint32_t>(record_start),
+                                 static_cast<uint32_t>(pos_), shape, 0});
+      pos_ = limit;
+    }
+    if (pos_ != end_) {
+      pos_ = start;
+      return false;
+    }
+    // Foreground construction reuses the direct decoder and reads only the
+    // immutable snapshot and published spans, never the worker scratch tape.
+    // A <=512-byte record needs at most one 4096-token block, bounded work
+    // vectors, and <=1024 literal code-unit bytes. Allocate these capacities
+    // before publishing, so foreground accounting needs no mutable vector
+    // reads.
+    data_->tokens.push_back(MessagePackToken{});
+    data_->tokens.ResetScratch();
+    data_->resource_work.reserve(1024);
+    data_->resource_records.reserve(512);
+    data_->resource_numbers.reserve(128);
+    data_->decoded_strings.Append(4096);
+    data_->decoded_strings.Clear();
+    stream->native_charge = data_->MemoryUsage() + stream->ExtraMemory() +
+                            shapes_.capacity() * sizeof(Shape) +
+                            strings_.capacity() * sizeof(Span);
+    if (stream->native_charge + metadata_ > MessagePackAsyncData::kNativeLimit)
+      throw std::length_error("MessagePack async native memory limit exceeded");
+    data_->resource_metadata = metadata_;
+    data_->resource_stream = stream;
+    pos_ = root_header_end;
+    Wire(root_header_end - start);
+    ValidateRecords(prepare ? std::min<uint32_t>(count, 512) : count, prepare);
+    return true;
+  }
+  void ValidateRecords(uint32_t until, bool bounded = false) {
+    auto* stream = data_->resource_stream.get();
+    uint32_t count = static_cast<uint32_t>(stream->records.size());
+    size_t prefix_start = pos_;
+    uint32_t prefix_work = 0;
+    while (record_cursor_ < until) {
+      uint32_t i = record_cursor_;
+      size_t limit = i + 1 < count ? stream->records[i + 1].start : end_;
+      if (bounded && i &&
+          (limit - prefix_start > 32768 || prefix_work >= 16384))
+        break;
+      auto& record = stream->records[i];
+      DCHECK_EQ(pos_, record.start);
+      uint32_t shape = record.shape;
+      uint64_t saved_wire = wire_bytes_;
+      size_t saved_end = end_;
+      end_ = i + 1 < count ? stream->records[i + 1].start : saved_end;
+      pos_ = record.body;
+      Wire(ContainerHeader(shapes_[shape].count) + shapes_[shape].bytes);
+      if (AsciiRecord(shapes_[shape].count, 1, &record.work)) {
+        if (pos_ != end_) Fail("Trailing MessagePack resource extension bytes");
+        record.shape |= MessagePackResourceStream::kAscii;
+      } else {
+        pos_ = record.start;
+        wire_bytes_ = saved_wire;
+        end_ = saved_end;
+        record.work = Value(1, false);
+        const auto& token = data_->tokens[0];
+        if (token.kind == MessagePackToken::kResourceRecord ||
+            (token.kind == MessagePackToken::kResourceMap &&
+             token.container.all_numbers))
+          record.shape |= MessagePackResourceStream::kAscii;
+        data_->tokens.ResetScratch();
+      }
+      end_ = saved_end;
+      data_->resource_work.clear();
+      data_->resource_records.clear();
+      data_->resource_numbers.clear();
+      data_->decoded_strings.Clear();
+      prefix_work += record.work;
+      record_cursor_ = i + 1;
+      if ((i + 1) % 32 == 0 || i + 1 == count) {
+        stream->published.store(i + 1, std::memory_order_release);
+        if (records_ready_ && !ready_posted_ && i + 1 >= ready_at_) {
+          ready_posted_ = true;
+          records_ready_();
+        }
+      }
+    }
+    stream->published.store(record_cursor_, std::memory_order_release);
+    if (record_cursor_ == count && pos_ != end_)
+      Fail("Trailing bytes after MessagePack value");
+  }
   MessagePackAsyncData* data_;
   size_t pos_ = 0, end_;
   uint64_t metadata_ = 0, wire_bytes_ = 0;
   mutable uint32_t cancel_check_ = 0;
   std::vector<Shape> shapes_;
   std::vector<Span> strings_;
+  std::function<void()> records_ready_;
+  uint32_t record_cursor_ = 0, ready_at_ = 32;
+  bool ready_posted_ = false;
 };

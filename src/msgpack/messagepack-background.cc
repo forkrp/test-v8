@@ -615,7 +615,32 @@ class Parser {
   size_t pos_ = 0;
 };
 }  // namespace
-void RunMessagePackWorker(MessagePackAsyncData* data) {
+bool PrepareMessagePackRecordStream(MessagePackAsyncData* data) {
+  if (!ResourceTapeDecoder::Candidate(data->input)) return false;
+  try {
+    auto parser =
+        std::make_shared<ResourceTapeDecoder>(data, std::function<void()>{});
+    if (parser->Prepare()) {
+      data->resource_stream->native_charge += sizeof(ResourceTapeDecoder);
+      data->resource_stream->prepared = std::move(parser);
+      return true;
+    }
+    data->resource_tables.clear();
+    data->resource_shape_used.clear();
+    data->resource_string_used.clear();
+    data->compact = false;
+    data->resource_payload = data->resource_metadata = 0;
+  } catch (const std::bad_alloc&) {
+    data->error = "MessagePack native allocation failed";
+  } catch (const std::exception& e) {
+    data->error = e.what();
+  } catch (...) {
+    data->error = "Native MessagePack exception";
+  }
+  return false;
+}
+void RunMessagePackWorker(MessagePackAsyncData* data,
+                          const std::function<void()>& records_ready) {
   try {
     if (data->encode) {
       bool memoize = false;
@@ -654,10 +679,14 @@ void RunMessagePackWorker(MessagePackAsyncData* data) {
             data->parts.empty() ? &data->input : &data->output, &data->error,
             &data->cancelled);
     } else {
-      if (data->resource && data->input.size() >= 4 &&
-          std::memcmp(data->input.data(), messagepack_resources::kMagic, 4) ==
-              0)
-        ResourceTapeDecoder(data).Decode();
+      if (data->resource_stream && data->resource_stream->prepared) {
+        std::static_pointer_cast<ResourceTapeDecoder>(
+            data->resource_stream->prepared)
+            ->Resume(records_ready);
+      } else if (data->resource && data->input.size() >= 4 &&
+                 std::memcmp(data->input.data(), messagepack_resources::kMagic,
+                             4) == 0)
+        ResourceTapeDecoder(data, records_ready).Decode();
       if (Cancelled(data)) return;
       if (!data->compact) Parser(data).Parse();
     }

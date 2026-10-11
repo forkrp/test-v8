@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <deque>
 #include <limits>
 
@@ -13,6 +14,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/platform/time.h"
+#include "src/handles/persistent-handles.h"
 #include "src/json/json-parser-background.h"
 #include "src/json/json-stringifier-async.h"
 #include "src/json/json-stringifier-escape.h"
@@ -20,6 +22,7 @@
 #include "src/msgpack/messagepack-async.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
@@ -1367,10 +1370,170 @@ TEST_WITH_PLATFORM(MessagePackAsyncCompleteWireAccounting, JsonTestPlatform) {
   while (isolate->HasPendingBackgroundTasks()) CHECK(runner->RunOne(isolate));
   CHECK_EQ(v8::Promise::kFulfilled, promise->State());
   auto bytes = promise->Result().As<v8::Uint8Array>();
-  CHECK(context->Global()->Set(context.local(), v8_str("bytes"), bytes).FromJust());
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("bytes"), bytes)
+            .FromJust());
   isolate->GetHeapStatistics(&after);
-  CHECK_GE(after.external_memory(), before.external_memory() + bytes->ByteLength());
-  CHECK_LE(after.external_memory(), before.external_memory() + bytes->ByteLength() + 4096);
-  CHECK_LE(isolate->AdjustAmountOfExternalAllocatedMemory(0), baseline + static_cast<int64_t>(bytes->ByteLength()) + 4096);
+  CHECK_GE(after.external_memory(),
+           before.external_memory() + bytes->ByteLength());
+  CHECK_LE(after.external_memory(),
+           before.external_memory() + bytes->ByteLength() + 4096);
+  CHECK_LE(isolate->AdjustAmountOfExternalAllocatedMemory(0),
+           baseline + static_cast<int64_t>(bytes->ByteLength()) + 4096);
   CHECK(CompileRun("MSGPACK.decode(bytes)[0].name === 'short'")->IsTrue());
+}
+
+TEST_WITH_PLATFORM(MessagePackResourceAsyncRecordStreaming, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  auto internal = CcTest::i_isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  struct Gate {
+    const int main_thread = i::ThreadId::Current().ToInteger();
+    v8::base::Semaphore first{0}, resume{0}, finished{0};
+  };
+  class Validation final : public v8::Task {
+   public:
+    Validation(std::shared_ptr<i::MessagePackAsyncData> data,
+               std::shared_ptr<Gate> gate)
+        : data_(std::move(data)), gate_(std::move(gate)) {}
+    void Run() override {
+      CHECK_NE(i::ThreadId::Current().ToInteger(), gate_->main_thread);
+      i::RunMessagePackWorker(data_.get(), [this]() {
+        gate_->first.Signal();
+        gate_->resume.Wait();
+      });
+      CHECK(data_->resource_stream);
+      data_->resource_stream->complete.store(true, std::memory_order_release);
+      gate_->finished.Signal();
+    }
+
+   private:
+    std::shared_ptr<i::MessagePackAsyncData> data_;
+    std::shared_ptr<Gate> gate_;
+  };
+  for (int mode = 0; mode < 3; ++mode) {
+    CompileRun(
+        "var streamOriginal = Array.from({length:4096}, (_,i) => "
+        "({id:i,name:'item-'+i,group:'group-'+(i%7),enabled:!!(i&1)}));"
+        "var streamWire = MSGPACK.encodeResource(streamOriginal)");
+    auto wire = CompileRun("streamWire").As<v8::Uint8Array>();
+    CHECK_GT(wire->ByteLength(), 65536);
+    auto backing = wire->Buffer()->GetBackingStore();
+    auto data = std::make_shared<i::MessagePackAsyncData>();
+    data->resource = true;
+    std::memcpy(
+        data->input.Append(wire->ByteLength()),
+        static_cast<const uint8_t*>(backing->Data()) + wire->ByteOffset(),
+        wire->ByteLength());
+    if (mode == 1) {
+      CHECK_EQ(0xc3, data->input.data()[data->input.size() - 1]);
+      const_cast<uint8_t*>(data->input.data())[data->input.size() - 1] = 0xc1;
+    }
+    auto gate = std::make_shared<Gate>();
+    platform.CallOnWorkerThread(std::make_unique<Validation>(data, gate));
+    CHECK(gate->first.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+    CHECK(data->resource_stream);
+    CHECK_EQ(32,
+             data->resource_stream->published.load(std::memory_order_acquire));
+    CHECK(!data->resource_stream->complete.load(std::memory_order_acquire));
+    auto roots = std::make_unique<i::PersistentHandles>(internal);
+    i::Handle<i::Object> result =
+        roots->NewHandle(internal->factory()->undefined_value());
+    std::vector<i::MessagePackBuildFrame> frames;
+    std::shared_ptr<void> state;
+    uint32_t cursor = 0;
+    for (int attempts = 0; cursor < 32; ++attempts) {
+      CHECK_LT(attempts, 100);
+      CHECK(!i::BuildMessagePackSlice(internal, data.get(), roots.get(), result,
+                                      &cursor, &frames, &state));
+    }
+    CHECK_EQ(32, cursor);
+    CHECK_EQ(0, i::Smi::ToInt(i::JSArray::cast(*result)->length()));
+    CHECK(data->resource_stream->error.empty());
+    CompileRun("streamOriginal[0].id=999;streamWire.fill(0xc1)");
+    isolate->LowMemoryNotification();
+    if (mode == 2) data->cancelled.store(true, std::memory_order_relaxed);
+    gate->resume.Signal();
+    CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+    if (mode == 0) {
+      CHECK(data->error.empty());
+      int slices = 0;
+      while (!i::BuildMessagePackSlice(internal, data.get(), roots.get(),
+                                       result, &cursor, &frames, &state))
+        CHECK_LT(++slices, 10000);
+      CHECK_EQ(4096, cursor);
+      CHECK(context->Global()
+                ->Set(context.local(), v8_str("streamResult"),
+                      v8::Utils::ToLocal(result))
+                .FromJust());
+      CHECK(
+          CompileRun("streamResult.length===4096 && streamResult[0].id===0 && "
+                     "streamResult[4095].id===4095 && "
+                     "Object.getPrototypeOf(streamResult)===Array.prototype")
+              ->IsTrue());
+    } else {
+      CHECK(!data->error.empty());
+      CHECK_LT(data->resource_stream->published.load(std::memory_order_acquire),
+               4096);
+      CHECK_EQ(0, i::Smi::ToInt(i::JSArray::cast(*result)->length()));
+    }
+  }
+  printf(
+      "MessagePack record streaming: concurrent prefix, moving GC, "
+      "late malformed input and cancellation passed\n");
+}
+
+TEST_WITH_PLATFORM(MessagePackResourceAsyncPreparedRecords, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  for (bool malformed : {false, true}) {
+    CompileRun(
+        "var preparedOriginal=Array.from({length:4096},(_,i)=>"
+        "({id:i,name:'item-'+i,group:'group-'+(i%7),enabled:!!(i&1)}));"
+        "var preparedWire=MSGPACK.encodeResource(preparedOriginal)");
+    if (malformed) CompileRun("preparedWire[preparedWire.length-1]=0xc1");
+    auto gate = std::make_shared<JsonWorkerGate>();
+    platform.SetWorkerGate(gate);
+    auto promise = CompileRun("MSGPACK.decodeResourceAsync(preparedWire)")
+                       .As<v8::Promise>();
+    platform.SetWorkerGate(nullptr);
+    CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+    CHECK_EQ(v8::Promise::kPending, promise->State());
+    CHECK(isolate->HasPendingBackgroundTasks());
+    CompileRun("preparedOriginal[0].id=999;preparedWire.fill(0xc1)");
+    // The calling-thread prefix allows foreground construction while the
+    // worker is held. It must stop rather than busy-post when that prefix ends.
+    int slices = 0;
+    while (runner->RunOne()) {
+      CHECK_LT(++slices, 1000);
+      CHECK_EQ(v8::Promise::kPending, promise->State());
+      isolate->LowMemoryNotification();
+    }
+    CHECK_GT(slices, 0);
+    gate->proceed.Signal();
+    CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+    while (isolate->HasPendingBackgroundTasks()) CHECK(runner->RunOne(isolate));
+    while (runner->RunOne()) {
+    }
+    if (malformed) {
+      CHECK_EQ(v8::Promise::kRejected, promise->State());
+      CHECK(promise->Result()->IsNativeError());
+    } else {
+      CHECK_EQ(v8::Promise::kFulfilled, promise->State());
+      CHECK(context->Global()
+                ->Set(context.local(), v8_str("preparedResult"),
+                      promise->Result())
+                .FromJust());
+      CHECK(CompileRun("preparedResult.length===4096 && "
+                       "preparedResult[0].id===0 && "
+                       "preparedResult[4095].id===4095")
+                ->IsTrue());
+    }
+  }
+  printf(
+      "MessagePack prepared records: early foreground work, snapshot, "
+      "GC and late rejection passed\n");
 }

@@ -4,6 +4,7 @@
 #ifndef V8_MSGPACK_MESSAGEPACK_ASYNC_H_
 #define V8_MSGPACK_MESSAGEPACK_ASYNC_H_
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <vector>
 #ifdef MSGPACK_RESOURCE_TIMINGS
@@ -114,8 +115,10 @@ class MessagePackTape {
   void reserve(size_t) {}  // Blocks grow on demand, rather than geometrically.
   void push_back(const MessagePackToken& token) {
     if (!(count_ % kBlock)) {
-      blocks_.push_back(std::make_unique<MessagePackToken[]>(kBlock));
-      ++live_blocks_;
+      if (count_ / kBlock == blocks_.size()) {
+        blocks_.push_back(std::make_unique<MessagePackToken[]>(kBlock));
+        ++live_blocks_;
+      }
     }
     (*this)[count_++] = token;
   }
@@ -142,17 +145,27 @@ class MessagePackTape {
     }
     count_ = count;
   }
+  void ResetScratch() {
+    DCHECK_EQ(base_, 0);
+    while (blocks_.size() > 1) {
+      blocks_.pop_back();
+      --live_blocks_;
+    }
+    count_ = 0;
+  }
 
  private:
   std::vector<std::unique_ptr<MessagePackToken[]>> blocks_;
   size_t count_ = 0, base_ = 0, live_blocks_ = 0;
 };
+struct MessagePackResourceStream;
 struct MessagePackAsyncData {
 #ifdef MSGPACK_RESOURCE_TIMINGS
   uint64_t profile_start = 0, profile_capture = 0, profile_queued = 0;
   uint64_t profile_worker_start = 0, profile_worker_end = 0;
   uint64_t profile_first = 0, profile_last = 0, profile_queue = 0;
   uint64_t profile_build = 0, profile_account = 0, profile_slices = 0;
+  uint64_t profile_stream_ready = 0;
 #endif
   static constexpr size_t kNativeLimit = 256 * 1024 * 1024;
   std::atomic<bool> cancelled{false};
@@ -178,6 +191,7 @@ struct MessagePackAsyncData {
   bool compact = false;
   uint32_t resource_payload = 0;
   uint64_t resource_metadata = 0;
+  std::shared_ptr<MessagePackResourceStream> resource_stream;
   size_t MemoryUsage() const {
     return input.capacity() + decoded_strings.capacity() + output.capacity() +
            resource_tables.capacity() * sizeof(MessagePackToken) +
@@ -188,6 +202,24 @@ struct MessagePackAsyncData {
            resource_shape_used.capacity() + resource_string_used.capacity() +
            parts.capacity() * sizeof(MessagePackEncodePart) +
            tokens.capacity() * sizeof(MessagePackToken);
+  }
+};
+// A worker publishes complete, validated records with release stores. Only the
+// published prefix is read by the foreground. Input bytes and the span
+// vector's storage stay fixed after the first completion task is posted.
+struct MessagePackResourceStream {
+  struct Record {
+    uint32_t start, body, shape, work;
+  };
+  static constexpr uint32_t kAscii = uint32_t{1} << 31;
+  std::string error;  // Foreground only; worker errors remain in the job data.
+  std::shared_ptr<void> prepared;
+  std::vector<Record> records;
+  std::atomic<uint32_t> published{0};
+  std::atomic<bool> complete{false};
+  size_t native_charge = 0;
+  size_t ExtraMemory() const {
+    return sizeof(*this) + records.capacity() * sizeof(Record);
   }
 };
 struct MessagePackBuildFrame {
@@ -202,7 +234,9 @@ struct MessagePackBuildFrame {
 };
 
 bool CaptureMessagePack(Isolate*, Handle<Object>, MessagePackAsyncData*);
-void RunMessagePackWorker(MessagePackAsyncData*);
+bool PrepareMessagePackRecordStream(MessagePackAsyncData*);
+void RunMessagePackWorker(MessagePackAsyncData*,
+                          const std::function<void()>& records_ready = {});
 // Returns true when complete (including errors). All roots belong to the
 // foreground state; native token references never survive a call.
 bool BuildMessagePackSlice(Isolate*, MessagePackAsyncData*, PersistentHandles*,

@@ -132,6 +132,30 @@ each subtree to 256 logical values and depth 16; other subtrees use the normal
 tape. Container descriptors retain logical work independently of physical tape
 size, preserving cooperative frame decisions after child maps collapse.
 
+Compact root arrays can overlap native validation with foreground construction.
+The stream admits 512–20,000 records in inputs up to 1 MiB, with at most 64
+shapes, 512 keys, 256 dictionary entries, ASCII tables and extension payloads
+of at most 512 bytes per record.
+The worker publishes validated batches through release/acquire counters. The
+foreground reads only immutable input and those published spans; its scratch
+and errors are separate from the worker's mutable tape and Unicode buffers.
+Results remain rooted, hole initialized and logically length zero until every
+record and the complete input have passed validation. Late errors and
+cancellation discard the partial result. The two-millisecond foreground budget
+continues to apply, including bounded batches of array stores.
+
+For an otherwise idle MessagePack job queue, inputs of 65–256 KiB containing
+1,024–4,096 such records can prepare the native table/layout description and a
+small validated prefix on the calling thread. Preparation stops at 512
+records, 32 KiB of record wire or 16,384 logical work units; table characters
+are capped at 64 KiB. It builds no V8 result objects. This allows a foreground
+task to start immediately while a real worker validates the remaining records.
+Concurrent batches prepare only their first admitted job, avoiding repeated
+submission costs. Total latency and the increased calling-thread submission
+time must both be reported. Other inputs retain the existing worker or bounded
+inline routes. Scratch capacities are allocated before publication and stay
+charged as external memory without concurrent reads of worker vectors.
+
 The time budget is cooperative rather than a hard deadline. A single allocation,
 GC, or large string materialization can exceed it. The performance runner
 records the submission portion and end-to-end batch latency separately so

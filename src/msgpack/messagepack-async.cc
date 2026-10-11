@@ -364,8 +364,11 @@ class State {
     uint64_t profile_build = MessagePackProfileNow();
     data_->profile_account += profile_build - profile_begin;
 #endif
+    auto* stream = data_->resource_stream.get();
+    bool worker_done =
+        !stream || stream->complete.load(std::memory_order_acquire);
     bool done = true;
-    if (!isolate_->has_exception() && data_->error.empty()) {
+    if (!isolate_->has_exception() && (!worker_done || data_->error.empty())) {
       if (data_->encode) {
         Handle<Object> bytes = MessagePackOutput(
             isolate_, data_->parts.empty() ? &data_->input : &data_->output);
@@ -375,19 +378,20 @@ class State {
                                      result_, &cursor_, &frames_,
                                      &resource_state_);
     }
+    if (stream) worker_done = stream->complete.load(std::memory_order_acquire);
 #ifdef MSGPACK_RESOURCE_TIMINGS
     uint64_t profile_built = MessagePackProfileNow();
     data_->profile_build += profile_built - profile_build;
     ++data_->profile_slices;
 #endif
-    if (!data_->encode) {
+    if (!data_->encode && !stream) {
       data_->tokens.DiscardBefore(cursor_);
       Account();
     }
 #ifdef MSGPACK_RESOURCE_TIMINGS
     data_->profile_last = MessagePackProfileNow();
     data_->profile_account += data_->profile_last - profile_built;
-    if (done && data_->resource && !data_->encode) {
+    if (done && worker_done && data_->resource && !data_->encode) {
       std::fprintf(
           stderr,
           "resource async copy=%.3f setup=%.3f worker_queue=%.3f worker=%.3f "
@@ -399,7 +403,8 @@ class State {
               1e6,
           (data_->profile_worker_start - data_->profile_queued) / 1e6,
           (data_->profile_worker_end - data_->profile_worker_start) / 1e6,
-          (data_->profile_first - data_->profile_worker_end +
+          ((stream ? data_->profile_first - data_->profile_stream_ready
+                   : data_->profile_first - data_->profile_worker_end) +
            data_->profile_queue) /
               1e6,
           data_->profile_build / 1e6, data_->profile_account / 1e6,
@@ -407,20 +412,26 @@ class State {
           (data_->profile_last - data_->profile_start) / 1e6);
     }
 #endif
-    if (!isolate_->has_exception() && !data_->error.empty())
+    if (!isolate_->has_exception() && stream && !stream->error.empty())
+      ThrowMessagePackError(isolate_, stream->error, false);
+    if (!isolate_->has_exception() && worker_done && !data_->error.empty())
       ThrowMessagePackError(isolate_, data_->error, data_->encode);
     if (isolate_->has_exception())
       Reject(isolate_, promise_, &caught);
-    else if (!done)
-      return false;
-    else if (JSPromise::Resolve(promise_, result_).is_null())
+    else if (!done) {
+      // A final completion task is guaranteed. Avoid busy reposting when the
+      // builder catches the validator; retain all roots until that task runs.
+      return stream && !stream->complete.load(std::memory_order_acquire) &&
+             cursor_ >= stream->published.load(std::memory_order_acquire);
+    } else if (JSPromise::Resolve(promise_, result_).is_null())
       Reject(isolate_, promise_, &caught);
 #ifdef MSGPACK_RESOURCE_TIMINGS
     bool profile_cleanup = data_->resource && !data_->encode;
     uint64_t profile_end = data_->profile_last;
     uint64_t profile_start = data_->profile_start;
 #endif
-    bool recycle_buffers = data_->resource && !data_->encode;
+    bool recycle_buffers = data_->resource && !data_->encode && worker_done;
+    if (!worker_done) data_->cancelled.store(true, std::memory_order_relaxed);
     ReleaseRoots(recycle_buffers);
 #ifdef MSGPACK_RESOURCE_TIMINGS
     if (profile_cleanup) {
@@ -445,7 +456,12 @@ class State {
 
  private:
   void Account() {
-    int64_t bytes = sizeof(*this) + static_cast<int64_t>(data_->MemoryUsage());
+    // Stream scratch belongs exclusively to the running worker. Its bounded
+    // reservation is immutable, so accounting never reads concurrent vectors.
+    size_t native = data_->resource_stream
+                        ? data_->resource_stream->native_charge
+                        : data_->MemoryUsage();
+    int64_t bytes = sizeof(*this) + static_cast<int64_t>(native);
     if (resource_state_)
       bytes += static_cast<int64_t>(data_->resource_metadata);
     int64_t delta = bytes - accounted_;
@@ -504,19 +520,32 @@ class Worker final : public CancelableTask {
  public:
   Worker(Isolate* isolate, std::shared_ptr<MessagePackAsyncData> data,
          std::shared_ptr<v8::TaskRunner> runner,
-         std::unique_ptr<v8::Task> completion)
+         std::unique_ptr<v8::Task> completion,
+         std::unique_ptr<v8::Task> records_ready)
       : CancelableTask(isolate),
         data_(std::move(data)),
         runner_(std::move(runner)),
-        completion_(std::move(completion)) {}
+        completion_(std::move(completion)),
+        records_ready_(std::move(records_ready)) {}
   void RunInternal() override {
 #ifdef MSGPACK_RESOURCE_TIMINGS
     data_->profile_worker_start = MessagePackProfileNow();
 #endif
-    RunMessagePackWorker(data_.get());
+    std::function<void()> ready;
+    if (records_ready_)
+      ready = [this]() {
+#ifdef MSGPACK_RESOURCE_TIMINGS
+        if (!data_->profile_stream_ready)
+          data_->profile_stream_ready = MessagePackProfileNow();
+#endif
+        runner_->PostNonNestableTask(std::move(records_ready_));
+      };
+    RunMessagePackWorker(data_.get(), ready);
 #ifdef MSGPACK_RESOURCE_TIMINGS
     data_->profile_worker_end = MessagePackProfileNow();
 #endif
+    if (data_->resource_stream)
+      data_->resource_stream->complete.store(true, std::memory_order_release);
     runner_->PostNonNestableTask(std::move(completion_));
   }
 
@@ -524,6 +553,7 @@ class Worker final : public CancelableTask {
   std::shared_ptr<MessagePackAsyncData> data_;
   std::shared_ptr<v8::TaskRunner> runner_;
   std::unique_ptr<v8::Task> completion_;
+  std::unique_ptr<v8::Task> records_ready_;
 };
 }  // namespace
 Handle<Object> MessagePackOutput(Isolate* isolate, MessagePackBuffer* bytes) {
@@ -602,10 +632,12 @@ MaybeHandle<JSPromise> MessagePackAsync(Isolate* isolate, Handle<Object> value,
         promise, isolate->factory()->NewError(MessageTemplate::kUnsupported));
     return promise;
   }
+  bool can_prepare = resource && !encode;
   {
     auto* jobs = GetJobs();
     base::MutexGuard lock(&jobs->mutex);
     auto it = jobs->jobs.find(isolate);
+    if (it != jobs->jobs.end() && !it->second.empty()) can_prepare = false;
     if (it != jobs->jobs.end() && it->second.size() >= 32) {
       // Reject after unlocking: creating an error may GC.
       runner.reset();
@@ -682,14 +714,30 @@ MaybeHandle<JSPromise> MessagePackAsync(Isolate* isolate, Handle<Object> value,
       return isolate->is_execution_terminating() ? MaybeHandle<JSPromise>()
                                                  : promise;
     }
+    bool prepared = can_prepare && PrepareMessagePackRecordStream(data.get());
+    if (!data->error.empty()) {
+      ThrowMessagePackError(isolate, data->error, encode);
+      Reject(isolate, promise, &caught);
+      return isolate->is_execution_terminating() ? MaybeHandle<JSPromise>()
+                                                 : promise;
+    }
     auto state = std::make_shared<State>(isolate, promise, data);
     // Construct tasks before registering so a native allocation failure leaves
     // no registered job or retained handles.
     std::unique_ptr<Worker> task;
+    std::unique_ptr<v8::Task> first;
     try {
+      if (prepared)
+        first = std::make_unique<Completion>(isolate, state, runner);
+      std::unique_ptr<v8::Task> ready;
+      if (resource && !encode && data->input.size() > 65536 &&
+          data->input.size() <= 1024 * 1024 &&
+          std::memcmp(data->input.data(), "V8MR", 4) == 0)
+        ready = std::make_unique<Completion>(isolate, state, runner);
       task = std::make_unique<Worker>(
           isolate, data, runner,
-          std::make_unique<Completion>(isolate, state, runner));
+          std::make_unique<Completion>(isolate, state, runner),
+          std::move(ready));
       auto* jobs = GetJobs();
       base::MutexGuard lock(&jobs->mutex);
       jobs->jobs[isolate].emplace(state.get(), state);
@@ -706,7 +754,25 @@ MaybeHandle<JSPromise> MessagePackAsync(Isolate* isolate, Handle<Object> value,
 #ifdef MSGPACK_RESOURCE_TIMINGS
     data->profile_queued = MessagePackProfileNow();
 #endif
-    platform->CallOnWorkerThread(std::move(task));
+    try {
+      if (first) {
+#ifdef MSGPACK_RESOURCE_TIMINGS
+        data->profile_stream_ready = MessagePackProfileNow();
+#endif
+        runner->PostNonNestableTask(std::move(first));
+      }
+      platform->CallOnWorkerThread(std::move(task));
+    } catch (...) {
+      state->Cancel();
+      auto* jobs = GetJobs();
+      base::MutexGuard lock(&jobs->mutex);
+      auto it = jobs->jobs.find(isolate);
+      if (it != jobs->jobs.end()) {
+        it->second.erase(state.get());
+        if (it->second.empty()) jobs->jobs.erase(it);
+      }
+      throw;
+    }
     return isolate->is_execution_terminating() ? MaybeHandle<JSPromise>()
                                                : promise;
   } catch (const std::bad_alloc&) {

@@ -26,12 +26,16 @@ def main():
     parser.add_argument('--workloads')
     parser.add_argument('--codecs', default=','.join(CODECS))
     parser.add_argument('--jobs', default='1,4')
+    parser.add_argument('--operations', default='encode,decode')
     parser.add_argument('--seed', type=int, default=20261010)
     parser.add_argument('--resume', action='store_true')
     args = parser.parse_args()
     codecs, jobs = args.codecs.split(','), [int(x) for x in args.jobs.split(',')]
+    operations = args.operations.split(',')
     if (args.passes < 1 or args.samples < 1 or set(codecs) - set(CODECS) or
-            any(x < 1 or x > 32 for x in jobs)):
+            any(x < 1 or x > 32 for x in jobs) or
+            not operations or len(set(operations)) != len(operations) or
+            set(operations) - {'encode', 'decode'}):
         parser.error('Invalid codec or sample/job/pass count')
     identities = {version: {abi: identity(getattr(args, version + '_' + abi).resolve())
                             for abi in ['arm64', 'arm32']}
@@ -45,6 +49,8 @@ def main():
         values = {name: values[name] for name in args.workloads.split(',')}
     config = dict(passes=args.passes, samples=args.samples, workloads=list(values),
                   codecs=codecs, jobs=jobs, seed=args.seed, serial=args.serial)
+    if operations != ['encode', 'decode']:
+        config['operations'] = operations
     dependencies = {str(path): sha(path) for path in [Path(__file__), script,
                     ROOT/'tools/binary_serialization/run_resource_async.py',
                     ROOT/'tools/binary_serialization/run.py',
@@ -74,7 +80,7 @@ def main():
         order = []
         for pass_index in range(args.passes):
             blocks = [(abi, name, op, count, codec) for abi in ['arm64', 'arm32']
-                      for name in values for op in ['encode', 'decode']
+                      for name in values for op in operations
                       for count in jobs for codec in codecs]
             rng.shuffle(blocks)
             for abi, name, op, count, codec in blocks:
