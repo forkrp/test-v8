@@ -146,9 +146,9 @@ continues to apply, including bounded batches of array stores.
 
 For an otherwise idle MessagePack job queue, inputs of 65–256 KiB containing
 1,024–4,096 such records can prepare the native table/layout description and a
-small validated prefix on the calling thread. Preparation stops at 512
-records, 32 KiB of record wire or 16,384 logical work units; table characters
-are capped at 64 KiB. It builds no V8 result objects. This allows a foreground
+small validated prefix on the calling thread. Preparation admits at most 512
+records and 32 KiB of record wire, checking the 16,384 logical work-unit
+budget between complete records; table characters are capped at 64 KiB. It builds no V8 result objects. This allows a foreground
 task to start immediately while a real worker validates the remaining records.
 Concurrent batches prepare only their first admitted job, avoiding repeated
 submission costs. Total latency and the increased calling-thread submission
