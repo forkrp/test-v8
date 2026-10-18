@@ -90,6 +90,14 @@ const Char* ScanJsonStringCharacters(const Char* begin, const Char* end,
   });
 }
 
+// Both parsers share the worker's bounded native-word and NEON scanner.
+// No handles, allocations, or heap accesses occur in these helpers.
+const uint8_t* ScanJsonStringCharactersLong(const uint8_t* begin,
+                                            const uint8_t* end, uint32_t* bits);
+const uint16_t* ScanJsonStringCharactersLong(const uint16_t* begin,
+                                             const uint16_t* end,
+                                             uint32_t* bits);
+
 }  // namespace internal
 }  // namespace v8
 

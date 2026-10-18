@@ -292,6 +292,33 @@ class JsonParseAsyncState final {
     return {};
   }
 
+  V8_NOINLINE Handle<JSArray> BuildSmallNumericArray(
+      const BackgroundJsonNode& token) {
+    using Node = BackgroundJsonNode;
+    DCHECK(!data_->track_source);
+    int length = static_cast<int>(token.data.container.count);
+    bool smis = token.flags & Node::kAllSmis;
+    auto array = isolate_->factory()->NewJSArray(
+        smis ? PACKED_SMI_ELEMENTS : PACKED_DOUBLE_ELEMENTS, length, length);
+    {
+      DisallowGarbageCollection no_gc;
+      // The worker already validated the whole flat numeric array. Small
+      // subtrees can fill the final backing store without temporary boxes.
+      if (smis) {
+        auto elements = FixedArray::cast(array->elements());
+        for (int i = 0; i < length; ++i) {
+          elements->set(i, Smi::FromInt(static_cast<int>(Next().Number())),
+                        SKIP_WRITE_BARRIER);
+        }
+      } else {
+        auto elements = FixedDoubleArray::cast(array->elements());
+        for (int i = 0; i < length; ++i) elements->set(i, Next().Number());
+      }
+      DCHECK_EQ(cursor_, token.data.container.end);
+    }
+    return array;
+  }
+
   template <typename Char>
   Handle<Object> BuildSmallValue(JsonParser<Char>* parser, int offset,
                                  Handle<Map> feedback = {}) {
@@ -303,6 +330,9 @@ class JsonParseAsyncState final {
     DCHECK(token.kind == Node::kObject || token.kind == Node::kArray);
     if (token.kind == Node::kArray) {
       HandleScope scope(isolate_);
+      if (token.flags & Node::kAllNumbers) {
+        return scope.CloseAndEscape(BuildSmallNumericArray(token));
+      }
       size_t start = parser->element_stack_.size();
       while (cursor_ < token.data.container.end) {
         const Node& element = *next_;

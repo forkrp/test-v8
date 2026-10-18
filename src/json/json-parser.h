@@ -324,6 +324,10 @@ class JsonParser final {
   // the only allowed backslash-escapes are ", /, \, b, f, n, r, t and
   // four-digit hex escapes (uXXXX). Any other use of backslashes is invalid.
   JsonString ScanJsonString(bool needs_internalization);
+  template <bool use_vectors>
+  V8_NOINLINE JsonString ScanJsonStringImpl(bool needs_internalization,
+                                            int start, int offset,
+                                            bool has_escape, base::uc32 bits);
   JsonString ScanJsonPropertyKey(JsonContinuation* cont);
   base::uc32 ScanUnicodeCharacter();
   Handle<String> MakeString(const JsonString& string,
@@ -344,6 +348,9 @@ class JsonParser final {
   // the integer part is zero), and may include an exponent part (e.g., "e-10").
   // Hexadecimal and octal numbers are not allowed.
   Handle<Object> ParseJsonNumber();
+
+  // Returns true for a double, false for a Smi, without allocating a number.
+  bool ParseJsonNumberAsDoubleOrSmi(double* result_double, int* result_smi);
 
   // Parse a single JSON value from input (grammar production JSONValue).
   // A JSON value is either a (double-quoted) string literal, a number literal,

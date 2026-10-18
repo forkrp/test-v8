@@ -623,5 +623,17 @@ void ParseJsonInBackground(BackgroundJsonData* data) {
   }
 }
 
+const uint8_t* ScanJsonStringCharactersLong(const uint8_t* begin,
+                                            const uint8_t* end,
+                                            uint32_t* bits) {
+  return ScanBackgroundString(begin, end, bits);
+}
+
+const uint16_t* ScanJsonStringCharactersLong(const uint16_t* begin,
+                                             const uint16_t* end,
+                                             uint32_t* bits) {
+  return ScanBackgroundString(begin, end, bits);
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -1188,6 +1188,64 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
 
   HandleScope handle_scope(isolate_);
   size_t start = element_stack_.size();
+
+  // Keep a numeric prefix unboxed. A pure numeric array can fill its final
+  // backing store without temporary HeapNumbers or per-element handles.
+  // Scratch is local to arrays, not the parser used by async slices, and
+  // is released before recursion into the generic mixed-element path.
+  {
+    base::SmallVector<double, 32> double_elements;
+    base::SmallVector<int, 32> smi_elements;
+    bool saw_double = false;
+    while (peek() == JsonToken::NUMBER) {
+      double current_double;
+      int current_smi;
+      if (ParseJsonNumberAsDoubleOrSmi(&current_double, &current_smi)) {
+        saw_double = true;
+        double_elements.push_back(current_double);
+      } else if (saw_double) {
+        double_elements.push_back(current_smi);
+      } else {
+        smi_elements.push_back(current_smi);
+      }
+      if (V8_UNLIKELY(isolate_->has_exception())) return {};
+      if (Check(JsonToken::COMMA)) {
+        SkipWhitespace();
+        continue;
+      }
+      Expect(JsonToken::RBRACK,
+             MessageTemplate::kJsonParseExpectedCommaOrRBrack);
+      if (V8_UNLIKELY(isolate_->has_exception())) return {};
+      int length =
+          static_cast<int>(smi_elements.size() + double_elements.size());
+      Handle<JSArray> array = factory()->NewJSArray(
+          saw_double ? PACKED_DOUBLE_ELEMENTS : PACKED_SMI_ELEMENTS, length,
+          length);
+      {
+        DisallowGarbageCollection no_gc;
+        if (saw_double) {
+          auto elements = FixedDoubleArray::cast(array->elements());
+          int i = 0;
+          for (int value : smi_elements) elements->set(i++, value);
+          for (double value : double_elements) elements->set(i++, value);
+        } else {
+          auto elements = FixedArray::cast(array->elements());
+          for (int i = 0; i < length; ++i) {
+            elements->set(i, Smi::FromInt(smi_elements[i]), SKIP_WRITE_BARRIER);
+          }
+        }
+      }
+      return handle_scope.CloseAndEscape(array);
+    }
+
+    // A mixed array resumes the existing parser after materializing its prefix.
+    for (int value : smi_elements) {
+      element_stack_.emplace_back(handle(Smi::FromInt(value), isolate_));
+    }
+    for (double value : double_elements) {
+      element_stack_.emplace_back(factory()->NewNumber(value));
+    }
+  }
   Handle<Object> value;
   if (V8_UNLIKELY(!ParseJsonValueRecursive().ToHandle(&value))) return {};
   element_stack_.emplace_back(value);
@@ -1550,6 +1608,16 @@ void JsonParser<Char>::AdvanceToNonDecimal() {
 template <typename Char>
 Handle<Object> JsonParser<Char>::ParseJsonNumber() {
   double number;
+  int smi;
+  if (ParseJsonNumberAsDoubleOrSmi(&number, &smi)) {
+    return factory()->NewHeapNumber(number);
+  }
+  return handle(Smi::FromInt(smi), isolate_);
+}
+
+template <typename Char>
+bool JsonParser<Char>::ParseJsonNumberAsDoubleOrSmi(double* result_double,
+                                                    int* result_smi) {
   int sign = 1;
 
   {
@@ -1572,10 +1640,12 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
         if (V8_UNLIKELY(IsDecimalDigit(c))) {
           AllowGarbageCollection allow_before_exception;
           ReportUnexpectedToken(JsonToken::NUMBER);
-          return handle(Smi::FromInt(0), isolate_);
+          *result_smi = 0;
+          return false;
         }
       } else if (sign > 0) {
-        return handle(Smi::FromInt(0), isolate_);
+        *result_smi = 0;
+        return false;
       }
     } else {
       const Char* smi_start = cursor_;
@@ -1594,7 +1664,8 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
         ReportUnexpectedToken(
             JsonToken::ILLEGAL,
             MessageTemplate::kJsonParseNoNumberAfterMinusSign);
-        return handle(Smi::FromInt(0), isolate_);
+        *result_smi = 0;
+        return false;
       }
       c = CurrentCharacter();
       if (!base::IsInRange(c, 0,
@@ -1602,7 +1673,8 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
           !IsNumberPart(character_json_scan_flags[c])) {
         // Smi.
         // TODO(verwaest): Cache?
-        return handle(Smi::FromInt(i * sign), isolate_);
+        *result_smi = i * sign;
+        return false;
       }
       AdvanceToNonDecimal();
     }
@@ -1614,7 +1686,8 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
         ReportUnexpectedToken(
             JsonToken::ILLEGAL,
             MessageTemplate::kJsonParseUnterminatedFractionalNumber);
-        return handle(Smi::FromInt(0), isolate_);
+        *result_smi = 0;
+        return false;
       }
       AdvanceToNonDecimal();
     }
@@ -1627,21 +1700,22 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
         ReportUnexpectedToken(
             JsonToken::ILLEGAL,
             MessageTemplate::kJsonParseExponentPartMissingNumber);
-        return handle(Smi::FromInt(0), isolate_);
+        *result_smi = 0;
+        return false;
       }
       AdvanceToNonDecimal();
     }
 
     base::Vector<const Char> chars(start, cursor_ - start);
-    number =
+    *result_double =
         StringToDouble(chars,
                        NO_CONVERSION_FLAGS,  // Hex, octal or trailing junk.
                        std::numeric_limits<double>::quiet_NaN());
+    DCHECK(!std::isnan(*result_double));
 
-    DCHECK(!std::isnan(number));
+    // The result might still be a smi even if it has a decimal part.
+    return !DoubleToSmiInteger(*result_double, result_smi);
   }
-
-  return factory()->NewNumber(number);
 }
 
 namespace {
@@ -1776,14 +1850,70 @@ void JsonParser<Char>::DecodeString(SinkChar* sink, int start, int length) {
 
 template <typename Char>
 JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
-  DisallowGarbageCollection no_gc;
   int start = position();
-  int offset = start;
-  bool has_escape = false;
-  base::uc32 bits = 0;
+#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+  {
+    DisallowGarbageCollection no_gc;
+    base::uc32 bits = 0;
+    const Char* prefix_end = cursor_ + std::min<ptrdiff_t>(32, end_ - cursor_);
+    const Char* stop;
+    if constexpr (sizeof(Char) == 1) {
+      stop = ScanJsonStringCharacters(cursor_, prefix_end, &bits);
+    } else {
+      stop = std::find_if(cursor_, prefix_end, [&bits](Char c) {
+        if (c < 0x20 || c == '"' || c == '\\') return true;
+        bits |= c;
+        return false;
+      });
+    }
+    if (stop != end_ && *stop == '"') {
+      // Ordinary short values need neither the long scanner's state nor its
+      // escape decoder. Failed probes leave the cursor unchanged for fallback.
+      int length = static_cast<int>(stop - cursor_);
+      cursor_ = stop + 1;
+      bool convert = sizeof(Char) == 1 ? bits > unibrow::Latin1::kMaxChar
+                                       : bits <= unibrow::Latin1::kMaxChar;
+      bool internalize =
+          needs_internalization || (sizeof(Char) == 1 && length < 10);
+      return JsonString(start, length, convert, internalize, false);
+    }
+  }
+  return ScanJsonStringImpl<true>(needs_internalization, start, start, false,
+                                  0);
+#else
+  return ScanJsonStringImpl<false>(needs_internalization, start, start, false,
+                                   0);
+#endif
+}
 
+template <typename Char>
+template <bool use_vectors>
+JsonString JsonParser<Char>::ScanJsonStringImpl(bool needs_internalization,
+                                                int start, int offset,
+                                                bool has_escape,
+                                                base::uc32 bits) {
+  DisallowGarbageCollection no_gc;
   while (true) {
+#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+    if constexpr (use_vectors) {
+      const Char* begin = cursor_;
+      const Char* prefix_end = begin + std::min<ptrdiff_t>(32, end_ - begin);
+      cursor_ = ScanJsonStringCharacters(begin, prefix_end, &bits);
+      if (cursor_ == prefix_end && cursor_ != end_) {
+        cursor_ = ScanJsonStringCharactersLong(cursor_, end_, &bits);
+      }
+      // Hand dense escapes to an outlined scalar specialization once, so
+      // subsequent escapes do not pay for vector probes or a mode branch.
+      if (cursor_ != end_ && *cursor_ == '\\' && cursor_ - begin < 32) {
+        return ScanJsonStringImpl<false>(needs_internalization, start, offset,
+                                         has_escape, bits);
+      }
+    } else {
+      cursor_ = ScanJsonStringCharacters(cursor_, end_, &bits);
+    }
+#else
     cursor_ = ScanJsonStringCharacters(cursor_, end_, &bits);
+#endif
 
     if (V8_UNLIKELY(is_at_end())) {
       AllowGarbageCollection allow_before_exception;

@@ -529,9 +529,11 @@ TEST_WITH_PLATFORM(JsonParseAsyncTermination, JsonTestPlatform) {
   v8::HandleScope scope(isolate);
   LocalContext context;
   auto runner = platform.HoldTasks(isolate);
+  // More than 65536 physical nodes guarantees another foreground slice even
+  // when this machine can finish the old fixture within the soft deadline.
   auto promise = CompileRun(
-                     "JSON.parseAsync('[1,'.repeat(10000) + '0' + "
-                     "']'.repeat(10000))")
+                     "JSON.parseAsync('[1,'.repeat(40000) + '0' + "
+                     "']'.repeat(40000))")
                      .As<v8::Promise>();
   CHECK(runner->RunOne(isolate));
   CHECK_EQ(v8::Promise::kPending, promise->State());
