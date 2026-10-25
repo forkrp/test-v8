@@ -232,6 +232,7 @@ class JsonParser final {
     uint32_t index : 30;
     uint32_t max_index;
     uint32_t elements;
+    bool fast_keys_matched = false;
   };
 
   JsonParser(Isolate* isolate, Handle<String> source);
@@ -380,6 +381,10 @@ class JsonParser final {
   V8_INLINE Handle<JSObject> BuildJsonObjectImpl(
       const JsonContinuation& cont, Handle<Map> feedback,
       base::Vector<const Handle<String>> keys);
+  // Only used without reviver/source tracking: parsed HeapNumbers are uniquely
+  // owned. The sync caller has already matched every key in descriptor order.
+  V8_NOINLINE MaybeHandle<JSObject> TryBuildJsonObjectFromFeedback(
+      const JsonContinuation& cont, Handle<Map> feedback);
   Handle<Object> BuildJsonArray(size_t start);
 
   static const int kMaxContextCharacters = 10;

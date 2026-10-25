@@ -11,6 +11,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/memory.h"
+#include "src/base/small-vector.h"
 #if defined(__ARM_NEON)
 #include <arm_neon.h>
 #endif
@@ -621,7 +622,9 @@ class BackgroundJsonParser {
   base::Vector<const Char> input_;
   uint32_t position_ = 0;
   State state_ = State::kValue;
-  std::vector<Frame> stack_;
+  // Parallel workers frequently update shallow container frames. Keep them on
+  // each worker's stack: tiny heap buffers can share a cache line across jobs.
+  base::SmallVector<Frame, 16> stack_;
   std::array<uint32_t, 64> short_strings_{};
   std::array<uint32_t, 64> key_strings_{};
 };

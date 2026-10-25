@@ -692,6 +692,12 @@ class JsonParser<Char>::CachedNamedPropertyIterator
 template <typename Char>
 Handle<JSObject> JsonParser<Char>::BuildJsonObject(
     const JsonContinuation& cont, Handle<Map> feedback) {
+  if (cont.fast_keys_matched) {
+    Handle<JSObject> result;
+    if (TryBuildJsonObjectFromFeedback(cont, feedback).ToHandle(&result)) {
+      return result;
+    }
+  }
   return BuildJsonObjectImpl<false>(cont, feedback, {});
 }
 
@@ -770,6 +776,67 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObjectImpl(
                              property_stack_.end());
     return js_data_object_builder.BuildFromIterator(it, elements);
   }
+}
+
+// The recursive parser has already matched the whole key sequence. Keep this
+// path separate from the generic builder and the reviver's snapshot handling.
+template <typename Char>
+MaybeHandle<JSObject> JsonParser<Char>::TryBuildJsonObjectFromFeedback(
+    const JsonContinuation& cont, Handle<Map> feedback) {
+  if (cont.elements != 0 || feedback.is_null() || feedback->is_deprecated() ||
+      feedback->instance_type() != JS_OBJECT_TYPE ||
+      feedback->elements_kind() != HOLEY_ELEMENTS ||
+      feedback->is_dictionary_map()) {
+    return {};
+  }
+  int length = static_cast<int>(property_stack_.size() - cont.index);
+  if (length != feedback->NumberOfOwnDescriptors() ||
+      length != feedback->GetInObjectProperties() -
+                    feedback->UnusedInObjectProperties()) {
+    return {};
+  }
+  Handle<DescriptorArray> descriptors(feedback->instance_descriptors(),
+                                      isolate_);
+  int extra_heap_numbers = 0;
+  for (int i = 0; i < length; ++i) {
+    InternalIndex index(i);
+    PropertyDetails details = descriptors->GetDetails(index);
+    DCHECK_EQ(details.kind(), PropertyKind::kData);
+    DCHECK_EQ(details.location(), PropertyLocation::kField);
+    Tagged<Object> value = *property_stack_[cont.index + i].value;
+    Representation representation = details.representation();
+    if (!Object::FitsRepresentation(value, representation) ||
+        (representation.IsHeapObject() &&
+         !FieldType::NowContains(descriptors->GetFieldType(index), value))) {
+      return {};
+    }
+    if (representation.IsDouble() && IsSmi(value)) ++extra_heap_numbers;
+  }
+
+  // Use the same folded allocation and initialization order as the existing
+  // builder. No allocation may observe a partially initialized double field.
+  FoldedMutableHeapNumberAllocation allocation(isolate_, extra_heap_numbers);
+  Handle<JSObject> object = factory()->NewJSObjectFromMap(feedback);
+  DisallowGarbageCollection no_gc;
+  Tagged<JSObject> raw_object = *object;
+  ReadOnlyRoots roots(isolate_);
+  raw_object->set_elements(roots.empty_fixed_array());
+  WriteBarrierMode mode = raw_object->GetWriteBarrierMode(no_gc);
+  FoldedMutableHeapNumberAllocator numbers(isolate_, &allocation, no_gc);
+  int offset = raw_object->GetInObjectPropertyOffset(0);
+  for (int i = 0; i < length; ++i) {
+    Tagged<Object> value = *property_stack_[cont.index + i].value;
+    if (IsSmi(value) &&
+        descriptors->GetDetails(InternalIndex(i)).representation().IsDouble()) {
+      value = numbers.AllocateNext(
+          roots, Float64(static_cast<double>(Smi::ToInt(value))));
+    }
+    FieldIndex index =
+        FieldIndex::ForInObjectOffset(offset, FieldIndex::kTagged);
+    raw_object->RawFastInobjectPropertyAtPut(index, value, mode);
+    offset += kTaggedSize;
+  }
+  return object;
 }
 
 template <typename Char>
@@ -1106,6 +1173,10 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
     if (Check(JsonToken::COMMA)) {
       return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
           cont, first_token_msg, descriptors);
+    }
+    if constexpr (fast_iterable_state == FastIterableState::kJsonFast) {
+      cont->fast_keys_matched =
+          idx == InternalIndex(descriptors->number_of_descriptors());
     }
   }
 
