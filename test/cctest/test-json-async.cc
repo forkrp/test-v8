@@ -524,6 +524,73 @@ TEST_WITH_PLATFORM(JsonParseAsyncMaterializationProfile, JsonTestPlatform) {
   }
 }
 
+TEST_WITH_PLATFORM(JsonParseAsyncNumericProfile, JsonTestPlatform) {
+  using v8::base::TimeTicks;
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  struct Fixture {
+    const char* name;
+    const char* expression;
+    uint32_t length;
+  };
+  const Fixture fixtures[] = {
+      {"integer12", "Array.from({length:120000},(_,i)=>100000000000+i)",
+       120000},
+      {"short_fractions", "Array.from({length:120000},(_,i)=>(i%99991+1)/1000)",
+       120000},
+      {"unique_doubles",
+       "Array.from({length:120000},(_,i)=>Math.sin(i+0.125)*1e12)", 120000},
+      {"fragmented_numbers",
+       "Array.from({length:10000},()=>Array.from({length:32},(_,i)=>i/8))",
+       10000}};
+  for (const auto& fixture : fixtures) {
+    std::string setup = std::string("var numericProfileInput=JSON.stringify(") +
+                        fixture.expression + ")";
+    CompileRun(setup.c_str());
+    for (int round = -2; round < 5; ++round) {
+      isolate->LowMemoryNotification();
+      v8::HandleScope discard(isolate);
+      auto start = TimeTicks::Now();
+      auto promise =
+          CompileRun("JSON.parseAsync(numericProfileInput)").As<v8::Promise>();
+      double call_ms = (TimeTicks::Now() - start).InMillisecondsF();
+      double wait_ms = 0, foreground_ms = 0;
+      std::vector<double> slices;
+      while (true) {
+        auto before_wait = TimeTicks::Now();
+        auto task = runner->TakeOne(isolate);
+        wait_ms += (TimeTicks::Now() - before_wait).InMillisecondsF();
+        if (!task) break;
+        auto before_slice = TimeTicks::Now();
+        task->Run();
+        task.reset();
+        double elapsed = (TimeTicks::Now() - before_slice).InMillisecondsF();
+        foreground_ms += elapsed;
+        slices.push_back(elapsed);
+        CHECK_LT(slices.size(), 100000u);
+      }
+      double total_ms = (TimeTicks::Now() - start).InMillisecondsF();
+      CHECK_EQ(v8::Promise::kFulfilled, promise->State());
+      CHECK_EQ(fixture.length, promise->Result().As<v8::Array>()->Length());
+      CHECK_GT(slices.size(), 0u);
+      if (round < 0) continue;
+      // Wait includes worker scheduling; it is not a worker CPU measurement.
+      printf(
+          "JSON_ASYNC_NUMERIC_PROFILE {\"case\":\"%s\",\"workers\":%d,"
+          "\"round\":%d,\"call_ms\":%.3f,\"wait_ms\":%.3f,"
+          "\"foreground_ms\":%.3f,\"total_ms\":%.3f,\"slices_ms\":[",
+          fixture.name, platform.NumberOfWorkerThreads(), round, call_ms,
+          wait_ms, foreground_ms, total_ms);
+      for (size_t i = 0; i < slices.size(); ++i) {
+        printf("%s%.3f", i ? "," : "", slices[i]);
+      }
+      printf("]}\n");
+    }
+  }
+}
+
 TEST_WITH_PLATFORM(JsonParseAsyncTermination, JsonTestPlatform) {
   auto isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);

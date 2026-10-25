@@ -297,7 +297,7 @@ class BackgroundJsonParser {
     bool negative = Current() == '-';
     if (negative) ++position_;
     uint32_t digits = 0;
-    uint32_t integer = 0;
+    uint64_t significand = 0;
     if (Current() == '0') {
       ++position_;
       ++digits;
@@ -311,40 +311,53 @@ class BackgroundJsonParser {
         return false;
       }
       while (Digit(Current())) {
-        if (++digits <= 9) integer = integer * 10 + Current() - '0';
+        if (++digits <= 15) significand = significand * 10 + Current() - '0';
         ++position_;
         if ((position_ & 4095) == 0 && Cancelled()) return false;
       }
     }
-    bool fractional = false;
+    bool fast_decimal = digits <= 15;
+    int exponent = 0;
     if (Current() == '.') {
-      fractional = true;
       ++position_;
       if (!Digit(Current())) {
         Fail(MessageTemplate::kJsonParseUnterminatedFractionalNumber);
         return false;
       }
       while (Digit(Current())) {
+        if (++digits <= 15) {
+          significand = significand * 10 + Current() - '0';
+          --exponent;
+        } else {
+          fast_decimal = false;
+        }
         ++position_;
         if ((position_ & 4095) == 0 && Cancelled()) return false;
       }
     }
     if (Current() == 'e' || Current() == 'E') {
-      fractional = true;
       ++position_;
+      bool negative_exponent = Current() == '-';
       if (Current() == '+' || Current() == '-') ++position_;
       if (!Digit(Current())) {
         Fail(MessageTemplate::kJsonParseExponentPartMissingNumber);
         return false;
       }
+      int parsed_exponent = 0;
+      int exponent_digits = 0;
       while (Digit(Current())) {
+        if (++exponent_digits <= 3) {
+          parsed_exponent = parsed_exponent * 10 + Current() - '0';
+        } else {
+          fast_decimal = false;
+        }
         ++position_;
         if ((position_ & 4095) == 0 && Cancelled()) return false;
       }
+      exponent += negative_exponent ? -parsed_exponent : parsed_exponent;
     }
-    if (!fractional && digits <= 9) {
-      *number = negative ? -static_cast<double>(integer) : integer;
-    } else {
+    if (!fast_decimal ||
+        !TryJsonDecimalToDouble(significand, exponent, negative, number)) {
       *number = StringToDouble(input_.SubVector(start, position_),
                                NO_CONVERSION_FLAGS,
                                std::numeric_limits<double>::quiet_NaN());

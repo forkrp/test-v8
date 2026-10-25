@@ -19,6 +19,37 @@ namespace internal {
 // accesses, or exception construction. Both JSON paths share the same rules.
 constexpr bool IsJsonDecimalDigit(uint32_t c) { return c - '0' <= 9; }
 
+// At most 15 decimal digits fit exactly in binary64. Powers of ten through
+// 10^22 also fit exactly, so a single multiply/divide rounds the decimal value
+// correctly. The callers accumulate those digits during grammar validation.
+V8_INLINE bool TryJsonDecimalToDouble(uint64_t significand, int exponent,
+                                      bool negative, double* result) {
+#if (V8_TARGET_ARCH_IA32 || defined(USE_SIMULATOR)) && !defined(_MSC_VER)
+  // Keep the exact integer path; scaling follows DoubleStrtod's exclusion of
+  // extended-precision evaluation.
+  if (exponent == 0) {
+    double value = static_cast<double>(significand);
+    *result = negative ? -value : value;
+    return true;
+  }
+  USE(significand, exponent, negative, result);
+  return false;
+#else
+  if (exponent < -22 || exponent > 22) return false;
+  static constexpr double powers[] = {
+      1e0,  1e1,  1e2,  1e3,  1e4,  1e5,  1e6,  1e7,  1e8,  1e9,  1e10, 1e11,
+      1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22};
+  double value = static_cast<double>(significand);
+  if (exponent < 0) {
+    value /= powers[-exponent];
+  } else if (exponent > 0) {
+    value *= powers[exponent];
+  }
+  *result = negative ? -value : value;
+  return true;
+#endif
+}
+
 enum class EscapeKind : uint8_t {
   kIllegal,
   kSelf,
