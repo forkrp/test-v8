@@ -653,6 +653,7 @@ namespace internal {
   CPP(JsonParse)                                                               \
   CPP(JsonParseAsync)                                                          \
   CPP(JsonStringify)                                                           \
+  CPP(JsonClone)                                                               \
   CPP(JsonStringifyAsync)                                                      \
   CPP(MsgpackEncode)                                                           \
   CPP(MsgpackEncodeAsync)                                                      \

@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/json/json-clone.h"
 #include "src/json/json-parser.h"
 #include "src/json/json-stringifier.h"
 #include "src/logging/counters.h"
@@ -44,6 +45,13 @@ BUILTIN(JsonStringify) {
   Handle<Object> indent = args.atOrUndefined(isolate, 3);
   RETURN_RESULT_OR_FAILURE(isolate,
                            JsonStringify(isolate, object, replacer, indent));
+}
+
+// Non-standard JSON-compatible deep copy without intermediate text when safe.
+BUILTIN(JsonClone) {
+  HandleScope scope(isolate);
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JsonClone(isolate, args.atOrUndefined(isolate, 1)));
 }
 
 // Non-standard: caller-thread semantic capture, worker-thread text encoding.

@@ -139,6 +139,7 @@ v8_source_set("cctest_sources") {
     "test-inobject-slack-tracking.cc",
     "test-js-weak-refs.cc",
     "test-json-async.cc",
+    "test-json-clone.cc",
     "test-liveedit.cc",
     "test-lockers.cc",
     "test-mementos.cc",
