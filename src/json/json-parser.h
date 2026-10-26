@@ -363,8 +363,10 @@ class JsonParser final {
       Handle<Map> feedback = {});
   MaybeHandle<Object> ParseJsonArray();
   MaybeHandle<Object> ParseJsonObject(Handle<Map> feedback);
+  // Separate specializations keep recursive value dispatch out of each
+  // feedback bailout and avoid bloating both ordinary and same-shape loops.
   template <DescriptorArray::FastIterableState fast_iterable_state>
-  V8_INLINE bool ParseJsonObjectProperties(JsonContinuation* cont,
+  V8_NOINLINE bool ParseJsonObjectProperties(JsonContinuation* cont,
                                            MessageTemplate first_token_msg,
                                            Handle<DescriptorArray> descriptors);
   V8_INLINE bool ParseJsonPropertyValue(const JsonString& key);

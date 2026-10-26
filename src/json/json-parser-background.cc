@@ -382,8 +382,8 @@ class BackgroundJsonParser {
         key_slot = static_cast<uint32_t>(
             (stack_.size() * 8 + frame.key_count++) &
             (key_strings_.size() - 1));
-        if (key_strings_[key_slot]) {
-          const auto& previous = output_->nodes[key_strings_[key_slot] - 1];
+        if (key_strings_[key_slot].kind == BackgroundJsonNode::kKey) {
+          const auto& previous = key_strings_[key_slot];
           uint32_t length = previous.data.string.length;
           if (input_.size() - position_ > length &&
               input_[position_ + length] == '"' &&
@@ -482,12 +482,12 @@ class BackgroundJsonParser {
         if (!escaped) {
           if constexpr (is_key) {
             if (key_slot != JsonString::kNoCacheSlot && !is_index &&
-                length != 0 && length <= 32 && !key_strings_[key_slot]) {
+                length != 0 && length <= 32 &&
+                key_strings_[key_slot].kind != Node::kKey) {
               // Never replace a slot already referenced by another tape key.
-              key_strings_[key_slot] =
-                  static_cast<uint32_t>(output_->nodes.size()) + 1;
               node->flags |= Node::kCachedString;
               node->depth = static_cast<uint16_t>(key_slot);
+              key_strings_[key_slot] = *node;
               stack_.back().cached_keys = true;
             }
           } else if (length < 10) {
@@ -604,18 +604,17 @@ class BackgroundJsonParser {
     for (uint32_t i = 0; i < node->data.string.length; ++i)
       hash = hash * 31 + chars[i];
     uint32_t slot = hash & (slots.size() - 1);
-    if (slots[slot]) {
-      const auto& previous = output_->nodes[slots[slot] - 1];
+    if (slots[slot].kind == BackgroundJsonNode::kString) {
+      const auto& previous = slots[slot];
       if (previous.data.string.length != node->data.string.length) return;
       const Char* previous_chars =
           input_.begin() + previous.data.string.start + 1;
       size_t bytes = node->data.string.length * sizeof(Char);
       if (std::memcmp(previous_chars, chars, bytes) != 0) return;
-    } else {
-      slots[slot] = static_cast<uint32_t>(output_->nodes.size()) + 1;
     }
     node->flags |= BackgroundJsonNode::kCachedString;
     node->depth = static_cast<uint16_t>(slot);
+    if (slots[slot].kind != BackgroundJsonNode::kString) slots[slot] = *node;
   }
 
   BackgroundJsonData* const output_;
@@ -625,8 +624,10 @@ class BackgroundJsonParser {
   // Parallel workers frequently update shallow container frames. Keep them on
   // each worker's stack: tiny heap buffers can share a cache line across jobs.
   base::SmallVector<Frame, 16> stack_;
-  std::array<uint32_t, 64> short_strings_{};
-  std::array<uint32_t, 64> key_strings_{};
+  // Cache validated metadata directly: hits need no deque lookup. The tape's
+  // cache-slot format and first-entry-on-collision rule stay the same.
+  std::array<BackgroundJsonNode, 64> short_strings_{};
+  std::array<BackgroundJsonNode, 64> key_strings_{};
 };
 
 }  // namespace

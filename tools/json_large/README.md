@@ -57,3 +57,31 @@ JSONTestSuite's `y_`/`n_` cases supply additional parsing correctness checks.
 Implementation-defined `i_` decisions are recorded and compared across APIs.
 Inputs containing invalid UTF-8 bytes are listed separately, since the tested
 JavaScript APIs consume already-decoded strings.
+
+For the mixed nested parse follow-up, `compare.py` compares named frozen builds
+in the same case block, rotating their execution order. With two builds the
+four-round order is AB, BA, BA, AB. It retains every sample and checks the
+binary, harness and executor hashes. A three-build run can compare a fix with
+both its frozen parent and the original `12.6` build:
+
+```sh
+python3 tools/json_large/compare.py \
+  --out /absolute/path/to/extracted/fix-experiment \
+  --tag replay-parse --labels before metadata v12 --pairs 4 --samples 9
+```
+
+`validate.py --out EXPERIMENT --label metadata` checks complete canonical output
+SHA-256 and full tree fingerprints against retained references, validates large
+async results, and repeats the applicable JSONTestSuite cases. The references,
+fixtures and builds belong to the verified experiment archive.
+`summarize_fix.py --out EXPERIMENT --candidate metadata --tags metadata-parse-final metadata-stringify-final metadata-async4-final --extra-tags metadata-mixed8` derives the follow-up tables and gate results;
+pass any retained repeat tags with `--extra-tags` when reproducing an expanded
+matrix. Rejected pilots remain separate from the acceptance matrix.
+
+The delivered matrix also pools `metadata-twitter-followup`, a single fixed
+four-round verification of all three Twitter sizes after the initial 20 MB
+aggregate crossed the existing 3% gate. Both the first result and the follow-up
+are retained. Use `--extra-tags metadata-mixed8 metadata-twitter-followup` to
+derive the delivered summary. Mixed and Twitter parse inputs, plus four-task
+async record controls, have eight rounds; other parse and stringify inputs have four. Supplementary
+UTF-16, Unicode-key and shape controls remain under their separate micro tag.

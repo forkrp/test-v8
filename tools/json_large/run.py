@@ -29,10 +29,10 @@ def save(path, value):
     Path(path).write_text(json.dumps(value, indent=2) + '\n')
 
 
-def execute(command, cwd, timeout=300, oracle=False):
+def execute(command, cwd, timeout=300, oracle=False, env=None):
     start = time.monotonic()
     with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
-        child = subprocess.Popen(command, cwd=cwd, stdout=stdout, stderr=stderr)
+        child = subprocess.Popen(command, cwd=cwd, stdout=stdout, stderr=stderr, env=env)
         timer = threading.Timer(timeout, child.kill)
         timer.daemon = True
         timer.start()
