@@ -85,3 +85,32 @@ are retained. Use `--extra-tags metadata-mixed8 metadata-twitter-followup` to
 derive the delivered summary. Mixed and Twitter parse inputs, plus four-task
 async record controls, have eight rounds; other parse and stringify inputs have four. Supplementary
 UTF-16, Unicode-key and shape controls remain under their separate micro tag.
+
+The marking-worklist follow-up is documented in
+[docs/json-parse-async-tail-mac-arm64.md](../../docs/json-parse-async-tail-mac-arm64.md),
+with committed results in
+[evidence/async-tail-mac-arm64-20261027.json](evidence/async-tail-mac-arm64-20261027.json).
+The verified archive retains the original head and uninstrumented markseg256
+builds, all diagnostic variants, complete raw samples, and the fixed acceptance plan.
+The macOS ARM64 candidate changes the object-marking worklist minimum segment
+capacity from 64 to 256. The 20 MB target uses exactly eight pairs; any control
+follow-up is pooled with every original sample. Rejected candidates are separate.
+
+Replay into the extracted archive with a fresh tag:
+
+    V8_JSON_ROOT=/absolute/path/to/v8-standalone \
+    python3 tools/json_large/compare.py --out /absolute/path/to/extracted/experiment \
+      --tag replay-markseg25620 --labels head markseg256 \
+      --families records12 records60 --sizes 20 --modes parseAsync \
+      --jobs 4 --pairs 8 --samples 9
+
+The archive's summarize-markseg256.py derives the delivered large-input tables.
+Pass every extra tag listed in results/markseg256-followup-decision.json with
+--extra-tags. Separate micro controls are in results/markseg256-micro-pooled-summary.json.
+Pooled batch p90 uses nearest rank over every measured batch, excluding warmups,
+and is distinct from the median of process medians.
+
+The delivered change explicitly retains one strict 3% gate exception: CITM 20 MB
+parse has an eight-pair median slowdown of 3.009%. The original gate failure and
+all samples remain intact. See results/markseg256-disposition.json and the report
+for the engineering decision and whole-process RSS tradeoffs.

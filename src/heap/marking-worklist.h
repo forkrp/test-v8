@@ -25,7 +25,13 @@ class JSObject;
 // The index of the main thread task used by concurrent/parallel GC.
 const int kMainThreadTask = 0;
 
+#if V8_OS_MACOS && V8_HOST_ARCH_ARM64
+// Larger local segments amortize global publication and mutex contention on
+// macOS ARM64 while retaining the existing work-sharing points.
+using MarkingWorklist = ::heap::base::Worklist<Tagged<HeapObject>, 256>;
+#else
 using MarkingWorklist = ::heap::base::Worklist<Tagged<HeapObject>, 64>;
+#endif
 
 // We piggyback on marking to compute object sizes per native context that is
 // needed for the new memory measurement API. The algorithm works as follows:

@@ -1,0 +1,5638 @@
+{
+  "candidate": "markseg256",
+  "disposition": {
+    "candidate": "markseg256",
+    "engineering_disposition": "adopted_with_documented_control_exception",
+    "strict_gates_passed": false,
+    "strict_gate_failures": [
+      {
+        "fixture": "citm_catalog-20mb",
+        "mode": "parse",
+        "gate": "regression"
+      }
+    ],
+    "exception_details": {
+      "fixture": "citm_catalog-20mb",
+      "mode": "parse",
+      "pairs": 8,
+      "aggregate_less_time_percent": -2.8952347852950533,
+      "paired_median_less_time_percent": -3.009175088280991,
+      "original_max_regression_percent": 3,
+      "excess_percentage_points": 0.009175088280990895
+    },
+    "rationale": [
+      "All six async cells improve; fixed eight-round20MB median/pairedmedian/p90 targets passed.",
+      "Full correctness and all16micro cells passed.35of36large synchronous cells meettheoriginal3%gate.",
+      "The one fixedCITMfollow-up was pooled intact; the3%gate remainsfailed for its20MBparsepairedmedian. No additionalrepeat orsampledeletion is used.",
+      "Retain the six-line macOSARM64change asanengineeringtradeoff:targetlatencygains outweigh theapproximately3%synchronouscontrolregression. Thisisnot aclaimthatallpredefinedgatespassed.",
+      "Whole-processCPU andwallmedians improve inallsixasync cells; someprocessRSSpeaksandthe60-field10MBRSSmedianincrease andmustbedisclosed."
+    ],
+    "summary_sha256": "141f3c8da6c124b14ab4d4a624522a3378dea8c8626348ef1ab6569df8a01929",
+    "formal_plan_sha256": "e687574e629956b9c50526257d2e1ac2cc74477592375a53bf7afebdff5709ca",
+    "resources_file": "results/markseg256-process-resources.json",
+    "limits": [
+      "MacARM64recordedbuildonly",
+      "Historicalpair2exactcausecannotbereconstructed",
+      "No fullV8/test262,Android/ARM32orsanitizervalidation",
+      "Whole-processRSSisnotAPI-phaseheapusage"
+    ]
+  },
+  "process_resources": {
+    "scope": "Whole-process CPU, wall, and peak RSS including input loading, explicit GC, warmups, all API batches and validation; not a phase allocation metric.",
+    "cells": [
+      {
+        "fixture": "records12-10mb",
+        "values": {
+          "head": {
+            "rss_mib_median": 237.8671875,
+            "rss_mib_min": 202.9375,
+            "rss_mib_max": 252.859375,
+            "per_process_peak_rss_bytes": [
+              237731840,
+              265142272,
+              261111808,
+              212795392
+            ],
+            "cpu_s_median": 8.630302,
+            "wall_s_median": 6.427860250521917
+          },
+          "markseg256": {
+            "rss_mib_median": 201.7890625,
+            "rss_mib_min": 201.328125,
+            "rss_mib_max": 202.3125,
+            "per_process_peak_rss_bytes": [
+              212140032,
+              211599360,
+              211582976,
+              211107840
+            ],
+            "cpu_s_median": 7.83867,
+            "wall_s_median": 6.236330728977919
+          }
+        },
+        "cpu_less_time_percent": 9.172703342246901,
+        "wall_less_time_percent": 2.979677747792464
+      },
+      {
+        "fixture": "records12-20mb",
+        "values": {
+          "head": {
+            "rss_mib_median": 363.109375,
+            "rss_mib_min": 356.796875,
+            "rss_mib_max": 430.734375,
+            "per_process_peak_rss_bytes": [
+              380059648,
+              376455168,
+              451657728,
+              380764160,
+              381534208,
+              374128640,
+              380928000,
+              380731392
+            ],
+            "cpu_s_median": 17.687998,
+            "wall_s_median": 12.916006771003595
+          },
+          "markseg256": {
+            "rss_mib_median": 360.9609375,
+            "rss_mib_min": 356.828125,
+            "rss_mib_max": 460.90625,
+            "per_process_peak_rss_bytes": [
+              375898112,
+              438026240,
+              378044416,
+              378945536,
+              430489600,
+              375832576,
+              483295232,
+              374161408
+            ],
+            "cpu_s_median": 16.014646499999998,
+            "wall_s_median": 12.59094404152711
+          }
+        },
+        "cpu_less_time_percent": 9.460378161508176,
+        "wall_less_time_percent": 2.51674325695036
+      },
+      {
+        "fixture": "records12-50mb",
+        "values": {
+          "head": {
+            "rss_mib_median": 879.5703125,
+            "rss_mib_min": 816.8125,
+            "rss_mib_max": 1030.734375,
+            "per_process_peak_rss_bytes": [
+              1080803328,
+              986660864,
+              856489984,
+              857931776
+            ],
+            "cpu_s_median": 45.708647,
+            "wall_s_median": 32.457771728979424
+          },
+          "markseg256": {
+            "rss_mib_median": 816.4765625,
+            "rss_mib_min": 815.0625,
+            "rss_mib_max": 817.625,
+            "per_process_peak_rss_bytes": [
+              857341952,
+              857178112,
+              855097344,
+              854654976
+            ],
+            "cpu_s_median": 39.9296705,
+            "wall_s_median": 31.278550791495945
+          }
+        },
+        "cpu_less_time_percent": 12.643070576996074,
+        "wall_less_time_percent": 3.6330927068250585
+      },
+      {
+        "fixture": "records60-10mb",
+        "values": {
+          "head": {
+            "rss_mib_median": 194.6796875,
+            "rss_mib_min": 191.890625,
+            "rss_mib_max": 221.6875,
+            "per_process_peak_rss_bytes": [
+              204357632,
+              201211904,
+              232456192,
+              203915264
+            ],
+            "cpu_s_median": 9.497229,
+            "wall_s_median": 7.786458541988395
+          },
+          "markseg256": {
+            "rss_mib_median": 229.265625,
+            "rss_mib_min": 192.34375,
+            "rss_mib_max": 238.296875,
+            "per_process_peak_rss_bytes": [
+              249872384,
+              249151488,
+              231653376,
+              201687040
+            ],
+            "cpu_s_median": 9.259834000000001,
+            "wall_s_median": 7.739397833502153
+          }
+        },
+        "cpu_less_time_percent": 2.499623837647791,
+        "wall_less_time_percent": 0.6043916914534098
+      },
+      {
+        "fixture": "records60-20mb",
+        "values": {
+          "head": {
+            "rss_mib_median": 337.8671875,
+            "rss_mib_min": 335.203125,
+            "rss_mib_max": 343.4375,
+            "per_process_peak_rss_bytes": [
+              352665600,
+              351485952,
+              355762176,
+              360120320,
+              353173504,
+              359202816,
+              355385344,
+              352813056
+            ],
+            "cpu_s_median": 20.22946,
+            "wall_s_median": 15.679630583472317
+          },
+          "markseg256": {
+            "rss_mib_median": 336.859375,
+            "rss_mib_min": 334.6875,
+            "rss_mib_max": 450.046875,
+            "per_process_peak_rss_bytes": [
+              353255424,
+              471908352,
+              354533376,
+              353189888,
+              352927744,
+              353107968,
+              350945280,
+              355205120
+            ],
+            "cpu_s_median": 18.834478999999998,
+            "wall_s_median": 15.372398124978645
+          }
+        },
+        "cpu_less_time_percent": 6.895789605852065,
+        "wall_less_time_percent": 1.9594368429669662
+      },
+      {
+        "fixture": "records60-50mb",
+        "values": {
+          "head": {
+            "rss_mib_median": 772.0859375,
+            "rss_mib_min": 771.796875,
+            "rss_mib_max": 772.796875,
+            "per_process_peak_rss_bytes": [
+              809549824,
+              809287680,
+              809631744,
+              810336256
+            ],
+            "cpu_s_median": 49.703588499999995,
+            "wall_s_median": 39.06899868749315
+          },
+          "markseg256": {
+            "rss_mib_median": 772.1171875,
+            "rss_mib_min": 771.53125,
+            "rss_mib_max": 1024.875,
+            "per_process_peak_rss_bytes": [
+              810074112,
+              809172992,
+              1074659328,
+              809009152
+            ],
+            "cpu_s_median": 45.8562,
+            "wall_s_median": 38.26198516652221
+          }
+        },
+        "cpu_less_time_percent": 7.740665445111661,
+        "wall_less_time_percent": 2.065610965425857
+      }
+    ]
+  },
+  "summary": {
+    "parent_commit": "0728b45cbd8e4e415ee1b0d4603b97e2270b924e",
+    "tags": [
+      "markseg256-guard10",
+      "markseg256-async20",
+      "markseg256-async-controls",
+      "markseg256-sync",
+      "markseg256-sync-followup"
+    ],
+    "processes": 400,
+    "measured_batches": 3600,
+    "warmup_batches": 800,
+    "formal_plan_sha256": "e687574e629956b9c50526257d2e1ac2cc74477592375a53bf7afebdff5709ca",
+    "cells": [
+      {
+        "fixture": "canada-10mb",
+        "family": "canada",
+        "requested_mb": 10,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 51.20850000000004,
+            "per_process_medians_ms": [
+              50.834,
+              51.625,
+              50.667,
+              51.583000000000084
+            ],
+            "batch_p90_ms": 51.999999999999886,
+            "batch_p95_ms": 52,
+            "batch_max_ms": 53.25,
+            "batch_min_ms": 50.54200000000003,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 83607552
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 51.52099999999999,
+            "per_process_medians_ms": [
+              51.5,
+              51.54199999999997,
+              51.625,
+              51.5
+            ],
+            "batch_p90_ms": 51.91700000000003,
+            "batch_p95_ms": 52.25000000000003,
+            "batch_max_ms": 52.416000000000054,
+            "batch_min_ms": 51.25,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 83197952
+          }
+        },
+        "aggregate_less_time_percent": -0.6102502514229835,
+        "paired_median_less_time_percent": -0.5746859668858739,
+        "p90_less_time_percent": 0.15961538461510827,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 50.834,
+            "final_ms": 51.5,
+            "less_time_percent": -1.3101467521737353
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 51.625,
+            "final_ms": 51.54199999999997,
+            "less_time_percent": 0.16077481840198748
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 50.667,
+            "final_ms": 51.625,
+            "less_time_percent": -1.8907770343616237
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 51.583000000000084,
+            "final_ms": 51.5,
+            "less_time_percent": 0.16090572475444542
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "canada-10mb",
+        "family": "canada",
+        "requested_mb": 10,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 19.0625,
+            "per_process_medians_ms": [
+              19.16599999999994,
+              19.041999999999916,
+              19,
+              19.083000000000084
+            ],
+            "batch_p90_ms": 19.20900000000006,
+            "batch_p95_ms": 19.292000000000144,
+            "batch_max_ms": 20.875,
+            "batch_min_ms": 18.916000000000054,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 100532224
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 19.104000000000042,
+            "per_process_medians_ms": [
+              19.125,
+              19.125,
+              19.083000000000084,
+              19.04099999999994
+            ],
+            "batch_p90_ms": 19.25,
+            "batch_p95_ms": 19.291999999999916,
+            "batch_max_ms": 19.417000000000144,
+            "batch_min_ms": 18.875,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 106168320
+          }
+        },
+        "aggregate_less_time_percent": -0.21770491803301262,
+        "paired_median_less_time_percent": -0.1109790499961627,
+        "p90_less_time_percent": -0.21344161590890476,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 19.16599999999994,
+            "final_ms": 19.125,
+            "less_time_percent": 0.21392048419044407
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 19.041999999999916,
+            "final_ms": 19.125,
+            "less_time_percent": -0.4358785841827695
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 19,
+            "final_ms": 19.083000000000084,
+            "less_time_percent": -0.4368421052636018
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 19.083000000000084,
+            "final_ms": 19.04099999999994,
+            "less_time_percent": 0.22009118063273103
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "canada-20mb",
+        "family": "canada",
+        "requested_mb": 20,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 101.33350000000007,
+            "per_process_medians_ms": [
+              101.29200000000014,
+              101.49999999999994,
+              101.20800000000008,
+              101.375
+            ],
+            "batch_p90_ms": 101.875,
+            "batch_p95_ms": 101.95800000000008,
+            "batch_max_ms": 102.20799999999986,
+            "batch_min_ms": 101.04200000000003,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 119586816
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 103.18750000000006,
+            "per_process_medians_ms": [
+              103.125,
+              103.20800000000008,
+              103.16700000000003,
+              103.25
+            ],
+            "batch_p90_ms": 103.75,
+            "batch_p95_ms": 103.95800000000008,
+            "batch_max_ms": 104.04100000000017,
+            "batch_min_ms": 102.16699999999992,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 120111104
+          }
+        },
+        "aggregate_less_time_percent": -1.8296022539436407,
+        "paired_median_less_time_percent": -1.829594073668006,
+        "p90_less_time_percent": -1.8404907975460016,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 101.29200000000014,
+            "final_ms": 103.125,
+            "less_time_percent": -1.809619713303956
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 101.49999999999994,
+            "final_ms": 103.20800000000008,
+            "less_time_percent": -1.6827586206897838
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 101.20800000000008,
+            "final_ms": 103.16700000000003,
+            "less_time_percent": -1.9356177377281902
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 101.375,
+            "final_ms": 103.25,
+            "less_time_percent": -1.8495684340320562
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "canada-20mb",
+        "family": "canada",
+        "requested_mb": 20,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 37.874500000000126,
+            "per_process_medians_ms": [
+              37.833000000000084,
+              37.95899999999983,
+              37.375,
+              37.91600000000017
+            ],
+            "batch_p90_ms": 38.04099999999994,
+            "batch_p95_ms": 38.04100000000017,
+            "batch_max_ms": 38.166999999999916,
+            "batch_min_ms": 37.083000000000084,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 168378368
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 38.082999999999856,
+            "per_process_medians_ms": [
+              38.208000000000084,
+              38.08299999999963,
+              38.083000000000084,
+              37.91599999999926
+            ],
+            "batch_p90_ms": 38.375,
+            "batch_p95_ms": 38.416999999999916,
+            "batch_max_ms": 38.666999999999916,
+            "batch_min_ms": 37.75,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 169443328
+          }
+        },
+        "aggregate_less_time_percent": -0.5505023168615564,
+        "paired_median_less_time_percent": -0.658933203827583,
+        "p90_less_time_percent": -0.878000052575012,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 37.833000000000084,
+            "final_ms": 38.208000000000084,
+            "less_time_percent": -0.9911981603362152
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 37.95899999999983,
+            "final_ms": 38.08299999999963,
+            "less_time_percent": -0.32666824731895083
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 37.375,
+            "final_ms": 38.083000000000084,
+            "less_time_percent": -1.8943143812711227
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 37.91600000000017,
+            "final_ms": 37.91599999999926,
+            "less_time_percent": 2.398081733190338e-12
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "canada-50mb",
+        "family": "canada",
+        "requested_mb": 50,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 345.9369999999999,
+            "per_process_medians_ms": [
+              349.08299999999963,
+              341.625,
+              342.79100000000017,
+              360.375
+            ],
+            "batch_p90_ms": 360.4580000000001,
+            "batch_p95_ms": 361.58300000000054,
+            "batch_max_ms": 362.4580000000001,
+            "batch_min_ms": 338.08399999999983,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 222314496
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 333.5210000000002,
+            "per_process_medians_ms": [
+              333.5,
+              333.54200000000037,
+              328.83399999999983,
+              336.58299999999963
+            ],
+            "batch_p90_ms": 337.45799999999963,
+            "batch_p95_ms": 340.79100000000017,
+            "batch_max_ms": 340.95899999999983,
+            "batch_min_ms": 327.25,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 224460800
+          }
+        },
+        "aggregate_less_time_percent": 3.589092811696848,
+        "paired_median_less_time_percent": 4.267779243583803,
+        "p90_less_time_percent": 6.380771130062435,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 349.08299999999963,
+            "final_ms": 333.5,
+            "less_time_percent": 4.463981345410584
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 341.625,
+            "final_ms": 333.54200000000037,
+            "less_time_percent": 2.3660446395900814
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 342.79100000000017,
+            "final_ms": 328.83399999999983,
+            "less_time_percent": 4.071577141757022
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 360.375,
+            "final_ms": 336.58299999999963,
+            "less_time_percent": 6.602011793271001
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "canada-50mb",
+        "family": "canada",
+        "requested_mb": 50,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 90.0630000000001,
+            "per_process_medians_ms": [
+              89.875,
+              90.08399999999983,
+              90.04200000000037,
+              90.41700000000128
+            ],
+            "batch_p90_ms": 90.54199999999946,
+            "batch_p95_ms": 90.70800000000054,
+            "batch_max_ms": 92.79199999999992,
+            "batch_min_ms": 89.58300000000054,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 321732608
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 90.625,
+            "per_process_medians_ms": [
+              90.70899999999983,
+              90.625,
+              90.41600000000108,
+              90.625
+            ],
+            "batch_p90_ms": 90.91600000000017,
+            "batch_p95_ms": 91,
+            "batch_max_ms": 93.04199999999992,
+            "batch_min_ms": 90.125,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 325124096
+          }
+        },
+        "aggregate_less_time_percent": -0.6240076390969573,
+        "paired_median_less_time_percent": -0.5079561586537551,
+        "p90_less_time_percent": -0.41306796845741456,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 89.875,
+            "final_ms": 90.70899999999983,
+            "less_time_percent": -0.9279554937411172
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 90.08399999999983,
+            "final_ms": 90.625,
+            "less_time_percent": -0.6005505972205505
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 90.04200000000037,
+            "final_ms": 90.41600000000108,
+            "less_time_percent": -0.4153617200869597
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 90.41700000000128,
+            "final_ms": 90.625,
+            "less_time_percent": -0.23004523485485873
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "citm_catalog-10mb",
+        "family": "citm_catalog",
+        "requested_mb": 10,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 8,
+            "process_median_ms": 25.9375,
+            "per_process_medians_ms": [
+              25.66599999999994,
+              25.833999999999946,
+              25.958000000000027,
+              25.916999999999973,
+              25.875,
+              26.5,
+              26.625,
+              26.58400000000006
+            ],
+            "batch_p90_ms": 26.66700000000003,
+            "batch_p95_ms": 26.708000000000084,
+            "batch_max_ms": 27.75,
+            "batch_min_ms": 25.5,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 85590016
+          },
+          "markseg256": {
+            "processes": 8,
+            "process_median_ms": 26.542000000000144,
+            "per_process_medians_ms": [
+              26.45900000000006,
+              26.70799999999997,
+              26.708000000000084,
+              26.541999999999916,
+              26.542000000000144,
+              26.5,
+              26.625,
+              26.542000000000144
+            ],
+            "batch_p90_ms": 26.958000000000084,
+            "batch_p95_ms": 27.08400000000006,
+            "batch_max_ms": 27.125,
+            "batch_min_ms": 26.29099999999994,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 85573632
+          }
+        },
+        "aggregate_less_time_percent": -2.3306024096391154,
+        "paired_median_less_time_percent": -2.49466116191448,
+        "p90_less_time_percent": -1.0912363595457109,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 25.66599999999994,
+            "final_ms": 26.45900000000006,
+            "less_time_percent": -3.0896906413158343
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 25.833999999999946,
+            "final_ms": 26.70799999999997,
+            "less_time_percent": -3.3831384996517277
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 25.958000000000027,
+            "final_ms": 26.708000000000084,
+            "less_time_percent": -2.8892826874183486
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 25.916999999999973,
+            "final_ms": 26.541999999999916,
+            "less_time_percent": -2.411544546050637
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 0,
+            "head_ms": 25.875,
+            "final_ms": 26.542000000000144,
+            "less_time_percent": -2.577777777778323
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 1,
+            "head_ms": 26.5,
+            "final_ms": 26.5,
+            "less_time_percent": 0.0
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 2,
+            "head_ms": 26.625,
+            "final_ms": 26.625,
+            "less_time_percent": 0.0
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 3,
+            "head_ms": 26.58400000000006,
+            "final_ms": 26.542000000000144,
+            "less_time_percent": 0.15798976828136357
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "citm_catalog-10mb",
+        "family": "citm_catalog",
+        "requested_mb": 10,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 8,
+            "process_median_ms": 20.291499999999928,
+            "per_process_medians_ms": [
+              20.16599999999994,
+              20.29099999999994,
+              20.291999999999916,
+              20.416000000000167,
+              20.29099999999994,
+              20.291999999999916,
+              20.125,
+              20.333000000000084
+            ],
+            "batch_p90_ms": 20.542000000000144,
+            "batch_p95_ms": 20.83299999999997,
+            "batch_max_ms": 21.083999999999946,
+            "batch_min_ms": 19.958000000000084,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 179535872
+          },
+          "markseg256": {
+            "processes": 8,
+            "process_median_ms": 20.2915000000001,
+            "per_process_medians_ms": [
+              20.25,
+              20.666999999999916,
+              20.333000000000084,
+              20.333999999999833,
+              20.291000000000167,
+              20.29200000000003,
+              20.207999999999856,
+              20.291000000000054
+            ],
+            "batch_p90_ms": 20.666999999999916,
+            "batch_p95_ms": 21,
+            "batch_max_ms": 21.25,
+            "batch_min_ms": 20,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 173785088
+          }
+        },
+        "aggregate_less_time_percent": -8.43769498715119e-13,
+        "paired_median_less_time_percent": -0.10102503449732625,
+        "p90_less_time_percent": -0.6085093953839493,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 20.16599999999994,
+            "final_ms": 20.25,
+            "less_time_percent": -0.4165426956266094
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 20.29099999999994,
+            "final_ms": 20.666999999999916,
+            "less_time_percent": -1.853038292839071
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 20.291999999999916,
+            "final_ms": 20.333000000000084,
+            "less_time_percent": -0.20205006899354228
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 20.416000000000167,
+            "final_ms": 20.333999999999833,
+            "less_time_percent": 0.4016457680267149
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 0,
+            "head_ms": 20.29099999999994,
+            "final_ms": 20.291000000000167,
+            "less_time_percent": -1.1102230246251565e-12
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 1,
+            "head_ms": 20.291999999999916,
+            "final_ms": 20.29200000000003,
+            "less_time_percent": -5.551115123125783e-13
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 2,
+            "head_ms": 20.125,
+            "final_ms": 20.207999999999856,
+            "less_time_percent": -0.4124223602477439
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 3,
+            "head_ms": 20.333000000000084,
+            "final_ms": 20.291000000000054,
+            "less_time_percent": 0.20656076329135242
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "citm_catalog-20mb",
+        "family": "citm_catalog",
+        "requested_mb": 20,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 8,
+            "process_median_ms": 51.791999999999916,
+            "per_process_medians_ms": [
+              51.5,
+              52.04100000000017,
+              51.791999999999916,
+              53.625,
+              51.75,
+              51.875,
+              51.5,
+              51.791999999999916
+            ],
+            "batch_p90_ms": 53.16599999999994,
+            "batch_p95_ms": 53.666999999999916,
+            "batch_max_ms": 54.54100000000017,
+            "batch_min_ms": 51.166999999999916,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 123928576
+          },
+          "markseg256": {
+            "processes": 8,
+            "process_median_ms": 53.29149999999993,
+            "per_process_medians_ms": [
+              51.5,
+              53.708000000000084,
+              53.70799999999997,
+              53.332999999999856,
+              53.5,
+              53.208000000000084,
+              53.25,
+              53.25
+            ],
+            "batch_p90_ms": 53.833000000000084,
+            "batch_p95_ms": 54.041999999999916,
+            "batch_max_ms": 55.75,
+            "batch_min_ms": 51.291999999999916,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 124190720
+          }
+        },
+        "aggregate_less_time_percent": -2.8952347852950533,
+        "paired_median_less_time_percent": -3.009175088280991,
+        "p90_less_time_percent": -1.2545611857204708,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 51.5,
+            "final_ms": 51.5,
+            "less_time_percent": 0.0
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 52.04100000000017,
+            "final_ms": 53.708000000000084,
+            "less_time_percent": -3.203243596394989
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 51.791999999999916,
+            "final_ms": 53.70799999999997,
+            "less_time_percent": -3.6994130367625333
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 53.625,
+            "final_ms": 53.332999999999856,
+            "less_time_percent": 0.544522144522408
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 0,
+            "head_ms": 51.75,
+            "final_ms": 53.5,
+            "less_time_percent": -3.3816425120772875
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 1,
+            "head_ms": 51.875,
+            "final_ms": 53.208000000000084,
+            "less_time_percent": -2.5696385542170352
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 2,
+            "head_ms": 51.5,
+            "final_ms": 53.25,
+            "less_time_percent": -3.398058252427183
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 3,
+            "head_ms": 51.791999999999916,
+            "final_ms": 53.25,
+            "less_time_percent": -2.8151065801669928
+          }
+        ],
+        "gate_failures": [
+          "regression"
+        ]
+      },
+      {
+        "fixture": "citm_catalog-20mb",
+        "family": "citm_catalog",
+        "requested_mb": 20,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 8,
+            "process_median_ms": 40.5,
+            "per_process_medians_ms": [
+              40.5,
+              40.541999999999916,
+              40.25,
+              40.5,
+              40.5,
+              40.41599999999994,
+              40.58299999999963,
+              40.58399999999983
+            ],
+            "batch_p90_ms": 40.75,
+            "batch_p95_ms": 40.916999999999916,
+            "batch_max_ms": 41.666999999999916,
+            "batch_min_ms": 39.708000000000084,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 303808512
+          },
+          "markseg256": {
+            "processes": 8,
+            "process_median_ms": 40.64599999999996,
+            "per_process_medians_ms": [
+              41.875,
+              40.625,
+              40.583000000000084,
+              40.666999999999916,
+              40.58299999999963,
+              40.625,
+              40.75,
+              41
+            ],
+            "batch_p90_ms": 41.833000000000084,
+            "batch_p95_ms": 41.91600000000017,
+            "batch_max_ms": 42.125,
+            "batch_min_ms": 40.417000000000144,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 301596672
+          }
+        },
+        "aggregate_less_time_percent": -0.3604938271603908,
+        "paired_median_less_time_percent": -0.4647338054602268,
+        "p90_less_time_percent": -2.6576687116566466,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 40.5,
+            "final_ms": 41.875,
+            "less_time_percent": -3.3950617283950546
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 40.541999999999916,
+            "final_ms": 40.625,
+            "less_time_percent": -0.2047259631988707
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 40.25,
+            "final_ms": 40.583000000000084,
+            "less_time_percent": -0.8273291925467996
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 40.5,
+            "final_ms": 40.666999999999916,
+            "less_time_percent": -0.41234567901213826
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 0,
+            "head_ms": 40.5,
+            "final_ms": 40.58299999999963,
+            "less_time_percent": -0.204938271604016
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 1,
+            "head_ms": 40.41599999999994,
+            "final_ms": 40.625,
+            "less_time_percent": -0.5171219319083153
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 2,
+            "head_ms": 40.58299999999963,
+            "final_ms": 40.75,
+            "less_time_percent": -0.4115023532029971
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 3,
+            "head_ms": 40.58399999999983,
+            "final_ms": 41,
+            "less_time_percent": -1.0250344963536495
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "citm_catalog-50mb",
+        "family": "citm_catalog",
+        "requested_mb": 50,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 8,
+            "process_median_ms": 212.04150000000027,
+            "per_process_medians_ms": [
+              223.33399999999983,
+              209.83299999999963,
+              220.66599999999926,
+              210.45799999999986,
+              218.91700000000037,
+              210.79100000000017,
+              210,
+              213.29200000000037
+            ],
+            "batch_p90_ms": 222.04100000000017,
+            "batch_p95_ms": 224.04199999999946,
+            "batch_max_ms": 224.16599999999926,
+            "batch_min_ms": 207.33300000000008,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 249954304
+          },
+          "markseg256": {
+            "processes": 8,
+            "process_median_ms": 201.9164999999996,
+            "per_process_medians_ms": [
+              202.875,
+              201.79199999999992,
+              200.95800000000008,
+              202.875,
+              200.3750000000009,
+              201.45800000000054,
+              203,
+              202.04099999999926
+            ],
+            "batch_p90_ms": 205.70799999999963,
+            "batch_p95_ms": 207.79100000000017,
+            "batch_max_ms": 208.5,
+            "batch_min_ms": 198.625,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 250576896
+          }
+        },
+        "aggregate_less_time_percent": 4.775008665756786,
+        "paired_median_less_time_percent": 4.85126832835231,
+        "p90_less_time_percent": 7.355848694610689,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 223.33399999999983,
+            "final_ms": 202.875,
+            "less_time_percent": 9.16071892322703
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 209.83299999999963,
+            "final_ms": 201.79199999999992,
+            "less_time_percent": 3.8320950470134507
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 220.66599999999926,
+            "final_ms": 200.95800000000008,
+            "less_time_percent": 8.931144807083669
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 210.45799999999986,
+            "final_ms": 202.875,
+            "less_time_percent": 3.603094204069157
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 0,
+            "head_ms": 218.91700000000037,
+            "final_ms": 200.3750000000009,
+            "less_time_percent": 8.469876711264735
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 1,
+            "head_ms": 210.79100000000017,
+            "final_ms": 201.45800000000054,
+            "less_time_percent": 4.4276083893523115
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 2,
+            "head_ms": 210,
+            "final_ms": 203,
+            "less_time_percent": 3.3333333333333326
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 3,
+            "head_ms": 213.29200000000037,
+            "final_ms": 202.04099999999926,
+            "less_time_percent": 5.274928267352308
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "citm_catalog-50mb",
+        "family": "citm_catalog",
+        "requested_mb": 50,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 8,
+            "process_median_ms": 99.33349999999973,
+            "per_process_medians_ms": [
+              99.33299999999963,
+              98.875,
+              99.875,
+              98.25,
+              99.5,
+              99.33399999999983,
+              99.45799999999963,
+              98.08300000000054
+            ],
+            "batch_p90_ms": 100.04100000000017,
+            "batch_p95_ms": 100.29199999999946,
+            "batch_max_ms": 101.33400000000074,
+            "batch_min_ms": 96.83299999999963,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 642678784
+          },
+          "markseg256": {
+            "processes": 8,
+            "process_median_ms": 99.54200000000037,
+            "per_process_medians_ms": [
+              99.41699999999992,
+              99.54200000000037,
+              99.33400000000074,
+              99.625,
+              101.5,
+              99.625,
+              99.54200000000037,
+              99.25
+            ],
+            "batch_p90_ms": 101.25,
+            "batch_p95_ms": 101.66600000000017,
+            "batch_max_ms": 102.04200000000037,
+            "batch_min_ms": 98.83299999999963,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 636223488
+          }
+        },
+        "aggregate_less_time_percent": -0.20989897668022284,
+        "paired_median_less_time_percent": -0.48377009085339706,
+        "p90_less_time_percent": -1.2085045131494443,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 99.33299999999963,
+            "final_ms": 99.41699999999992,
+            "less_time_percent": -0.0845640421615057
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 98.875,
+            "final_ms": 99.54200000000037,
+            "less_time_percent": -0.6745891276868532
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 99.875,
+            "final_ms": 99.33400000000074,
+            "less_time_percent": 0.5416770963697193
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 98.25,
+            "final_ms": 99.625,
+            "less_time_percent": -1.3994910941475869
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 0,
+            "head_ms": 99.5,
+            "final_ms": 101.5,
+            "less_time_percent": -2.01005025125629
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 1,
+            "head_ms": 99.33399999999983,
+            "final_ms": 99.625,
+            "less_time_percent": -0.2929510540199409
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 2,
+            "head_ms": 99.45799999999963,
+            "final_ms": 99.54200000000037,
+            "less_time_percent": -0.0844577610657149
+          },
+          {
+            "tag": "markseg256-sync-followup",
+            "pair": 3,
+            "head_ms": 98.08300000000054,
+            "final_ms": 99.25,
+            "less_time_percent": -1.1898086314646283
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "mixed_nested-10mb",
+        "family": "mixed_nested",
+        "requested_mb": 10,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 32.08349999999996,
+            "per_process_medians_ms": [
+              32.04099999999994,
+              32.082999999999856,
+              32.08400000000006,
+              32.291999999999916
+            ],
+            "batch_p90_ms": 32.58400000000006,
+            "batch_p95_ms": 32.666999999999916,
+            "batch_max_ms": 32.75,
+            "batch_min_ms": 31.91700000000003,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 92848128
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 32.33349999999996,
+            "per_process_medians_ms": [
+              32.332999999999856,
+              32.33399999999983,
+              32.333000000000084,
+              32.5
+            ],
+            "batch_p90_ms": 33,
+            "batch_p95_ms": 33.625,
+            "batch_max_ms": 33.791999999999916,
+            "batch_min_ms": 32.16700000000003,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 92766208
+          }
+        },
+        "aggregate_less_time_percent": -0.7792167313416476,
+        "paired_median_less_time_percent": -0.7792167801051963,
+        "p90_less_time_percent": -1.276700220967153,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 32.04099999999994,
+            "final_ms": 32.332999999999856,
+            "less_time_percent": -0.9113323554193586
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 32.082999999999856,
+            "final_ms": 32.33399999999983,
+            "less_time_percent": -0.7823457906055431
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 32.08400000000006,
+            "final_ms": 32.333000000000084,
+            "less_time_percent": -0.7760877696048496
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 32.291999999999916,
+            "final_ms": 32.5,
+            "less_time_percent": -0.6441223832530873
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "mixed_nested-10mb",
+        "family": "mixed_nested",
+        "requested_mb": 10,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 24.666500000000042,
+            "per_process_medians_ms": [
+              24.708000000000084,
+              24.583000000000084,
+              24.625,
+              24.75
+            ],
+            "batch_p90_ms": 24.832999999999856,
+            "batch_p95_ms": 24.832999999999856,
+            "batch_max_ms": 24.95799999999997,
+            "batch_min_ms": 24.33299999999997,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 177848320
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 24.5625,
+            "per_process_medians_ms": [
+              24.66599999999994,
+              24.416999999999916,
+              24.541999999999916,
+              24.583000000000084
+            ],
+            "batch_p90_ms": 25.08299999999997,
+            "batch_p95_ms": 25.25,
+            "batch_max_ms": 25.291999999999916,
+            "batch_min_ms": 24.208000000000084,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 180076544
+          }
+        },
+        "aggregate_less_time_percent": 0.42162447043577744,
+        "paired_median_less_time_percent": 0.5059016561554663,
+        "p90_less_time_percent": -1.006724922482638,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 24.708000000000084,
+            "final_ms": 24.66599999999994,
+            "less_time_percent": 0.16998542982088471
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 24.583000000000084,
+            "final_ms": 24.416999999999916,
+            "less_time_percent": 0.6752633934026253
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 24.625,
+            "final_ms": 24.541999999999916,
+            "less_time_percent": 0.3370558375637933
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 24.75,
+            "final_ms": 24.583000000000084,
+            "less_time_percent": 0.6747474747471394
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "mixed_nested-20mb",
+        "family": "mixed_nested",
+        "requested_mb": 20,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 81.79199999999992,
+            "per_process_medians_ms": [
+              81.79199999999992,
+              79.75,
+              81.79199999999992,
+              82.58300000000008
+            ],
+            "batch_p90_ms": 82.625,
+            "batch_p95_ms": 83.25,
+            "batch_max_ms": 83.375,
+            "batch_min_ms": 79.54200000000003,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 141754368
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 77.41650000000004,
+            "per_process_medians_ms": [
+              77.54100000000017,
+              77.41699999999992,
+              77.41600000000017,
+              77.375
+            ],
+            "batch_p90_ms": 77.66699999999992,
+            "batch_p95_ms": 77.83300000000008,
+            "batch_max_ms": 80.04100000000005,
+            "batch_min_ms": 77.04199999999992,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 141950976
+          }
+        },
+        "aggregate_less_time_percent": 5.3495451877932805,
+        "paired_median_less_time_percent": 5.273743153364336,
+        "p90_less_time_percent": 6.000605143721738,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 81.79199999999992,
+            "final_ms": 77.54100000000017,
+            "less_time_percent": 5.197329812206275
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 79.75,
+            "final_ms": 77.41699999999992,
+            "less_time_percent": 2.9253918495298903
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 81.79199999999992,
+            "final_ms": 77.41600000000017,
+            "less_time_percent": 5.350156494522396
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 82.58300000000008,
+            "final_ms": 77.375,
+            "less_time_percent": 6.306382669556787
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "mixed_nested-20mb",
+        "family": "mixed_nested",
+        "requested_mb": 20,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 49.333499999999844,
+            "per_process_medians_ms": [
+              49.29200000000037,
+              49.332999999999856,
+              49.458000000000084,
+              49.33399999999983
+            ],
+            "batch_p90_ms": 49.541999999999916,
+            "batch_p95_ms": 49.625,
+            "batch_max_ms": 50,
+            "batch_min_ms": 48.54099999999994,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 302841856
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 49.20799999999997,
+            "per_process_medians_ms": [
+              49.25,
+              49.333000000000084,
+              49.16599999999994,
+              49.082999999999856
+            ],
+            "batch_p90_ms": 49.54099999999994,
+            "batch_p95_ms": 49.79100000000017,
+            "batch_max_ms": 50,
+            "batch_min_ms": 48.208000000000084,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 304939008
+          }
+        },
+        "aggregate_less_time_percent": 0.2543910324624754,
+        "paired_median_less_time_percent": 0.29699171640307775,
+        "p90_less_time_percent": 0.002018489362509701,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 49.29200000000037,
+            "final_ms": 49.25,
+            "less_time_percent": 0.08520652438605003
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 49.332999999999856,
+            "final_ms": 49.333000000000084,
+            "less_time_percent": -4.662936703425657e-13
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 49.458000000000084,
+            "final_ms": 49.16599999999994,
+            "less_time_percent": 0.5903999352989242
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 49.33399999999983,
+            "final_ms": 49.082999999999856,
+            "less_time_percent": 0.5087769084201055
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "mixed_nested-50mb",
+        "family": "mixed_nested",
+        "requested_mb": 50,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 252.39599999999973,
+            "per_process_medians_ms": [
+              253.125,
+              253.5,
+              250.75,
+              251.66699999999946
+            ],
+            "batch_p90_ms": 255.16699999999946,
+            "batch_p95_ms": 255.79200000000037,
+            "batch_max_ms": 255.79200000000037,
+            "batch_min_ms": 249.25,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 288833536
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 244.58349999999973,
+            "per_process_medians_ms": [
+              245.20799999999963,
+              243.95899999999983,
+              243.41700000000037,
+              245.54199999999946
+            ],
+            "batch_p90_ms": 246.33399999999983,
+            "batch_p95_ms": 248.16699999999992,
+            "batch_max_ms": 263.3330000000001,
+            "batch_min_ms": 240.66599999999926,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 289128448
+          }
+        },
+        "aggregate_less_time_percent": 3.095334315916265,
+        "paired_median_less_time_percent": 3.026065211772094,
+        "p90_less_time_percent": 3.4616545242917907,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 253.125,
+            "final_ms": 245.20799999999963,
+            "less_time_percent": 3.1277037037038546
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 253.5,
+            "final_ms": 243.95899999999983,
+            "less_time_percent": 3.763708086785078
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 250.75,
+            "final_ms": 243.41700000000037,
+            "less_time_percent": 2.924426719840334
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 251.66699999999946,
+            "final_ms": 245.54199999999946,
+            "less_time_percent": 2.4337716108985386
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "mixed_nested-50mb",
+        "family": "mixed_nested",
+        "requested_mb": 50,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 120.64600000000019,
+            "per_process_medians_ms": [
+              120.20800000000054,
+              120.54200000000037,
+              120.75,
+              120.875
+            ],
+            "batch_p90_ms": 121.5,
+            "batch_p95_ms": 121.79200000000128,
+            "batch_max_ms": 123.16699999999946,
+            "batch_min_ms": 119.20799999999963,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 643334144
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 120.625,
+            "per_process_medians_ms": [
+              120.625,
+              120.08299999999963,
+              120.75,
+              120.625
+            ],
+            "batch_p90_ms": 121.33300000000008,
+            "batch_p95_ms": 121.83399999999892,
+            "batch_max_ms": 122.625,
+            "batch_min_ms": 119.375,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 641515520
+          }
+        },
+        "aggregate_less_time_percent": 0.017406296106114993,
+        "paired_median_less_time_percent": 0.10341261633919352,
+        "p90_less_time_percent": 0.13744855967071645,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 120.20800000000054,
+            "final_ms": 120.625,
+            "less_time_percent": -0.3468987089041198
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 120.54200000000037,
+            "final_ms": 120.08299999999963,
+            "less_time_percent": 0.3807801430213087
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 120.75,
+            "final_ms": 120.75,
+            "less_time_percent": 0.0
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 120.875,
+            "final_ms": 120.625,
+            "less_time_percent": 0.20682523267838704
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records12-10mb",
+        "family": "records12",
+        "requested_mb": 10,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 20.1875,
+            "per_process_medians_ms": [
+              20.25,
+              20.25,
+              20.125,
+              20.125
+            ],
+            "batch_p90_ms": 20.291999999999916,
+            "batch_p95_ms": 20.29200000000003,
+            "batch_max_ms": 20.33299999999997,
+            "batch_min_ms": 20.041999999999916,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 72941568
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 20.146000000000015,
+            "per_process_medians_ms": [
+              20.16700000000003,
+              20.125,
+              20.25,
+              20.125
+            ],
+            "batch_p90_ms": 20.29200000000003,
+            "batch_p95_ms": 20.33299999999997,
+            "batch_max_ms": 20.458000000000027,
+            "batch_min_ms": 20.082999999999856,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 73007104
+          }
+        },
+        "aggregate_less_time_percent": 0.2055727554178821,
+        "paired_median_less_time_percent": 0.20493827160486533,
+        "p90_less_time_percent": -5.551115123125783e-13,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 20.25,
+            "final_ms": 20.16700000000003,
+            "less_time_percent": 0.40987654320973066
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 20.25,
+            "final_ms": 20.125,
+            "less_time_percent": 0.6172839506172867
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 20.125,
+            "final_ms": 20.25,
+            "less_time_percent": -0.6211180124223503
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 20.125,
+            "final_ms": 20.125,
+            "less_time_percent": 0.0
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records12-10mb",
+        "family": "records12",
+        "requested_mb": 10,
+        "mode": "parseAsync",
+        "jobs": 4,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 83.85400000000004,
+            "per_process_medians_ms": [
+              84.25,
+              83.45800000000008,
+              82.91600000000017,
+              85.5
+            ],
+            "batch_p90_ms": 103.83300000000008,
+            "batch_p95_ms": 110.20899999999983,
+            "batch_max_ms": 110.66699999999946,
+            "batch_min_ms": 80.58300000000008,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 265142272
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 76.68700000000013,
+            "per_process_medians_ms": [
+              76.33400000000006,
+              76.41600000000017,
+              77.04200000000037,
+              76.95800000000008
+            ],
+            "batch_p90_ms": 77.5,
+            "batch_p95_ms": 77.625,
+            "batch_max_ms": 78.58299999999963,
+            "batch_min_ms": 73.41600000000017,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 212140032
+          }
+        },
+        "aggregate_less_time_percent": 8.546998354282342,
+        "paired_median_less_time_percent": 8.91681139140466,
+        "p90_less_time_percent": 25.360916086408047,
+        "pairs": [
+          {
+            "tag": "markseg256-guard10",
+            "pair": 0,
+            "head_ms": 84.25,
+            "final_ms": 76.33400000000006,
+            "less_time_percent": 9.395845697329309
+          },
+          {
+            "tag": "markseg256-guard10",
+            "pair": 1,
+            "head_ms": 83.45800000000008,
+            "final_ms": 76.41600000000017,
+            "less_time_percent": 8.437777085480015
+          },
+          {
+            "tag": "markseg256-guard10",
+            "pair": 2,
+            "head_ms": 82.91600000000017,
+            "final_ms": 77.04200000000037,
+            "less_time_percent": 7.084278064546989
+          },
+          {
+            "tag": "markseg256-guard10",
+            "pair": 3,
+            "head_ms": 85.5,
+            "final_ms": 76.95800000000008,
+            "less_time_percent": 9.990643274853706
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records12-10mb",
+        "family": "records12",
+        "requested_mb": 10,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 13.770500000000084,
+            "per_process_medians_ms": [
+              13.75,
+              13.83400000000006,
+              13.75,
+              13.791000000000167
+            ],
+            "batch_p90_ms": 13.875,
+            "batch_p95_ms": 14.082999999999856,
+            "batch_max_ms": 14.666000000000054,
+            "batch_min_ms": 13.66700000000003,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 98992128
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 13.854000000000042,
+            "per_process_medians_ms": [
+              13.833000000000084,
+              13.875,
+              13.792000000000144,
+              13.916999999999916
+            ],
+            "batch_p90_ms": 14,
+            "batch_p95_ms": 14.332999999999856,
+            "batch_max_ms": 14.875,
+            "batch_min_ms": 13.708000000000084,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 98811904
+          }
+        },
+        "aggregate_less_time_percent": -0.6063686866849993,
+        "paired_median_less_time_percent": -0.4545454545462735,
+        "p90_less_time_percent": -0.9009009009008917,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 13.75,
+            "final_ms": 13.833000000000084,
+            "less_time_percent": -0.6036363636369613
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 13.83400000000006,
+            "final_ms": 13.875,
+            "less_time_percent": -0.2963712592159773
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 13.75,
+            "final_ms": 13.792000000000144,
+            "less_time_percent": -0.3054545454555857
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 13.791000000000167,
+            "final_ms": 13.916999999999916,
+            "less_time_percent": -0.9136393299959966
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records12-20mb",
+        "family": "records12",
+        "requested_mb": 20,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 44.25,
+            "per_process_medians_ms": [
+              44.333000000000084,
+              44.25,
+              44.208000000000084,
+              44.25
+            ],
+            "batch_p90_ms": 44.416999999999916,
+            "batch_p95_ms": 44.458000000000084,
+            "batch_max_ms": 44.791999999999916,
+            "batch_min_ms": 44,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 102187008
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 44.39599999999996,
+            "per_process_medians_ms": [
+              44.458000000000084,
+              44.33399999999983,
+              44.45900000000006,
+              44.291999999999916
+            ],
+            "batch_p90_ms": 44.83400000000006,
+            "batch_p95_ms": 45.041999999999916,
+            "batch_max_ms": 45.375,
+            "batch_min_ms": 44.208000000000084,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 101646336
+          }
+        },
+        "aggregate_less_time_percent": -0.3299435028247588,
+        "paired_median_less_time_percent": -0.23589375783487077,
+        "p90_less_time_percent": -0.9388297273569712,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 44.333000000000084,
+            "final_ms": 44.458000000000084,
+            "less_time_percent": -0.2819570071955324
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 44.25,
+            "final_ms": 44.33399999999983,
+            "less_time_percent": -0.18983050847420913
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 44.208000000000084,
+            "final_ms": 44.45900000000006,
+            "less_time_percent": -0.5677705392688637
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 44.25,
+            "final_ms": 44.291999999999916,
+            "less_time_percent": -0.09491525423710456
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records12-20mb",
+        "family": "records12",
+        "requested_mb": 20,
+        "mode": "parseAsync",
+        "jobs": 4,
+        "values": {
+          "head": {
+            "processes": 8,
+            "process_median_ms": 175.97899999999936,
+            "per_process_medians_ms": [
+              177.54200000000037,
+              172.91700000000037,
+              175.75,
+              176.20799999999872,
+              181.91700000000037,
+              156.45800000000054,
+              171.83300000000008,
+              182.70800000000008
+            ],
+            "batch_p90_ms": 204.375,
+            "batch_p95_ms": 212.45899999999983,
+            "batch_max_ms": 218.41600000000017,
+            "batch_min_ms": 148.45900000000074,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 451657728
+          },
+          "markseg256": {
+            "processes": 8,
+            "process_median_ms": 149.22900000000072,
+            "per_process_medians_ms": [
+              148.8750000000009,
+              150.875,
+              148.66699999999946,
+              150.25,
+              149.83299999999963,
+              148,
+              148.75,
+              149.58300000000054
+            ],
+            "batch_p90_ms": 165.75,
+            "batch_p95_ms": 169.5,
+            "batch_max_ms": 187.70899999999983,
+            "batch_min_ms": 145.875,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 483295232
+          }
+        },
+        "aggregate_less_time_percent": 15.200677353547142,
+        "paired_median_less_time_percent": 15.07070553111986,
+        "p90_less_time_percent": 18.899082568807334,
+        "pairs": [
+          {
+            "tag": "markseg256-async20",
+            "pair": 0,
+            "head_ms": 177.54200000000037,
+            "final_ms": 148.8750000000009,
+            "less_time_percent": 16.1466019308104
+          },
+          {
+            "tag": "markseg256-async20",
+            "pair": 1,
+            "head_ms": 172.91700000000037,
+            "final_ms": 150.875,
+            "less_time_percent": 12.747156150060624
+          },
+          {
+            "tag": "markseg256-async20",
+            "pair": 2,
+            "head_ms": 175.75,
+            "final_ms": 148.66699999999946,
+            "less_time_percent": 15.409957325747104
+          },
+          {
+            "tag": "markseg256-async20",
+            "pair": 3,
+            "head_ms": 176.20799999999872,
+            "final_ms": 150.25,
+            "less_time_percent": 14.731453736492616
+          },
+          {
+            "tag": "markseg256-async20",
+            "pair": 4,
+            "head_ms": 181.91700000000037,
+            "final_ms": 149.83299999999963,
+            "less_time_percent": 17.63661450001961
+          },
+          {
+            "tag": "markseg256-async20",
+            "pair": 5,
+            "head_ms": 156.45800000000054,
+            "final_ms": 148,
+            "less_time_percent": 5.405923634458132
+          },
+          {
+            "tag": "markseg256-async20",
+            "pair": 6,
+            "head_ms": 171.83300000000008,
+            "final_ms": 148.75,
+            "less_time_percent": 13.433391723359357
+          },
+          {
+            "tag": "markseg256-async20",
+            "pair": 7,
+            "head_ms": 182.70800000000008,
+            "final_ms": 149.58300000000054,
+            "less_time_percent": 18.130021673927544
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records12-20mb",
+        "family": "records12",
+        "requested_mb": 20,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 27.770500000000084,
+            "per_process_medians_ms": [
+              27.791000000000167,
+              27.75,
+              27.75,
+              27.79200000000003
+            ],
+            "batch_p90_ms": 28.291999999999916,
+            "batch_p95_ms": 28.541000000000167,
+            "batch_max_ms": 28.541999999999916,
+            "batch_min_ms": 27.54099999999994,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 155140096
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 27.85450000000003,
+            "per_process_medians_ms": [
+              27.791999999999916,
+              28.125,
+              27.917000000000144,
+              27.708000000000084
+            ],
+            "batch_p90_ms": 28.208000000000084,
+            "batch_p95_ms": 28.541000000000167,
+            "batch_max_ms": 28.54199999999946,
+            "batch_min_ms": 27.625,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 157106176
+          }
+        },
+        "aggregate_less_time_percent": -0.3024792495631923,
+        "paired_median_less_time_percent": -0.30270004450835275,
+        "p90_less_time_percent": 0.29690371836502694,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 27.791000000000167,
+            "final_ms": 27.791999999999916,
+            "less_time_percent": -0.003598287214390261
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 27.75,
+            "final_ms": 28.125,
+            "less_time_percent": -1.3513513513513598
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 27.75,
+            "final_ms": 27.917000000000144,
+            "less_time_percent": -0.6018018018023152
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 27.79200000000003,
+            "final_ms": 27.708000000000084,
+            "less_time_percent": 0.30224525043158756
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records12-50mb",
+        "family": "records12",
+        "requested_mb": 50,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 175.0625,
+            "per_process_medians_ms": [
+              176.29099999999926,
+              159.83399999999983,
+              175.125,
+              175
+            ],
+            "batch_p90_ms": 177.29199999999992,
+            "batch_p95_ms": 177.33300000000008,
+            "batch_max_ms": 180.83299999999963,
+            "batch_min_ms": 158.54100000000017,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 194723840
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 152.29150000000004,
+            "per_process_medians_ms": [
+              153.875,
+              152.83300000000008,
+              151.75,
+              148.70900000000074
+            ],
+            "batch_p90_ms": 154.625,
+            "batch_p95_ms": 154.75,
+            "batch_max_ms": 155.125,
+            "batch_min_ms": 148.04099999999926,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 197214208
+          }
+        },
+        "aggregate_less_time_percent": 13.007354516244174,
+        "paired_median_less_time_percent": 13.031474414235534,
+        "p90_less_time_percent": 12.785122848182617,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 176.29099999999926,
+            "final_ms": 153.875,
+            "less_time_percent": 12.71533997765022
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 159.83399999999983,
+            "final_ms": 152.83300000000008,
+            "less_time_percent": 4.380169425779091
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 175.125,
+            "final_ms": 151.75,
+            "less_time_percent": 13.347608850820848
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 175,
+            "final_ms": 148.70900000000074,
+            "less_time_percent": 15.023428571428143
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records12-50mb",
+        "family": "records12",
+        "requested_mb": 50,
+        "mode": "parseAsync",
+        "jobs": 4,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 489.39600000000064,
+            "per_process_medians_ms": [
+              429.08299999999963,
+              498.70900000000256,
+              491.5,
+              487.2920000000013
+            ],
+            "batch_p90_ms": 518.0829999999987,
+            "batch_p95_ms": 527.0419999999976,
+            "batch_max_ms": 532.2910000000002,
+            "batch_min_ms": 400.375,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 1080803328
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 388.75,
+            "per_process_medians_ms": [
+              390.0410000000011,
+              388.29199999999946,
+              388.75,
+              388.75
+            ],
+            "batch_p90_ms": 416.75,
+            "batch_p95_ms": 417.5,
+            "batch_max_ms": 423.75,
+            "batch_min_ms": 381.16599999999926,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 857341952
+          }
+        },
+        "aggregate_less_time_percent": 20.56534994156072,
+        "paired_median_less_time_percent": 20.56388172995088,
+        "p90_less_time_percent": 19.55922120586836,
+        "pairs": [
+          {
+            "tag": "markseg256-async-controls",
+            "pair": 0,
+            "head_ms": 429.08299999999963,
+            "final_ms": 390.0410000000011,
+            "less_time_percent": 9.098938899932785
+          },
+          {
+            "tag": "markseg256-async-controls",
+            "pair": 1,
+            "head_ms": 498.70900000000256,
+            "final_ms": 388.29199999999946,
+            "less_time_percent": 22.140566943849528
+          },
+          {
+            "tag": "markseg256-async-controls",
+            "pair": 2,
+            "head_ms": 491.5,
+            "final_ms": 388.75,
+            "less_time_percent": 20.90539165818922
+          },
+          {
+            "tag": "markseg256-async-controls",
+            "pair": 3,
+            "head_ms": 487.2920000000013,
+            "final_ms": 388.75,
+            "less_time_percent": 20.222371801712534
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records12-50mb",
+        "family": "records12",
+        "requested_mb": 50,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 69.08299999999963,
+            "per_process_medians_ms": [
+              69.08300000000054,
+              69.08299999999963,
+              69.04199999999946,
+              69.08299999999963
+            ],
+            "batch_p90_ms": 69.45800000000054,
+            "batch_p95_ms": 70.16599999999926,
+            "batch_max_ms": 70.58299999999963,
+            "batch_min_ms": 67.95799999999963,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 307314688
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 69.4380000000001,
+            "per_process_medians_ms": [
+              69.45899999999983,
+              69.41700000000037,
+              69.54199999999946,
+              69.25
+            ],
+            "batch_p90_ms": 69.66699999999992,
+            "batch_p95_ms": 69.79199999999946,
+            "batch_max_ms": 69.95800000000054,
+            "batch_min_ms": 67.75,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 308461568
+          }
+        },
+        "aggregate_less_time_percent": -0.5138746145947337,
+        "paired_median_less_time_percent": -0.5138746145940676,
+        "p90_less_time_percent": -0.30090126407236184,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 69.08300000000054,
+            "final_ms": 69.45899999999983,
+            "less_time_percent": -0.5442728312309741
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 69.08299999999963,
+            "final_ms": 69.41700000000037,
+            "less_time_percent": -0.483476397957161
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 69.04199999999946,
+            "final_ms": 69.54199999999946,
+            "less_time_percent": -0.7241968656759745
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 69.08299999999963,
+            "final_ms": 69.25,
+            "less_time_percent": -0.2417381989785694
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records60-10mb",
+        "family": "records60",
+        "requested_mb": 10,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 17.332999999999913,
+            "per_process_medians_ms": [
+              17.375,
+              17.332999999999856,
+              17.291999999999973,
+              17.33299999999997
+            ],
+            "batch_p90_ms": 17.375000000000057,
+            "batch_p95_ms": 17.416999999999916,
+            "batch_max_ms": 17.41700000000003,
+            "batch_min_ms": 17.25,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 68878336
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 17.333000000000055,
+            "per_process_medians_ms": [
+              17.33299999999997,
+              17.333000000000027,
+              17.333000000000084,
+              17.33400000000006
+            ],
+            "batch_p90_ms": 17.833000000000084,
+            "batch_p95_ms": 17.91700000000003,
+            "batch_max_ms": 18.083000000000084,
+            "batch_min_ms": 17.25,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 68517888
+          }
+        },
+        "aggregate_less_time_percent": -8.215650382226158e-13,
+        "paired_median_less_time_percent": -0.0028846708598040394,
+        "p90_less_time_percent": -2.635971223021727,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 17.375,
+            "final_ms": 17.33299999999997,
+            "less_time_percent": 0.24172661870520695
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 17.332999999999856,
+            "final_ms": 17.333000000000027,
+            "less_time_percent": -9.769962616701378e-13
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 17.291999999999973,
+            "final_ms": 17.333000000000084,
+            "less_time_percent": -0.23710386305870745
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 17.33299999999997,
+            "final_ms": 17.33400000000006,
+            "less_time_percent": -0.0057693417186310825
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records60-10mb",
+        "family": "records60",
+        "requested_mb": 10,
+        "mode": "parseAsync",
+        "jobs": 4,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 69.10400000000004,
+            "per_process_medians_ms": [
+              67.54100000000017,
+              74.54199999999946,
+              66.16699999999946,
+              70.66699999999992
+            ],
+            "batch_p90_ms": 80.58299999999963,
+            "batch_p95_ms": 82.625,
+            "batch_max_ms": 83.41599999999994,
+            "batch_min_ms": 64.95899999999983,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 232456192
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 67.24999999999955,
+            "per_process_medians_ms": [
+              66.5,
+              67.08399999999983,
+              67.54199999999946,
+              67.41599999999926
+            ],
+            "batch_p90_ms": 69.25,
+            "batch_p95_ms": 70.95800000000008,
+            "batch_max_ms": 71.58300000000008,
+            "batch_min_ms": 63.54200000000037,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 249872384
+          }
+        },
+        "aggregate_less_time_percent": 2.682912711276475,
+        "paired_median_less_time_percent": 3.070868015773498,
+        "p90_less_time_percent": 14.063760346474663,
+        "pairs": [
+          {
+            "tag": "markseg256-guard10",
+            "pair": 0,
+            "head_ms": 67.54100000000017,
+            "final_ms": 66.5,
+            "less_time_percent": 1.5412860336686873
+          },
+          {
+            "tag": "markseg256-guard10",
+            "pair": 1,
+            "head_ms": 74.54199999999946,
+            "final_ms": 67.08399999999983,
+            "less_time_percent": 10.005097797214567
+          },
+          {
+            "tag": "markseg256-guard10",
+            "pair": 2,
+            "head_ms": 66.16699999999946,
+            "final_ms": 67.54199999999946,
+            "less_time_percent": -2.0780751734248426
+          },
+          {
+            "tag": "markseg256-guard10",
+            "pair": 3,
+            "head_ms": 70.66699999999992,
+            "final_ms": 67.41599999999926,
+            "less_time_percent": 4.600449997878309
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records60-10mb",
+        "family": "records60",
+        "requested_mb": 10,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 12.54200000000003,
+            "per_process_medians_ms": [
+              12.583000000000084,
+              12.541999999999916,
+              12.542000000000144,
+              12.541999999999916
+            ],
+            "batch_p90_ms": 12.625,
+            "batch_p95_ms": 12.625,
+            "batch_max_ms": 13.666999999999916,
+            "batch_min_ms": 12.45799999999997,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 97566720
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 12.60450000000003,
+            "per_process_medians_ms": [
+              12.625,
+              12.58400000000006,
+              12.541999999999916,
+              12.625
+            ],
+            "batch_p90_ms": 12.708000000000084,
+            "batch_p95_ms": 13,
+            "batch_max_ms": 13.041999999999916,
+            "batch_min_ms": 12.5,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 97648640
+          }
+        },
+        "aggregate_less_time_percent": -0.49832562589697815,
+        "paired_median_less_time_percent": -0.33432924849602363,
+        "p90_less_time_percent": -0.6574257425749241,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 12.583000000000084,
+            "final_ms": 12.625,
+            "less_time_percent": -0.3337836763881219
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 12.541999999999916,
+            "final_ms": 12.58400000000006,
+            "less_time_percent": -0.33487482060392537
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 12.542000000000144,
+            "final_ms": 12.541999999999916,
+            "less_time_percent": 1.8096635301390052e-12
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 12.541999999999916,
+            "final_ms": 12.625,
+            "less_time_percent": -0.6617764311918739
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records60-20mb",
+        "family": "records60",
+        "requested_mb": 20,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 37.29100000000017,
+            "per_process_medians_ms": [
+              37.29100000000017,
+              37.29100000000017,
+              37.291000000000054,
+              37.458000000000084
+            ],
+            "batch_p90_ms": 37.583000000000084,
+            "batch_p95_ms": 37.625,
+            "batch_max_ms": 40.125,
+            "batch_min_ms": 37.166999999999916,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 94158848
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 37.3125,
+            "per_process_medians_ms": [
+              37.25,
+              37.291999999999916,
+              37.333000000000084,
+              37.458000000000084
+            ],
+            "batch_p90_ms": 38.458000000000084,
+            "batch_p95_ms": 38.70799999999997,
+            "batch_max_ms": 39.375,
+            "batch_min_ms": 37.125,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 93470720
+          }
+        },
+        "aggregate_less_time_percent": -0.05765466198233149,
+        "paired_median_less_time_percent": -0.001340806092287039,
+        "p90_less_time_percent": -2.3281802942819896,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 37.29100000000017,
+            "final_ms": 37.25,
+            "less_time_percent": 0.10994609959552593
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 37.29100000000017,
+            "final_ms": 37.291999999999916,
+            "less_time_percent": -0.002681612184574078
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 37.291000000000054,
+            "final_ms": 37.333000000000084,
+            "less_time_percent": -0.11262771178039976
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 37.458000000000084,
+            "final_ms": 37.458000000000084,
+            "less_time_percent": 0.0
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records60-20mb",
+        "family": "records60",
+        "requested_mb": 20,
+        "mode": "parseAsync",
+        "jobs": 4,
+        "values": {
+          "head": {
+            "processes": 8,
+            "process_median_ms": 165.10449999999992,
+            "per_process_medians_ms": [
+              149.375,
+              149.875,
+              168.625,
+              171,
+              178.125,
+              161.875,
+              168.33399999999983,
+              150.04099999999926
+            ],
+            "batch_p90_ms": 179.20800000000054,
+            "batch_p95_ms": 180.95799999999963,
+            "batch_max_ms": 183.25,
+            "batch_min_ms": 142.41599999999926,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 360120320
+          },
+          "markseg256": {
+            "processes": 8,
+            "process_median_ms": 141.6875,
+            "per_process_medians_ms": [
+              141.41699999999946,
+              144.125,
+              141.625,
+              143.04100000000108,
+              141.75,
+              130.25,
+              145.5,
+              141.20799999999872
+            ],
+            "batch_p90_ms": 149.16699999999946,
+            "batch_p95_ms": 152.125,
+            "batch_max_ms": 160.33299999999963,
+            "batch_min_ms": 126.79100000000108,
+            "measured_batches": 72,
+            "peak_process_rss_bytes": 471908352
+          }
+        },
+        "aggregate_less_time_percent": 14.183138557701291,
+        "paired_median_less_time_percent": 14.788279695588741,
+        "p90_less_time_percent": 16.76320253560164,
+        "pairs": [
+          {
+            "tag": "markseg256-async20",
+            "pair": 0,
+            "head_ms": 149.375,
+            "final_ms": 141.41699999999946,
+            "less_time_percent": 5.327531380753503
+          },
+          {
+            "tag": "markseg256-async20",
+            "pair": 1,
+            "head_ms": 149.875,
+            "final_ms": 144.125,
+            "less_time_percent": 3.8365304420350244
+          },
+          {
+            "tag": "markseg256-async20",
+            "pair": 2,
+            "head_ms": 168.625,
+            "final_ms": 141.625,
+            "less_time_percent": 16.01186063750927
+          },
+          {
+            "tag": "markseg256-async20",
+            "pair": 3,
+            "head_ms": 171,
+            "final_ms": 143.04100000000108,
+            "less_time_percent": 16.350292397660194
+          },
+          {
+            "tag": "markseg256-async20",
+            "pair": 4,
+            "head_ms": 178.125,
+            "final_ms": 141.75,
+            "less_time_percent": 20.421052631578952
+          },
+          {
+            "tag": "markseg256-async20",
+            "pair": 5,
+            "head_ms": 161.875,
+            "final_ms": 130.25,
+            "less_time_percent": 19.536679536679536
+          },
+          {
+            "tag": "markseg256-async20",
+            "pair": 6,
+            "head_ms": 168.33399999999983,
+            "final_ms": 145.5,
+            "less_time_percent": 13.564698753668214
+          },
+          {
+            "tag": "markseg256-async20",
+            "pair": 7,
+            "head_ms": 150.04099999999926,
+            "final_ms": 141.20799999999872,
+            "less_time_percent": 5.887057537606777
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records60-20mb",
+        "family": "records60",
+        "requested_mb": 20,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 25.062999999999988,
+            "per_process_medians_ms": [
+              25.041999999999916,
+              24.958999999999833,
+              25.08400000000006,
+              25.125
+            ],
+            "batch_p90_ms": 25.416999999999916,
+            "batch_p95_ms": 26,
+            "batch_max_ms": 26.25,
+            "batch_min_ms": 24.75,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 151814144
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 25.208499999999958,
+            "per_process_medians_ms": [
+              25.166999999999916,
+              25.125,
+              25.25,
+              25.29099999999994
+            ],
+            "batch_p90_ms": 25.458000000000084,
+            "batch_p95_ms": 25.541999999999916,
+            "batch_max_ms": 26,
+            "batch_min_ms": 25.08299999999963,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 152944640
+          }
+        },
+        "aggregate_less_time_percent": -0.5805370466423376,
+        "paired_median_less_time_percent": -0.6612364743018295,
+        "p90_less_time_percent": -0.16130935987790362,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 25.041999999999916,
+            "final_ms": 25.166999999999916,
+            "less_time_percent": -0.49916140883317084
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 24.958999999999833,
+            "final_ms": 25.125,
+            "less_time_percent": -0.665090748828745
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 25.08400000000006,
+            "final_ms": 25.25,
+            "less_time_percent": -0.6617764311909635
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 25.125,
+            "final_ms": 25.29099999999994,
+            "less_time_percent": -0.6606965174126955
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records60-50mb",
+        "family": "records60",
+        "requested_mb": 50,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 149.52100000000019,
+            "per_process_medians_ms": [
+              151.25,
+              147.79200000000037,
+              152,
+              147.625
+            ],
+            "batch_p90_ms": 154.16600000000017,
+            "batch_p95_ms": 156.125,
+            "batch_max_ms": 158.79100000000017,
+            "batch_min_ms": 145.83299999999963,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 170459136
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 124.74999999999977,
+            "per_process_medians_ms": [
+              125.54199999999992,
+              121.04199999999992,
+              124.04199999999992,
+              125.45799999999963
+            ],
+            "batch_p90_ms": 127.41600000000017,
+            "batch_p95_ms": 129.375,
+            "batch_max_ms": 130.83399999999983,
+            "batch_min_ms": 119.5,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 169869312
+          }
+        },
+        "aggregate_less_time_percent": 16.566903645642007,
+        "paired_median_less_time_percent": 17.54839331041095,
+        "p90_less_time_percent": 17.35142638454651,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 151.25,
+            "final_ms": 125.54199999999992,
+            "less_time_percent": 16.997024793388483
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 147.79200000000037,
+            "final_ms": 121.04199999999992,
+            "less_time_percent": 18.099761827433415
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 152,
+            "final_ms": 124.04199999999992,
+            "less_time_percent": 18.39342105263163
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 147.625,
+            "final_ms": 125.45799999999963,
+            "less_time_percent": 15.015749364945208
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records60-50mb",
+        "family": "records60",
+        "requested_mb": 50,
+        "mode": "parseAsync",
+        "jobs": 4,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 396.20850000000064,
+            "per_process_medians_ms": [
+              407.0829999999987,
+              347.7910000000011,
+              391.5420000000013,
+              400.875
+            ],
+            "batch_p90_ms": 422.875,
+            "batch_p95_ms": 448.66699999999946,
+            "batch_max_ms": 449.20800000000054,
+            "batch_min_ms": 343.5420000000013,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 810336256
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 335.35399999999936,
+            "per_process_medians_ms": [
+              327.41599999999744,
+              340.2079999999987,
+              345.125,
+              330.5
+            ],
+            "batch_p90_ms": 349.2089999999989,
+            "batch_p95_ms": 363.125,
+            "batch_max_ms": 366.08300000000054,
+            "batch_min_ms": 322.9170000000013,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 1074659328
+          }
+        },
+        "aggregate_less_time_percent": 15.359211122426997,
+        "paired_median_less_time_percent": 14.705135004841214,
+        "p90_less_time_percent": 17.420277859887932,
+        "pairs": [
+          {
+            "tag": "markseg256-async-controls",
+            "pair": 0,
+            "head_ms": 407.0829999999987,
+            "final_ms": 327.41599999999744,
+            "less_time_percent": 19.570210497613882
+          },
+          {
+            "tag": "markseg256-async-controls",
+            "pair": 1,
+            "head_ms": 347.7910000000011,
+            "final_ms": 340.2079999999987,
+            "less_time_percent": 2.1803324410356595
+          },
+          {
+            "tag": "markseg256-async-controls",
+            "pair": 2,
+            "head_ms": 391.5420000000013,
+            "final_ms": 345.125,
+            "less_time_percent": 11.85492233272577
+          },
+          {
+            "tag": "markseg256-async-controls",
+            "pair": 3,
+            "head_ms": 400.875,
+            "final_ms": 330.5,
+            "less_time_percent": 17.555347676956657
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "records60-50mb",
+        "family": "records60",
+        "requested_mb": 50,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 62.291999999999916,
+            "per_process_medians_ms": [
+              62.20899999999983,
+              62.375,
+              62.125,
+              62.45899999999892
+            ],
+            "batch_p90_ms": 62.75,
+            "batch_p95_ms": 63.58299999999963,
+            "batch_max_ms": 68.70900000000074,
+            "batch_min_ms": 61.91600000000017,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 297074688
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 62.41649999999936,
+            "per_process_medians_ms": [
+              62.375,
+              62.33400000000074,
+              62.45799999999872,
+              62.75
+            ],
+            "batch_p90_ms": 62.83300000000054,
+            "batch_p95_ms": 62.875,
+            "batch_max_ms": 63.375,
+            "batch_min_ms": 62.125,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 296976384
+          }
+        },
+        "aggregate_less_time_percent": -0.19986515122236703,
+        "paired_median_less_time_percent": -0.3663740261987791,
+        "p90_less_time_percent": -0.13227091633551957,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 62.20899999999983,
+            "final_ms": 62.375,
+            "less_time_percent": -0.2668424182998619
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 62.375,
+            "final_ms": 62.33400000000074,
+            "less_time_percent": 0.06573146292465637
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 62.125,
+            "final_ms": 62.45799999999872,
+            "less_time_percent": -0.5360160965774075
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 62.45899999999892,
+            "final_ms": 62.75,
+            "less_time_percent": -0.46590563409769636
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "twitter-10mb",
+        "family": "twitter",
+        "requested_mb": 10,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 15.707999999999998,
+            "per_process_medians_ms": [
+              15.708000000000027,
+              15.625,
+              15.75,
+              15.70799999999997
+            ],
+            "batch_p90_ms": 15.791999999999916,
+            "batch_p95_ms": 15.833999999999946,
+            "batch_max_ms": 15.916999999999916,
+            "batch_min_ms": 15.5,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 76021760
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 15.686999999999955,
+            "per_process_medians_ms": [
+              15.625,
+              15.75,
+              15.70799999999997,
+              15.66599999999994
+            ],
+            "batch_p90_ms": 16.125,
+            "batch_p95_ms": 16.166999999999916,
+            "batch_max_ms": 16.25,
+            "batch_min_ms": 15.5,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 75743232
+          }
+        },
+        "aggregate_less_time_percent": 0.1336898395724706,
+        "paired_median_less_time_percent": 0.2670231729057171,
+        "p90_less_time_percent": -2.108662613982304,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 15.708000000000027,
+            "final_ms": 15.625,
+            "less_time_percent": 0.5283931754521687
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 15.625,
+            "final_ms": 15.75,
+            "less_time_percent": -0.8000000000000007
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 15.75,
+            "final_ms": 15.70799999999997,
+            "less_time_percent": 0.26666666666685934
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 15.70799999999997,
+            "final_ms": 15.66599999999994,
+            "less_time_percent": 0.26737967914457483
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "twitter-10mb",
+        "family": "twitter",
+        "requested_mb": 10,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 6.083500000000072,
+            "per_process_medians_ms": [
+              6.083000000000084,
+              6.041999999999916,
+              6.08400000000006,
+              6.125
+            ],
+            "batch_p90_ms": 6.58299999999997,
+            "batch_p95_ms": 7.416999999999973,
+            "batch_max_ms": 7.666000000000054,
+            "batch_min_ms": 5.957999999999856,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 139509760
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 6.041999999999973,
+            "per_process_medians_ms": [
+              6.04200000000003,
+              6.041999999999916,
+              6.040999999999997,
+              6.166999999999916
+            ],
+            "batch_p90_ms": 6.333999999999946,
+            "batch_p95_ms": 6.5,
+            "batch_max_ms": 7.666999999999973,
+            "batch_min_ms": 6,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 141688832
+          }
+        },
+        "aggregate_less_time_percent": 0.682173091149807,
+        "paired_median_less_time_percent": 0.3370047673849519,
+        "p90_less_time_percent": 3.782469998481308,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 6.083000000000084,
+            "final_ms": 6.04200000000003,
+            "less_time_percent": 0.6740095347699038
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 6.041999999999916,
+            "final_ms": 6.041999999999916,
+            "less_time_percent": 0.0
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 6.08400000000006,
+            "final_ms": 6.040999999999997,
+            "less_time_percent": 0.7067718606190487
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 6.125,
+            "final_ms": 6.166999999999916,
+            "less_time_percent": -0.6857142857129128
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "twitter-20mb",
+        "family": "twitter",
+        "requested_mb": 20,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 34.64599999999996,
+            "per_process_medians_ms": [
+              34.70899999999983,
+              34.625,
+              34.625,
+              34.666999999999916
+            ],
+            "batch_p90_ms": 34.79200000000003,
+            "batch_p95_ms": 34.875,
+            "batch_max_ms": 34.875,
+            "batch_min_ms": 34.375,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 109494272
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 34.625,
+            "per_process_medians_ms": [
+              34.583000000000084,
+              34.625,
+              34.83399999999983,
+              34.625
+            ],
+            "batch_p90_ms": 34.917000000000144,
+            "batch_p95_ms": 35.58400000000006,
+            "batch_max_ms": 36.625,
+            "batch_min_ms": 34.291999999999916,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 109232128
+          }
+        },
+        "aggregate_less_time_percent": 0.060613057784331126,
+        "paired_median_less_time_percent": 0.06057634061198969,
+        "p90_less_time_percent": -0.3592779949416869,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 34.70899999999983,
+            "final_ms": 34.583000000000084,
+            "less_time_percent": 0.36301823734405936
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 34.625,
+            "final_ms": 34.625,
+            "less_time_percent": 0.0
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 34.625,
+            "final_ms": 34.83399999999983,
+            "less_time_percent": -0.6036101083027656
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 34.666999999999916,
+            "final_ms": 34.625,
+            "less_time_percent": 0.12115268122397937
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "twitter-20mb",
+        "family": "twitter",
+        "requested_mb": 20,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 12.1875,
+            "per_process_medians_ms": [
+              12.166999999999916,
+              12.166999999999916,
+              12.208000000000084,
+              12.208000000000084
+            ],
+            "batch_p90_ms": 12.333000000000084,
+            "batch_p95_ms": 12.416999999999916,
+            "batch_max_ms": 12.458000000000084,
+            "batch_min_ms": 11.916000000000167,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 201424896
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 12.187500000000057,
+            "per_process_medians_ms": [
+              12.166999999999916,
+              12.25,
+              12.208000000000084,
+              12.16700000000003
+            ],
+            "batch_p90_ms": 12.5,
+            "batch_p95_ms": 12.625,
+            "batch_max_ms": 14.958000000000084,
+            "batch_min_ms": 11.833000000000084,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 231718912
+          }
+        },
+        "aggregate_less_time_percent": -4.662936703425657e-13,
+        "paired_median_less_time_percent": 0.0,
+        "p90_less_time_percent": -1.3540906510979944,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 12.166999999999916,
+            "final_ms": 12.166999999999916,
+            "less_time_percent": 0.0
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 12.166999999999916,
+            "final_ms": 12.25,
+            "less_time_percent": -0.6821730911488855
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 12.208000000000084,
+            "final_ms": 12.208000000000084,
+            "less_time_percent": 0.0
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 12.208000000000084,
+            "final_ms": 12.16700000000003,
+            "less_time_percent": 0.3358453473136791
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "twitter-50mb",
+        "family": "twitter",
+        "requested_mb": 50,
+        "mode": "parse",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 117.52049999999986,
+            "per_process_medians_ms": [
+              117.70899999999983,
+              111.62500000000091,
+              117.45800000000008,
+              117.58299999999963
+            ],
+            "batch_p90_ms": 118.33300000000008,
+            "batch_p95_ms": 118.49999999999909,
+            "batch_max_ms": 118.625,
+            "batch_min_ms": 110.58299999999963,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 207372288
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 109.87450000000013,
+            "per_process_medians_ms": [
+              110.08300000000008,
+              109.66600000000017,
+              110.29100000000017,
+              109.29199999999992
+            ],
+            "batch_p90_ms": 112.66699999999946,
+            "batch_p95_ms": 115.625,
+            "batch_max_ms": 116,
+            "batch_min_ms": 107.45800000000054,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 207290368
+          }
+        },
+        "aggregate_less_time_percent": 6.506098935930105,
+        "paired_median_less_time_percent": 6.290222245689659,
+        "p90_less_time_percent": 4.788182501923066,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 117.70899999999983,
+            "final_ms": 110.08300000000008,
+            "less_time_percent": 6.478688970256952
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 111.62500000000091,
+            "final_ms": 109.66600000000017,
+            "less_time_percent": 1.7549832026882206
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 117.45800000000008,
+            "final_ms": 110.29100000000017,
+            "less_time_percent": 6.1017555211223655
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 117.58299999999963,
+            "final_ms": 109.29199999999992,
+            "less_time_percent": 7.051189372613164
+          }
+        ],
+        "gate_failures": []
+      },
+      {
+        "fixture": "twitter-50mb",
+        "family": "twitter",
+        "requested_mb": 50,
+        "mode": "stringify",
+        "jobs": 1,
+        "values": {
+          "head": {
+            "processes": 4,
+            "process_median_ms": 29.6875,
+            "per_process_medians_ms": [
+              29.625,
+              29.625,
+              29.75,
+              30.16700000000037
+            ],
+            "batch_p90_ms": 30.708000000000084,
+            "batch_p95_ms": 32.08399999999983,
+            "batch_max_ms": 34.70899999999892,
+            "batch_min_ms": 29.375,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 462143488
+          },
+          "markseg256": {
+            "processes": 4,
+            "process_median_ms": 29.66650000000027,
+            "per_process_medians_ms": [
+              29.541000000000167,
+              29.625,
+              29.70800000000054,
+              29.79199999999946
+            ],
+            "batch_p90_ms": 30.625,
+            "batch_p95_ms": 31.91699999999946,
+            "batch_max_ms": 32,
+            "batch_min_ms": 29.416000000000167,
+            "measured_batches": 36,
+            "peak_process_rss_bytes": 467222528
+          }
+        },
+        "aggregate_less_time_percent": 0.07073684210435749,
+        "paired_median_less_time_percent": 0.2123603871916624,
+        "p90_less_time_percent": 0.27028787286728084,
+        "pairs": [
+          {
+            "tag": "markseg256-sync",
+            "pair": 0,
+            "head_ms": 29.625,
+            "final_ms": 29.541000000000167,
+            "less_time_percent": 0.283544303796901
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 1,
+            "head_ms": 29.625,
+            "final_ms": 29.625,
+            "less_time_percent": 0.0
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 2,
+            "head_ms": 29.75,
+            "final_ms": 29.70800000000054,
+            "less_time_percent": 0.1411764705864238
+          },
+          {
+            "tag": "markseg256-sync",
+            "pair": 3,
+            "head_ms": 30.16700000000037,
+            "final_ms": 29.79199999999946,
+            "less_time_percent": 1.2430801869622643
+          }
+        ],
+        "gate_failures": []
+      }
+    ],
+    "gate_failures": [
+      {
+        "fixture": "citm_catalog-20mb",
+        "mode": "parse",
+        "gate": "regression"
+      }
+    ],
+    "percentile_definition": "nearest rank over every measured batch, excludes warmups, not a confidence interval"
+  },
+  "micro": [
+    {
+      "case": "prefix_shapes",
+      "jobs": 1,
+      "mode": "sync",
+      "values": {
+        "head": 6.104500000000002,
+        "markseg256": 6.125
+      },
+      "per_process_wall_ms": {
+        "head": [
+          6.125,
+          6.084000000000003,
+          6.165999999999997,
+          6.082999999999998
+        ],
+        "markseg256": [
+          6.167000000000002,
+          6.125,
+          6.125,
+          6.082999999999998
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": -0.6857142857143117
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": -0.6738987508217775
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": 0.6649367499188541
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": 0.0
+        }
+      ],
+      "less_time_percent": -0.33581783929885756,
+      "paired_median_less_time_percent": -0.33694937541088876
+    },
+    {
+      "case": "prefix_shapes",
+      "jobs": 1,
+      "mode": "async",
+      "values": {
+        "head": 7.583000000000013,
+        "markseg256": 7.584000000000003
+      },
+      "per_process_wall_ms": {
+        "head": [
+          7.583000000000027,
+          7.542000000000002,
+          7.582999999999998,
+          7.625
+        ],
+        "markseg256": [
+          7.625,
+          7.584000000000003,
+          7.582999999999998,
+          7.584000000000003
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": -0.5538704998018229
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": -0.5568814638027275
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": 0.0
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": 0.5377049180327442
+        }
+      ],
+      "less_time_percent": -0.01318739285229853,
+      "paired_median_less_time_percent": -0.27693524990091145
+    },
+    {
+      "case": "prefix_shapes",
+      "jobs": 4,
+      "mode": "sync",
+      "values": {
+        "head": 23.895999999999987,
+        "markseg256": 23.9375
+      },
+      "per_process_wall_ms": {
+        "head": [
+          23.916999999999973,
+          23.875,
+          23.875,
+          24.625
+        ],
+        "markseg256": [
+          23.91700000000003,
+          23.95799999999997,
+          23.91700000000003,
+          24.125
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": -2.4424906541753444e-13
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": -0.3476439790574659
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": -0.17591623036661286
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": 2.030456852791873
+        }
+      ],
+      "less_time_percent": -0.1736692333445422,
+      "paired_median_less_time_percent": -0.08795811518342855
+    },
+    {
+      "case": "prefix_shapes",
+      "jobs": 4,
+      "mode": "async",
+      "values": {
+        "head": 20.333500000000015,
+        "markseg256": 20.395500000000027
+      },
+      "per_process_wall_ms": {
+        "head": [
+          20.41599999999994,
+          19.79099999999994,
+          20.29200000000003,
+          20.375
+        ],
+        "markseg256": [
+          20.416000000000054,
+          20.541000000000054,
+          20.375,
+          20.29200000000003
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": -5.551115123125783e-13
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": -3.7896013339402623
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": -0.4090281884485014
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": 0.4073619631900338
+        }
+      ],
+      "less_time_percent": -0.30491553347928857,
+      "paired_median_less_time_percent": -0.20451409422452826
+    },
+    {
+      "case": "shape_churn",
+      "jobs": 1,
+      "mode": "sync",
+      "values": {
+        "head": 7.875,
+        "markseg256": 7.875
+      },
+      "per_process_wall_ms": {
+        "head": [
+          7.875,
+          7.875,
+          7.832999999999998,
+          7.875
+        ],
+        "markseg256": [
+          7.917000000000002,
+          7.832999999999998,
+          7.875,
+          7.875
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": -0.5333333333333634
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": 0.5333333333333523
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": -0.5361930294906392
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": 0.0
+        }
+      ],
+      "less_time_percent": 0.0,
+      "paired_median_less_time_percent": -0.2666666666666817
+    },
+    {
+      "case": "shape_churn",
+      "jobs": 1,
+      "mode": "async",
+      "values": {
+        "head": 9.625,
+        "markseg256": 9.666500000000013
+      },
+      "per_process_wall_ms": {
+        "head": [
+          9.625,
+          9.625,
+          9.625,
+          9.66700000000003
+        ],
+        "markseg256": [
+          9.75,
+          9.666000000000054,
+          9.625,
+          9.666999999999973
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": -1.298701298701288
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": -0.4259740259745737
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": 0.0
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": 5.88418203051333e-13
+        }
+      ],
+      "less_time_percent": -0.4311688311689599,
+      "paired_median_less_time_percent": -0.21298701298728684
+    },
+    {
+      "case": "shape_churn",
+      "jobs": 4,
+      "mode": "sync",
+      "values": {
+        "head": 30.875,
+        "markseg256": 30.875000000000014
+      },
+      "per_process_wall_ms": {
+        "head": [
+          30.875,
+          30.875,
+          30.875,
+          30.875
+        ],
+        "markseg256": [
+          30.83299999999997,
+          30.87500000000003,
+          30.916000000000054,
+          30.875
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": 0.13603238866406464
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": -8.881784197001252e-14
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": -0.1327935222673826
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": 0.0
+        }
+      ],
+      "less_time_percent": -4.440892098500626e-14,
+      "paired_median_less_time_percent": -4.440892098500626e-14
+    },
+    {
+      "case": "shape_churn",
+      "jobs": 4,
+      "mode": "async",
+      "values": {
+        "head": 29.083000000000027,
+        "markseg256": 29.666999999999916
+      },
+      "per_process_wall_ms": {
+        "head": [
+          29.083000000000084,
+          28.916000000000054,
+          29.08299999999997,
+          29.375
+        ],
+        "markseg256": [
+          29.666999999999916,
+          29.08299999999997,
+          29.666999999999916,
+          29.708000000000084
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": -2.008045937488667
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": -0.5775349287588716
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": -2.008045937489067
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": -1.1336170212768781
+        }
+      ],
+      "less_time_percent": -2.008045937488867,
+      "paired_median_less_time_percent": -1.5708314793827727
+    },
+    {
+      "case": "unicode_keys",
+      "jobs": 1,
+      "mode": "sync",
+      "values": {
+        "head": 6.416500000000028,
+        "markseg256": 6.437499999999986
+      },
+      "per_process_wall_ms": {
+        "head": [
+          6.417000000000002,
+          6.416000000000054,
+          6.417000000000002,
+          6.375
+        ],
+        "markseg256": [
+          6.457999999999998,
+          6.459000000000003,
+          6.416000000000054,
+          6.416999999999973
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": -0.6389278479039584
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": -0.6701995012460937
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": 0.015583606045632692
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": -0.6588235294113343
+        }
+      ],
+      "less_time_percent": -0.32728122808318716,
+      "paired_median_less_time_percent": -0.6488756886576463
+    },
+    {
+      "case": "unicode_keys",
+      "jobs": 1,
+      "mode": "async",
+      "values": {
+        "head": 8.020499999999998,
+        "markseg256": 8.0
+      },
+      "per_process_wall_ms": {
+        "head": [
+          8.040999999999997,
+          8,
+          8.042000000000002,
+          8
+        ],
+        "markseg256": [
+          8,
+          8.040999999999997,
+          7.959000000000003,
+          8
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": 0.5098868299962311
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": -0.5124999999999602
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": 1.0320815717483
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": 0.0
+        }
+      ],
+      "less_time_percent": 0.2555950377158278,
+      "paired_median_less_time_percent": 0.25494341499811557
+    },
+    {
+      "case": "unicode_keys",
+      "jobs": 4,
+      "mode": "sync",
+      "values": {
+        "head": 30.708000000000027,
+        "markseg256": 30.708500000000015
+      },
+      "per_process_wall_ms": {
+        "head": [
+          30.666000000000054,
+          30.45799999999997,
+          30.833000000000027,
+          30.75
+        ],
+        "markseg256": [
+          30.66700000000003,
+          30.75,
+          30.75,
+          30.666000000000054
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": -0.003260940455152017
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": -0.9586972224047141
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": 0.2691920993741381
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": 0.2731707317071397
+        }
+      ],
+      "less_time_percent": -0.0016282401979594852,
+      "paired_median_less_time_percent": 0.13296557945949306
+    },
+    {
+      "case": "unicode_keys",
+      "jobs": 4,
+      "mode": "async",
+      "values": {
+        "head": 23.5,
+        "markseg256": 23.708500000000015
+      },
+      "per_process_wall_ms": {
+        "head": [
+          23.95799999999997,
+          23.166999999999916,
+          23.375,
+          23.625
+        ],
+        "markseg256": [
+          23.95799999999997,
+          23.5,
+          23.91700000000003,
+          23.041000000000054
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": 0.0
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": -1.4373893900810897
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": -2.3187165775402363
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": 2.4719576719574476
+        }
+      ],
+      "less_time_percent": -0.8872340425532643,
+      "paired_median_less_time_percent": -0.7186946950405448
+    },
+    {
+      "case": "utf16_records",
+      "jobs": 1,
+      "mode": "sync",
+      "values": {
+        "head": 5.166499999999999,
+        "markseg256": 5.208000000000013
+      },
+      "per_process_wall_ms": {
+        "head": [
+          5.209000000000003,
+          5.125,
+          5.207999999999998,
+          5.084000000000003
+        ],
+        "markseg256": [
+          5.208000000000027,
+          5.167000000000002,
+          5.207999999999998,
+          5.25
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": 0.01919754271407781
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": -0.8195121951219742
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": 0.0
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": -3.2651455546812924
+        }
+      ],
+      "less_time_percent": -0.803251717797604,
+      "paired_median_less_time_percent": -0.4097560975609871
+    },
+    {
+      "case": "utf16_records",
+      "jobs": 1,
+      "mode": "async",
+      "values": {
+        "head": 8.125,
+        "markseg256": 8.104500000000002
+      },
+      "per_process_wall_ms": {
+        "head": [
+          8.082999999999998,
+          8.125,
+          8.166999999999973,
+          8.125
+        ],
+        "markseg256": [
+          8.084000000000003,
+          8.125,
+          8.207999999999998,
+          8.082999999999998
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": -0.012371644191566666
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": 0.0
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": -0.5020203257013023
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": 0.5169230769230926
+        }
+      ],
+      "less_time_percent": 0.2523076923076739,
+      "paired_median_less_time_percent": -0.006185822095783333
+    },
+    {
+      "case": "utf16_records",
+      "jobs": 4,
+      "mode": "sync",
+      "values": {
+        "head": 25.083500000000015,
+        "markseg256": 25.541999999999973
+      },
+      "per_process_wall_ms": {
+        "head": [
+          24.708000000000084,
+          24.791999999999916,
+          25.625000000000114,
+          25.375000000000114
+        ],
+        "markseg256": [
+          25.458999999999946,
+          25.625,
+          25.125,
+          25.666999999999916
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": -3.0395013760719625
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": -3.359954824137157
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": 1.9512195121955567
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": -1.1507389162553672
+        }
+      ],
+      "less_time_percent": -1.8278948312634213,
+      "paired_median_less_time_percent": -2.095120146163665
+    },
+    {
+      "case": "utf16_records",
+      "jobs": 4,
+      "mode": "async",
+      "values": {
+        "head": 23.603999999999985,
+        "markseg256": 24.061999999999955
+      },
+      "per_process_wall_ms": {
+        "head": [
+          23.25,
+          23.95799999999997,
+          24.04099999999994,
+          23.08299999999997
+        ],
+        "markseg256": [
+          24.041000000000054,
+          24.08299999999997,
+          23.625,
+          24.082999999999856
+        ]
+      },
+      "pairs": [
+        {
+          "tag": "markseg256-micro",
+          "pair": 0,
+          "less_time_percent": -3.4021505376346406
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 1,
+          "less_time_percent": -0.5217463895149876
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 2,
+          "less_time_percent": 1.730377272159811
+        },
+        {
+          "tag": "markseg256-micro",
+          "pair": 3,
+          "less_time_percent": -4.332192522635214
+        }
+      ],
+      "less_time_percent": -1.9403490933738832,
+      "paired_median_less_time_percent": -1.9619484635748141
+    }
+  ],
+  "followup": {
+    "formal_plan_sha256": "e687574e629956b9c50526257d2e1ac2cc74477592375a53bf7afebdff5709ca",
+    "async_families": [],
+    "sync_families": [
+      "citm_catalog"
+    ],
+    "micro_followup": false,
+    "first_gate_failures": [
+      {
+        "fixture": "citm_catalog-20mb",
+        "mode": "parse",
+        "gate": "regression"
+      }
+    ],
+    "first_micro_failures": [],
+    "policy": "One fixed four-round whole-family follow-up; pool all samples.",
+    "extra_tags": [
+      "markseg256-sync-followup"
+    ],
+    "micro_tags": [
+      "markseg256-micro"
+    ],
+    "formal_processes": 464,
+    "formal_measured_api_batches": 4752,
+    "final_gate_failures": [
+      {
+        "fixture": "citm_catalog-20mb",
+        "mode": "parse",
+        "gate": "regression"
+      }
+    ],
+    "final_micro_failures": []
+  },
+  "selection": {
+    "plan_sha256": "966d7e6994f9f80d5dba974183fe3c586e47d939b3de40592d2d9184d7a624c6",
+    "processes": 64,
+    "cells": [
+      {
+        "layout": "slow8",
+        "mb": 10,
+        "capacity": 128,
+        "reference": {
+          "median": 73.97900000000027,
+          "p90": 76.29199999999992
+        },
+        "candidate": {
+          "median": 70.64550000000008,
+          "p90": 77.5
+        },
+        "less_time_percent": 4.5060084618610325,
+        "paired_median_less_time_percent": 5.403198921170999,
+        "paired_less_time_percent": [
+          4.330278201477422,
+          8.183107426296942,
+          6.4761196408645745,
+          0.4507614213199118
+        ],
+        "p90_less_time_percent": -1.5833901326483657
+      },
+      {
+        "layout": "slow8",
+        "mb": 10,
+        "capacity": 256,
+        "reference": {
+          "median": 73.97900000000027,
+          "p90": 76.29199999999992
+        },
+        "candidate": {
+          "median": 68.56249999999955,
+          "p90": 75.83300000000008
+        },
+        "less_time_percent": 7.321672366483334,
+        "paired_median_less_time_percent": 8.069037762330598,
+        "paired_less_time_percent": [
+          4.8364672057024,
+          8.75173862055869,
+          8.46836317271512,
+          7.669712351946078
+        ],
+        "p90_less_time_percent": 0.6016358202692751
+      },
+      {
+        "layout": "slow8",
+        "mb": 10,
+        "capacity": 512,
+        "reference": {
+          "median": 73.97900000000027,
+          "p90": 76.29199999999992
+        },
+        "candidate": {
+          "median": 67.89599999999996,
+          "p90": 70.75
+        },
+        "less_time_percent": 8.222603711864574,
+        "paired_median_less_time_percent": 7.755747185870593,
+        "paired_less_time_percent": [
+          5.792152045678678,
+          7.784929227917048,
+          10.625298836529783,
+          7.726565143824137
+        ],
+        "p90_less_time_percent": 7.264195459550049
+      },
+      {
+        "layout": "slow8",
+        "mb": 20,
+        "capacity": 128,
+        "reference": {
+          "median": 175.58349999999996,
+          "p90": 186.375
+        },
+        "candidate": {
+          "median": 153.58349999999973,
+          "p90": 161.20899999999892
+        },
+        "less_time_percent": 12.52965113464547,
+        "paired_median_less_time_percent": 12.529609505435724,
+        "paired_less_time_percent": [
+          15.895915239555002,
+          12.512059919962049,
+          12.5471590909094,
+          10.7179190751442
+        ],
+        "p90_less_time_percent": 13.502883970490187
+      },
+      {
+        "layout": "slow8",
+        "mb": 20,
+        "capacity": 256,
+        "reference": {
+          "median": 175.58349999999996,
+          "p90": 186.375
+        },
+        "candidate": {
+          "median": 144.20800000000008,
+          "p90": 149.5
+        },
+        "less_time_percent": 17.869275871593793,
+        "paired_median_less_time_percent": 17.86915148050918,
+        "paired_less_time_percent": [
+          20.060638368761374,
+          17.816712051927762,
+          17.9215909090906,
+          16.329479768786126
+        ],
+        "p90_less_time_percent": 19.78537894030852
+      },
+      {
+        "layout": "slow8",
+        "mb": 20,
+        "capacity": 512,
+        "reference": {
+          "median": 175.58349999999996,
+          "p90": 186.375
+        },
+        "candidate": {
+          "median": 139.02099999999973,
+          "p90": 144.79200000000037
+        },
+        "less_time_percent": 20.82342589138515,
+        "paired_median_less_time_percent": 20.823349579842443,
+        "paired_less_time_percent": [
+          22.836565158481616,
+          20.671130977866493,
+          20.975568181818392,
+          17.34104046242775
+        ],
+        "p90_less_time_percent": 22.311468812877067
+      },
+      {
+        "layout": "fast104",
+        "mb": 10,
+        "capacity": 128,
+        "reference": {
+          "median": 69.64550000000008,
+          "p90": 75
+        },
+        "candidate": {
+          "median": 67.85449999999992,
+          "p90": 72.04199999999992
+        },
+        "less_time_percent": 2.571594718969872,
+        "paired_median_less_time_percent": 2.881361182805431,
+        "paired_less_time_percent": [
+          3.16182893474507,
+          3.141042373619607,
+          2.621679991991255,
+          0.9588528319268041
+        ],
+        "p90_less_time_percent": 3.944000000000114
+      },
+      {
+        "layout": "fast104",
+        "mb": 10,
+        "capacity": 256,
+        "reference": {
+          "median": 69.64550000000008,
+          "p90": 75
+        },
+        "candidate": {
+          "median": 68.5625,
+          "p90": 72.20899999999983
+        },
+        "less_time_percent": 1.555017912140888,
+        "paired_median_less_time_percent": 1.8783725169240484,
+        "paired_less_time_percent": [
+          1.9088396603332614,
+          -2.1157806200873264,
+          1.8479053735148354,
+          2.459039995392376
+        ],
+        "p90_less_time_percent": 3.721333333333554
+      },
+      {
+        "layout": "fast104",
+        "mb": 10,
+        "capacity": 512,
+        "reference": {
+          "median": 69.64550000000008,
+          "p90": 75
+        },
+        "candidate": {
+          "median": 68.45799999999963,
+          "p90": 72.79100000000017
+        },
+        "less_time_percent": 1.7050635001550019,
+        "paired_median_less_time_percent": 1.1459893647399855,
+        "paired_less_time_percent": [
+          -0.35942892328739706,
+          1.9925171843741096,
+          3.219531730482006,
+          0.2994615451058613
+        ],
+        "p90_less_time_percent": 2.945333333333111
+      },
+      {
+        "layout": "fast104",
+        "mb": 20,
+        "capacity": 128,
+        "reference": {
+          "median": 152.16699999999992,
+          "p90": 156.375
+        },
+        "candidate": {
+          "median": 144.27100000000019,
+          "p90": 150.20899999999983
+        },
+        "less_time_percent": 5.1890357304801515,
+        "paired_median_less_time_percent": 5.18953570369619,
+        "paired_less_time_percent": [
+          5.355647983968714,
+          3.519156405484114,
+          6.804416136986024,
+          5.023423423423667
+        ],
+        "p90_less_time_percent": 3.9430855315748525
+      },
+      {
+        "layout": "fast104",
+        "mb": 20,
+        "capacity": 256,
+        "reference": {
+          "median": 152.16699999999992,
+          "p90": 156.375
+        },
+        "candidate": {
+          "median": 140.47949999999992,
+          "p90": 147.08300000000054
+        },
+        "less_time_percent": 7.680706066361309,
+        "paired_median_less_time_percent": 7.9451156087570585,
+        "paired_less_time_percent": [
+          4.559386720629277,
+          7.89154161882446,
+          8.566186755492478,
+          7.998689598689657
+        ],
+        "p90_less_time_percent": 5.942126298960481
+      },
+      {
+        "layout": "fast104",
+        "mb": 20,
+        "capacity": 512,
+        "reference": {
+          "median": 152.16699999999992,
+          "p90": 156.375
+        },
+        "candidate": {
+          "median": 139.6875,
+          "p90": 144.625
+        },
+        "less_time_percent": 8.201186853917031,
+        "paired_median_less_time_percent": 8.47651105100018,
+        "paired_less_time_percent": [
+          5.49341172903377,
+          8.413509126182872,
+          8.539512975817487,
+          9.200327600327252
+        ],
+        "p90_less_time_percent": 7.513988808952843
+      }
+    ],
+    "eligible": [
+      {
+        "capacity": 128,
+        "worst_layout_20mb_less_time_percent": 5.1890357304801515
+      },
+      {
+        "capacity": 256,
+        "worst_layout_20mb_less_time_percent": 7.680706066361309
+      },
+      {
+        "capacity": 512,
+        "worst_layout_20mb_less_time_percent": 8.201186853917031
+      }
+    ],
+    "selected_capacity": 256,
+    "scope": "Diagnostic candidate selection only; no production acceptance."
+  },
+  "validation": {
+    "label": "markseg256",
+    "binary_sha256": "c600202a3d61a6d692eddd71724518cd2bd540e4fdab5bbb9d86a37c2249383b",
+    "fixtures": 18,
+    "fixture_manifest_sha256": "58acc9785e8090c8ec8e8fc58c81cc3e607fb50d58fa01c31a02ba03d1d8665e",
+    "identical_full_canonical_sha256": true,
+    "identical_full_tree_fingerprints": true,
+    "async_full_tree_fingerprints": true,
+    "conformance": [
+      {
+        "api": "parse",
+        "cases": 293,
+        "failures": 0
+      },
+      {
+        "api": "parseAsync",
+        "cases": 293,
+        "failures": 0
+      }
+    ]
+  },
+  "build_probe": {
+    "configured_minimum": 256,
+    "worklist_bytes": 80,
+    "entry_bytes": 8,
+    "segment_header_bytes": 16,
+    "allocations": [
+      {
+        "requested_entries": 64,
+        "actual_capacity": 78,
+        "requested_bytes": 528,
+        "usable_bytes": 640
+      },
+      {
+        "requested_entries": 128,
+        "actual_capacity": 158,
+        "requested_bytes": 1040,
+        "usable_bytes": 1280
+      },
+      {
+        "requested_entries": 256,
+        "actual_capacity": 318,
+        "requested_bytes": 2064,
+        "usable_bytes": 2560
+      },
+      {
+        "requested_entries": 512,
+        "actual_capacity": 638,
+        "requested_bytes": 4112,
+        "usable_bytes": 5120
+      }
+    ]
+  },
+  "correctness_commands": 208,
+  "correctness_by_label": {
+    "head": 58,
+    "markseg256": 75,
+    "markseg256-dcheck": 75
+  },
+  "worklist_units": {
+    "head": {
+      "label": "head",
+      "build": "out/host",
+      "command": [
+        "/Library/Developer/CommandLineTools/usr/bin/clang++",
+        "-I/Users/james/projects/v8/v8-standalone/out/json-async-tail-20261026-0728b45/unit-head-include",
+        "-DOFFICIAL_BUILD",
+        "-D__STDC_CONSTANT_MACROS",
+        "-D__STDC_FORMAT_MACROS",
+        "-D_FORTIFY_SOURCE=2",
+        "-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE",
+        "-DCR_XCODE_VERSION=2700",
+        "-DNDEBUG",
+        "-DNVALGRIND",
+        "-DDYNAMIC_ANNOTATIONS_ENABLED=0",
+        "-DV8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=64",
+        "-DV8_ATOMIC_OBJECT_FIELD_WRITES",
+        "-DV8_ENABLE_LAZY_SOURCE_POSITIONS",
+        "-DV8_SHARED_RO_HEAP",
+        "-DV8_WIN64_UNWINDING_INFO",
+        "-DV8_ENABLE_REGEXP_INTERPRETER_THREADED_DISPATCH",
+        "-DV8_ENABLE_FUZZTEST",
+        "-DV8_SHORT_BUILTIN_CALLS",
+        "-DV8_EXTERNAL_CODE_SPACE",
+        "-DV8_ENABLE_SPARKPLUG",
+        "-DV8_ENABLE_MAGLEV",
+        "-DV8_ENABLE_TURBOFAN",
+        "-DV8_ENABLE_SYSTEM_INSTRUMENTATION",
+        "-DV8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA",
+        "-DV8_ALLOCATION_FOLDING",
+        "-DV8_ALLOCATION_SITE_TRACKING",
+        "-DV8_ADVANCED_BIGINT_ALGORITHMS",
+        "-DV8_USE_ZLIB",
+        "-DV8_USE_LIBM_TRIG_FUNCTIONS",
+        "-DV8_ENABLE_MAGLEV_GRAPH_PRINTER",
+        "-DV8_ENABLE_EXTENSIBLE_RO_SNAPSHOT",
+        "-DV8_COMPRESS_POINTERS",
+        "-DV8_COMPRESS_POINTERS_IN_SHARED_CAGE",
+        "-DV8_31BIT_SMIS_ON_64BIT_ARCH",
+        "-DV8_DEPRECATION_WARNINGS",
+        "-DV8_IMMINENT_DEPRECATION_WARNINGS",
+        "-DV8_HAVE_TARGET_OS",
+        "-DV8_TARGET_OS_MACOS",
+        "-DCPPGC_CAGED_HEAP",
+        "-DCPPGC_YOUNG_GENERATION",
+        "-DCPPGC_POINTER_COMPRESSION",
+        "-DCPPGC_SLIM_WRITE_BARRIER",
+        "-DV8_TARGET_ARCH_ARM64",
+        "-I../..",
+        "-Igen",
+        "-I../../include",
+        "-Wall",
+        "-Wextra",
+        "-Wimplicit-fallthrough",
+        "-Wextra-semi",
+        "-Wunreachable-code-aggressive",
+        "-Wthread-safety",
+        "-Wunguarded-availability",
+        "-Wno-deprecated-declarations",
+        "-Wno-missing-field-initializers",
+        "-Wno-unused-parameter",
+        "-Wno-psabi",
+        "-Wno-unknown-warning-option",
+        "-Wloop-analysis",
+        "-Wno-unneeded-internal-declaration",
+        "-Wno-cast-function-type",
+        "-Wno-builtin-assume-aligned-alignment",
+        "-Wno-ignored-pragma-optimize",
+        "-Wno-bitfield-constant-conversion",
+        "-Wno-deprecated-this-capture",
+        "-Wno-invalid-offsetof",
+        "-Wno-vla-extension",
+        "-Wshadow",
+        "-fno-delete-null-pointer-checks",
+        "-fno-ident",
+        "-fno-strict-aliasing",
+        "-fstack-protector",
+        "-fcolor-diagnostics",
+        "-fmerge-all-constants",
+        "-fcrash-diagnostics-dir=../../tools/clang/crashreports",
+        "-mllvm",
+        "-instcombine-lower-dbg-declare=0",
+        "--target=arm64-apple-macos",
+        "-mno-outline",
+        "-ffile-compilation-dir=.",
+        "-no-canonical-prefixes",
+        "-fno-omit-frame-pointer",
+        "-g0",
+        "-isysroot",
+        "../../../../../../../Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk",
+        "-mmacos-version-min=11.0",
+        "-fvisibility=hidden",
+        "-Wheader-hygiene",
+        "-Wstring-conversion",
+        "-Wtautological-overlap-compare",
+        "-Wunreachable-code",
+        "-Wno-shadow",
+        "-Wctad-maybe-unsupported",
+        "-Wno-invalid-offsetof",
+        "-Wshorten-64-to-32",
+        "-Wmissing-field-initializers",
+        "-O3",
+        "-fno-math-errno",
+        "-Wexit-time-destructors",
+        "-Wenum-compare-conditional",
+        "-Wno-c++11-narrowing-const-reference",
+        "-std=c++20",
+        "-Wno-trigraphs",
+        "-fno-exceptions",
+        "-fno-rtti",
+        "-fvisibility-inlines-hidden",
+        "-I../../third_party/googletest/src/googletest/include",
+        "-I../../third_party/googletest/src/googletest",
+        "/Users/james/projects/v8/v8-standalone/test/unittests/heap/base/worklist-unittest.cc",
+        "../../third_party/googletest/src/googletest/src/gtest-all.cc",
+        "../../third_party/googletest/src/googletest/src/gtest_main.cc",
+        "obj/v8_heap_base/worklist.o",
+        "obj/libv8_libbase.a",
+        "-framework",
+        "Foundation",
+        "-framework",
+        "CoreFoundation",
+        "-o",
+        "/Users/james/projects/v8/v8-standalone/out/json-async-tail-20261026-0728b45/binaries/worklist-unit-head"
+      ],
+      "binary_sha256": "1115ef611beac8ccccbf631fea266642bee843b005e8d9a134e5943b2ef474a2",
+      "source_sha256": "ef63f772ee340d3b95eacecc7da0dc8100b33453915582a1d265c6335b86bb36",
+      "worklist_header_sha256": "0efc522a8732f7cd613edfb572119c58e94190c46d8db196823958dd663a17df",
+      "results": [
+        {
+          "mode": 0,
+          "exit_code": 0,
+          "passed_20_tests": true
+        }
+      ],
+      "scope": "Existing20WorkListTest cases; standalone harness with build flags and matching heap/base support object and libbase."
+    },
+    "markseg256": {
+      "label": "markseg256",
+      "test_capacity": 256,
+      "original_source_sha256": "ef63f772ee340d3b95eacecc7da0dc8100b33453915582a1d265c6335b86bb36",
+      "build": "out/host",
+      "command": [
+        "/Library/Developer/CommandLineTools/usr/bin/clang++",
+        "-DOFFICIAL_BUILD",
+        "-D__STDC_CONSTANT_MACROS",
+        "-D__STDC_FORMAT_MACROS",
+        "-D_FORTIFY_SOURCE=2",
+        "-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE",
+        "-DCR_XCODE_VERSION=2700",
+        "-DNDEBUG",
+        "-DNVALGRIND",
+        "-DDYNAMIC_ANNOTATIONS_ENABLED=0",
+        "-DV8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=64",
+        "-DV8_ATOMIC_OBJECT_FIELD_WRITES",
+        "-DV8_ENABLE_LAZY_SOURCE_POSITIONS",
+        "-DV8_SHARED_RO_HEAP",
+        "-DV8_WIN64_UNWINDING_INFO",
+        "-DV8_ENABLE_REGEXP_INTERPRETER_THREADED_DISPATCH",
+        "-DV8_ENABLE_FUZZTEST",
+        "-DV8_SHORT_BUILTIN_CALLS",
+        "-DV8_EXTERNAL_CODE_SPACE",
+        "-DV8_ENABLE_SPARKPLUG",
+        "-DV8_ENABLE_MAGLEV",
+        "-DV8_ENABLE_TURBOFAN",
+        "-DV8_ENABLE_SYSTEM_INSTRUMENTATION",
+        "-DV8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA",
+        "-DV8_ALLOCATION_FOLDING",
+        "-DV8_ALLOCATION_SITE_TRACKING",
+        "-DV8_ADVANCED_BIGINT_ALGORITHMS",
+        "-DV8_USE_ZLIB",
+        "-DV8_USE_LIBM_TRIG_FUNCTIONS",
+        "-DV8_ENABLE_MAGLEV_GRAPH_PRINTER",
+        "-DV8_ENABLE_EXTENSIBLE_RO_SNAPSHOT",
+        "-DV8_COMPRESS_POINTERS",
+        "-DV8_COMPRESS_POINTERS_IN_SHARED_CAGE",
+        "-DV8_31BIT_SMIS_ON_64BIT_ARCH",
+        "-DV8_DEPRECATION_WARNINGS",
+        "-DV8_IMMINENT_DEPRECATION_WARNINGS",
+        "-DV8_HAVE_TARGET_OS",
+        "-DV8_TARGET_OS_MACOS",
+        "-DCPPGC_CAGED_HEAP",
+        "-DCPPGC_YOUNG_GENERATION",
+        "-DCPPGC_POINTER_COMPRESSION",
+        "-DCPPGC_SLIM_WRITE_BARRIER",
+        "-DV8_TARGET_ARCH_ARM64",
+        "-I../..",
+        "-Igen",
+        "-I../../include",
+        "-Wall",
+        "-Wextra",
+        "-Wimplicit-fallthrough",
+        "-Wextra-semi",
+        "-Wunreachable-code-aggressive",
+        "-Wthread-safety",
+        "-Wunguarded-availability",
+        "-Wno-deprecated-declarations",
+        "-Wno-missing-field-initializers",
+        "-Wno-unused-parameter",
+        "-Wno-psabi",
+        "-Wno-unknown-warning-option",
+        "-Wloop-analysis",
+        "-Wno-unneeded-internal-declaration",
+        "-Wno-cast-function-type",
+        "-Wno-builtin-assume-aligned-alignment",
+        "-Wno-ignored-pragma-optimize",
+        "-Wno-bitfield-constant-conversion",
+        "-Wno-deprecated-this-capture",
+        "-Wno-invalid-offsetof",
+        "-Wno-vla-extension",
+        "-Wshadow",
+        "-fno-delete-null-pointer-checks",
+        "-fno-ident",
+        "-fno-strict-aliasing",
+        "-fstack-protector",
+        "-fcolor-diagnostics",
+        "-fmerge-all-constants",
+        "-fcrash-diagnostics-dir=../../tools/clang/crashreports",
+        "-mllvm",
+        "-instcombine-lower-dbg-declare=0",
+        "--target=arm64-apple-macos",
+        "-mno-outline",
+        "-ffile-compilation-dir=.",
+        "-no-canonical-prefixes",
+        "-fno-omit-frame-pointer",
+        "-g0",
+        "-isysroot",
+        "../../../../../../../Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk",
+        "-mmacos-version-min=11.0",
+        "-fvisibility=hidden",
+        "-Wheader-hygiene",
+        "-Wstring-conversion",
+        "-Wtautological-overlap-compare",
+        "-Wunreachable-code",
+        "-Wno-shadow",
+        "-Wctad-maybe-unsupported",
+        "-Wno-invalid-offsetof",
+        "-Wshorten-64-to-32",
+        "-Wmissing-field-initializers",
+        "-O3",
+        "-fno-math-errno",
+        "-Wexit-time-destructors",
+        "-Wenum-compare-conditional",
+        "-Wno-c++11-narrowing-const-reference",
+        "-std=c++20",
+        "-Wno-trigraphs",
+        "-fno-exceptions",
+        "-fno-rtti",
+        "-fvisibility-inlines-hidden",
+        "-I../../third_party/googletest/src/googletest/include",
+        "-I../../third_party/googletest/src/googletest",
+        "/Users/james/projects/v8/v8-standalone/out/json-async-tail-20261026-0728b45/unit-sources/markseg256-worklist-unittest.cc",
+        "../../third_party/googletest/src/googletest/src/gtest-all.cc",
+        "../../third_party/googletest/src/googletest/src/gtest_main.cc",
+        "obj/v8_heap_base/worklist.o",
+        "obj/libv8_libbase.a",
+        "-framework",
+        "Foundation",
+        "-framework",
+        "CoreFoundation",
+        "-o",
+        "/Users/james/projects/v8/v8-standalone/out/json-async-tail-20261026-0728b45/binaries/worklist-unit-markseg256"
+      ],
+      "binary_sha256": "f682cb77c8a34b641a00c8e3016c02bfe7002bcc0c65247d8c0e237b4e5fe171",
+      "source_sha256": "d05d71104f55bc71e75243257ca65c6f2507c19a91aed4137f302e56943f95e2",
+      "worklist_header_sha256": "0efc522a8732f7cd613edfb572119c58e94190c46d8db196823958dd663a17df",
+      "results": [
+        {
+          "mode": 0,
+          "exit_code": 0,
+          "passed_20_tests": true
+        }
+      ],
+      "scope": "Existing20WorkListTest cases; standalone harness with build flags and matching heap/base support object and libbase."
+    },
+    "markseg256-dcheck": {
+      "label": "markseg256-dcheck",
+      "build_log": "/Users/james/projects/v8/v8-standalone/out/json-async-tail-20261026-0728b45/logs/build-worklist-unit-markseg256-dcheck-retry1.log",
+      "test_capacity": 256,
+      "original_source_sha256": "ef63f772ee340d3b95eacecc7da0dc8100b33453915582a1d265c6335b86bb36",
+      "build": "out/json-clone-20261023/dcheck",
+      "command": [
+        "/Library/Developer/CommandLineTools/usr/bin/clang++",
+        "-DDCHECK_ALWAYS_ON=1",
+        "-DOFFICIAL_BUILD",
+        "-D__STDC_CONSTANT_MACROS",
+        "-D__STDC_FORMAT_MACROS",
+        "-D_FORTIFY_SOURCE=2",
+        "-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE",
+        "-DCR_XCODE_VERSION=2700",
+        "-DNDEBUG",
+        "-DNVALGRIND",
+        "-DDYNAMIC_ANNOTATIONS_ENABLED=0",
+        "-DCPPGC_VERIFY_HEAP",
+        "-DENABLE_DISASSEMBLER",
+        "-DV8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=64",
+        "-DOBJECT_PRINT",
+        "-DVERIFY_HEAP",
+        "-DV8_TRACE_MAPS",
+        "-DV8_ENABLE_ALLOCATION_TIMEOUT",
+        "-DV8_ENABLE_FORCE_SLOW_PATH",
+        "-DV8_ENABLE_DOUBLE_CONST_STORE_CHECK",
+        "-DV8_CODE_COMMENTS",
+        "-DV8_ENABLE_DEBUG_CODE",
+        "-DV8_ENABLE_HEAP_SNAPSHOT_VERIFY",
+        "-DV8_SNAPSHOT_NATIVE_CODE_COUNTERS",
+        "-DV8_ATOMIC_OBJECT_FIELD_WRITES",
+        "-DV8_ENABLE_LAZY_SOURCE_POSITIONS",
+        "-DV8_SHARED_RO_HEAP",
+        "-DV8_WIN64_UNWINDING_INFO",
+        "-DV8_ENABLE_REGEXP_INTERPRETER_THREADED_DISPATCH",
+        "-DV8_ENABLE_FUZZTEST",
+        "-DV8_SHORT_BUILTIN_CALLS",
+        "-DV8_EXTERNAL_CODE_SPACE",
+        "-DV8_ENABLE_SPARKPLUG",
+        "-DV8_ENABLE_MAGLEV",
+        "-DV8_ENABLE_TURBOFAN",
+        "-DV8_ENABLE_SYSTEM_INSTRUMENTATION",
+        "-DV8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA",
+        "-DV8_ALLOCATION_FOLDING",
+        "-DV8_ALLOCATION_SITE_TRACKING",
+        "-DV8_ADVANCED_BIGINT_ALGORITHMS",
+        "-DV8_USE_ZLIB",
+        "-DV8_USE_LIBM_TRIG_FUNCTIONS",
+        "-DV8_ENABLE_MAGLEV_GRAPH_PRINTER",
+        "-DV8_ENABLE_EXTENSIBLE_RO_SNAPSHOT",
+        "-DV8_ENABLE_CHECKS",
+        "-DV8_COMPRESS_POINTERS",
+        "-DV8_COMPRESS_POINTERS_IN_SHARED_CAGE",
+        "-DV8_31BIT_SMIS_ON_64BIT_ARCH",
+        "-DV8_DEPRECATION_WARNINGS",
+        "-DV8_IMMINENT_DEPRECATION_WARNINGS",
+        "-DV8_HAVE_TARGET_OS",
+        "-DV8_TARGET_OS_MACOS",
+        "-DCPPGC_CAGED_HEAP",
+        "-DCPPGC_YOUNG_GENERATION",
+        "-DCPPGC_POINTER_COMPRESSION",
+        "-DCPPGC_SLIM_WRITE_BARRIER",
+        "-DV8_TARGET_ARCH_ARM64",
+        "-DDEBUG",
+        "-I../../..",
+        "-Igen",
+        "-I../../../include",
+        "-Wall",
+        "-Wextra",
+        "-Wimplicit-fallthrough",
+        "-Wextra-semi",
+        "-Wunreachable-code-aggressive",
+        "-Wthread-safety",
+        "-Wunguarded-availability",
+        "-Wno-deprecated-declarations",
+        "-Wno-missing-field-initializers",
+        "-Wno-unused-parameter",
+        "-Wno-psabi",
+        "-Wno-unknown-warning-option",
+        "-Wloop-analysis",
+        "-Wno-unneeded-internal-declaration",
+        "-Wno-cast-function-type",
+        "-Wno-builtin-assume-aligned-alignment",
+        "-Wno-ignored-pragma-optimize",
+        "-Wno-bitfield-constant-conversion",
+        "-Wno-deprecated-this-capture",
+        "-Wno-invalid-offsetof",
+        "-Wno-vla-extension",
+        "-Wshadow",
+        "-fno-delete-null-pointer-checks",
+        "-fno-ident",
+        "-fno-strict-aliasing",
+        "-fstack-protector",
+        "-fcolor-diagnostics",
+        "-fmerge-all-constants",
+        "-fcrash-diagnostics-dir=../../../tools/clang/crashreports",
+        "-mllvm",
+        "-instcombine-lower-dbg-declare=0",
+        "--target=arm64-apple-macos",
+        "-mno-outline",
+        "-ffile-compilation-dir=.",
+        "-no-canonical-prefixes",
+        "-fno-omit-frame-pointer",
+        "-g0",
+        "-isysroot",
+        "../../../../../../../../Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk",
+        "-mmacos-version-min=11.0",
+        "-fvisibility=hidden",
+        "-Wheader-hygiene",
+        "-Wstring-conversion",
+        "-Wtautological-overlap-compare",
+        "-Wunreachable-code",
+        "-Wno-shadow",
+        "-Wctad-maybe-unsupported",
+        "-Wno-invalid-offsetof",
+        "-Wshorten-64-to-32",
+        "-Wmissing-field-initializers",
+        "-O3",
+        "-fno-math-errno",
+        "-Wexit-time-destructors",
+        "-Wenum-compare-conditional",
+        "-Wno-c++11-narrowing-const-reference",
+        "-std=c++20",
+        "-Wno-trigraphs",
+        "-fno-exceptions",
+        "-fno-rtti",
+        "-fvisibility-inlines-hidden",
+        "-I/Users/james/projects/v8/v8-standalone/third_party/googletest/src/googletest/include",
+        "-I/Users/james/projects/v8/v8-standalone/third_party/googletest/src/googletest",
+        "/Users/james/projects/v8/v8-standalone/out/json-async-tail-20261026-0728b45/unit-sources/markseg256-dcheck-worklist-unittest.cc",
+        "/Users/james/projects/v8/v8-standalone/third_party/googletest/src/googletest/src/gtest-all.cc",
+        "/Users/james/projects/v8/v8-standalone/third_party/googletest/src/googletest/src/gtest_main.cc",
+        "obj/v8_heap_base/worklist.o",
+        "obj/libv8_libbase.a",
+        "-framework",
+        "Foundation",
+        "-framework",
+        "CoreFoundation",
+        "-o",
+        "/Users/james/projects/v8/v8-standalone/out/json-async-tail-20261026-0728b45/binaries/worklist-unit-markseg256-dcheck"
+      ],
+      "binary_sha256": "6420d6b8ee98aaab56027c451937d3cadce3eee2447dff2a91e92ab202ef8d0b",
+      "source_sha256": "d05d71104f55bc71e75243257ca65c6f2507c19a91aed4137f302e56943f95e2",
+      "worklist_header_sha256": "0efc522a8732f7cd613edfb572119c58e94190c46d8db196823958dd663a17df",
+      "results": [
+        {
+          "mode": 0,
+          "exit_code": 0,
+          "passed_20_tests": true
+        }
+      ],
+      "scope": "Existing20WorkListTest cases; standalone harness with build flags and matching heap/base support object and libbase."
+    }
+  },
+  "manifests": {
+    "head": {
+      "label": "head",
+      "head": "c86bda376f83b92962b37c9ec3636d3699bc5fac",
+      "build_no_work": "ninja: Entering directory `out/host'\nninja: no work to do.\n",
+      "args_sha256": "9d3f09d82c98da7ffdc8e573f4ec9893e22288819e33e9d7217270e8c715131c",
+      "sources": {
+        "src/json/json-parser.cc": "d1291fa89b8c0758e4a741afe5ff92c0016052ed2a43c4b7de4156bef8b34b29",
+        "src/json/json-parser.h": "3f47997ffa5343967ef06b9df6cc4db161cc0d4f71f462166ec217e61ccff1f0",
+        "src/objects/js-data-object-builder.h": "c9f51da54c0ea59dfbab4f0021b2af4ba0da9be7fd68fb778ad1d6cdb81b5b7c",
+        "src/json/json-parser-background.h": "59a178c5e3916c54d8c116426ab5ae13de50507f94104a2e0596969ecc3f10a6",
+        "src/json/json-parser-background.cc": "e6a1ce263cfe914ee7afd04371ff5ccf9aea68eb05fdb34884b3c57c644392c1"
+      },
+      "binaries": {
+        "d8": "a2a318a148041755fa71f07260e457bcee2b72c89233983f54c0e4b5548714ce",
+        "d8.unstripped": "03b866f559123ff9dcb52b82acf73327eed59606f0813281591a15f49165bafb",
+        "cctest": "4e89a804dd8b630f550f5251e890a874786ca44a87dc5b7474f32cd946e1dc60",
+        "cctest.unstripped": "7bd1d6a41ff190a8d80416be96c4439411418f06e12757086e07b8f4598c837d"
+      },
+      "binary_sha256": "a2a318a148041755fa71f07260e457bcee2b72c89233983f54c0e4b5548714ce",
+      "origin": "/Users/james/projects/v8/v8-standalone/out/json-mixed-fix-20261026-130reian/binaries/metadata-d8",
+      "code_commit": "db1b5627be993efb581bfbe7ab459bcf1aca5dc4"
+    },
+    "markseg256": {
+      "label": "markseg256",
+      "head": "0728b45cbd8e4e415ee1b0d4603b97e2270b924e",
+      "args_sha256": "9d3f09d82c98da7ffdc8e573f4ec9893e22288819e33e9d7217270e8c715131c",
+      "build_no_work": "ninja: Entering directory `out/host'\nninja: no work to do.\n",
+      "sources": {
+        "src/json/json-parser.cc": "d1291fa89b8c0758e4a741afe5ff92c0016052ed2a43c4b7de4156bef8b34b29",
+        "src/json/json-parser.h": "3f47997ffa5343967ef06b9df6cc4db161cc0d4f71f462166ec217e61ccff1f0",
+        "src/json/json-parser-async.cc": "3be4563aba1c4900568f3f9c7c624de8561f190b64412e9894e0ff8598511da0",
+        "src/json/json-parser-background.cc": "e6a1ce263cfe914ee7afd04371ff5ccf9aea68eb05fdb34884b3c57c644392c1",
+        "src/json/json-parser-background.h": "59a178c5e3916c54d8c116426ab5ae13de50507f94104a2e0596969ecc3f10a6",
+        "src/objects/js-data-object-builder.h": "c9f51da54c0ea59dfbab4f0021b2af4ba0da9be7fd68fb778ad1d6cdb81b5b7c",
+        "src/heap/marking-worklist.h": "e13bc7ceb7f33576ac9756e66c6a1e7bcead7cec6f67794b18112cbeb72ee7de",
+        "src/heap/marking-worklist.cc": "9be374f15e817bdda6579be0bf3e6de45bc4f6465efa1ce6f5fc5bfa86d36817",
+        "src/heap/marking-worklist-inl.h": "544d8df058c468d2e10a28499922d41f94d13db79a20add3c6674ca92add4792",
+        "test/cctest/test-json-async.cc": "45bd65d3acbe795557ce256acd95e337888f3edf42a2accf2cefe94aee83d022",
+        "src/heap/base/worklist.h": "0efc522a8732f7cd613edfb572119c58e94190c46d8db196823958dd663a17df"
+      },
+      "binaries": {
+        "d8": "c600202a3d61a6d692eddd71724518cd2bd540e4fdab5bbb9d86a37c2249383b",
+        "d8.unstripped": "f6c6178f62edfb45bc1acd8ea122b44bab01d45b3997bd53f5697e1abd3ac0b3",
+        "cctest": "54d19ff5b5b1cf85f7a9c74669a5d7cea1a54593fbdf37a9cf258da08d1059c3",
+        "cctest.unstripped": "6f0c0ac9625ae2fa2c7398885da498fa27acf08d4b63e9863a1c58090f540a63"
+      },
+      "diagnostic": false,
+      "binary_sha256": "c600202a3d61a6d692eddd71724518cd2bd540e4fdab5bbb9d86a37c2249383b"
+    },
+    "markseg256-dcheck": {
+      "label": "markseg256-dcheck",
+      "head": "0728b45cbd8e4e415ee1b0d4603b97e2270b924e",
+      "args_sha256": "79663a08f1e4b4210730ea715b4d938641d3a97de0ce03fa86098167f58b81a3",
+      "build_no_work": "ninja: Entering directory `out/json-clone-20261023/dcheck'\nninja: no work to do.\n",
+      "sources": {
+        "src/json/json-parser.cc": "d1291fa89b8c0758e4a741afe5ff92c0016052ed2a43c4b7de4156bef8b34b29",
+        "src/json/json-parser.h": "3f47997ffa5343967ef06b9df6cc4db161cc0d4f71f462166ec217e61ccff1f0",
+        "src/json/json-parser-async.cc": "3be4563aba1c4900568f3f9c7c624de8561f190b64412e9894e0ff8598511da0",
+        "src/json/json-parser-background.cc": "e6a1ce263cfe914ee7afd04371ff5ccf9aea68eb05fdb34884b3c57c644392c1",
+        "src/json/json-parser-background.h": "59a178c5e3916c54d8c116426ab5ae13de50507f94104a2e0596969ecc3f10a6",
+        "src/objects/js-data-object-builder.h": "c9f51da54c0ea59dfbab4f0021b2af4ba0da9be7fd68fb778ad1d6cdb81b5b7c",
+        "src/heap/marking-worklist.h": "e13bc7ceb7f33576ac9756e66c6a1e7bcead7cec6f67794b18112cbeb72ee7de",
+        "src/heap/marking-worklist.cc": "9be374f15e817bdda6579be0bf3e6de45bc4f6465efa1ce6f5fc5bfa86d36817",
+        "src/heap/marking-worklist-inl.h": "544d8df058c468d2e10a28499922d41f94d13db79a20add3c6674ca92add4792",
+        "test/cctest/test-json-async.cc": "45bd65d3acbe795557ce256acd95e337888f3edf42a2accf2cefe94aee83d022",
+        "src/heap/base/worklist.h": "0efc522a8732f7cd613edfb572119c58e94190c46d8db196823958dd663a17df"
+      },
+      "binaries": {
+        "d8": "198aaaf829cc0ea9c328ffb5f0252243af63eca3b3b49710113488ea7bf46c0b",
+        "d8.unstripped": "df3d900a21fc313afcff812f808712704a9b00d6c7d0b1947a3d9511b1661758",
+        "cctest": "dbcdde7d7bcf244a10b69bc560f2c81a6223f347a9a51865e0bc47109152ff8a",
+        "cctest.unstripped": "1a65839204772cfbed6d4bc5270765cc5d35fd2249eca586fdaa2fdc91267dd3"
+      },
+      "diagnostic": false,
+      "binary_sha256": "198aaaf829cc0ea9c328ffb5f0252243af63eca3b3b49710113488ea7bf46c0b"
+    }
+  },
+  "archive": "/Users/james/projects/v8/v8-standalone-worktree-docs/2026-10-27/json-async-tail-0728b45-markseg256",
+  "formal_plan": {
+    "candidate": "markseg256",
+    "production_change": "Mac ARM64 MarkingWorklist minimum segment capacity64->256; original worklist layout, barriers, workers, task budgets and GC scheduling retained",
+    "selection_evidence": "results/segment-capacity-selection.json",
+    "guard_first": {
+      "sizes_mb": [
+        10
+      ],
+      "families": [
+        "records12",
+        "records60"
+      ],
+      "jobs": 4,
+      "pairs": 4,
+      "failure_action": "Reject immediately; no repeat to rescue the guard"
+    },
+    "target": {
+      "sizes_mb": [
+        20
+      ],
+      "families": [
+        "records12",
+        "records60"
+      ],
+      "jobs": 4,
+      "pairs": 8,
+      "failure_action": "Reject if either aggregate, paired median or pooled batchp90 fails to improve; never repeat target"
+    },
+    "async_controls": {
+      "sizes_mb": [
+        50
+      ],
+      "families": [
+        "records12",
+        "records60"
+      ],
+      "jobs": 4,
+      "pairs": 4,
+      "max_regression_percent": 5
+    },
+    "sync_controls": {
+      "families": "all six frozen families",
+      "sizes_mb": [
+        10,
+        20,
+        50
+      ],
+      "APIs": [
+        "parse",
+        "stringify"
+      ],
+      "jobs": 1,
+      "pairs": 4,
+      "max_regression_percent": 3
+    },
+    "micro_controls": {
+      "cases": [
+        "utf16_records",
+        "unicode_keys",
+        "prefix_shapes",
+        "shape_churn"
+      ],
+      "jobs": [
+        1,
+        4
+      ],
+      "APIs": [
+        "sync",
+        "async"
+      ],
+      "pairs": 4,
+      "max_regression_percent": 5
+    },
+    "samples_per_API": 9,
+    "warmups_per_API": 2,
+    "flags": [
+      "--expose-gc",
+      "--thread-pool-size=4",
+      "--max-old-space-size=4096"
+    ],
+    "gates": "Controls apply to both medianofprocessmedians and pairedmedian; target additionallyrequires pooledmeasured-batchp90 improvement. No sample deletion.",
+    "repeat_policy": "No guard10 or target20 rescue repeats. A failed50MBasync family gets atmostonefixedfour-round10/50MBfollow-up,pooledwithoriginals. A failedsyncfamily gets onefixedfour-roundfollow-up atallthree sizes and BOTHparse/stringify,pooledwithoriginals. A microfailuregetsonefullfour-roundfollow-up ofallfourcases,bothjobcountsandAPIs. Rejectifpooledgatesfail.",
+    "correctness": "Frozenbaseline58 plus75commands eachforcandidateRelease/DCHECK=208;full18canonical/treechecksand586JSONTestSuiteAPIexecutions;existing20WorkListTest casesparameterizedat256 onRelease/DCHECK,retainedbaseline64unitresults.",
+    "scope": "MacARM64only; no fullV8/test262/Android/ARM32/sanitizerclaim; no promise that all GC/scheduling outliers vanish."
+  },
+  "static_review": {
+    "baseline": {
+      "exit_code": 1,
+      "warnings": 16,
+      "command": [
+        "python3",
+        "/Users/james/projects/depot_tools/cpplint.py",
+        "--filter=-build/header_guard,-build/include_what_you_use,-readability/fn_size,-readability/multiline_comment,-runtime/references,-whitespace/braces,-whitespace/comments,-whitespace/parens",
+        "src/heap/marking-worklist.h",
+        "test/cctest/test-json-async.cc"
+      ]
+    },
+    "current": {
+      "exit_code": 1,
+      "warnings": 16,
+      "command": [
+        "python3",
+        "/Users/james/projects/depot_tools/cpplint.py",
+        "--filter=-build/header_guard,-build/include_what_you_use,-readability/fn_size,-readability/multiline_comment,-runtime/references,-whitespace/braces,-whitespace/comments,-whitespace/parens",
+        "src/heap/marking-worklist.h",
+        "test/cctest/test-json-async.cc"
+      ]
+    },
+    "new_warnings": {},
+    "diff_check_passed": true
+  },
+  "rejected": {
+    "initfix": {
+      "decision": "rejected",
+      "source": "two fresh-young-object initialization barrier elisions",
+      "correctness_commands": 208,
+      "large_fixtures": 18,
+      "conformance_API_executions": 586,
+      "formal_processes": 312,
+      "timed_API_batches": 3384,
+      "failed_cells": [
+        {
+          "fixture": "records60-10mb",
+          "family": "records60",
+          "requested_mb": 10,
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values": {
+            "head": {
+              "processes": 8,
+              "process_median_ms": 73.45799999999963,
+              "per_process_medians_ms": [
+                73.75,
+                74.29199999999992,
+                74.33300000000054,
+                72.79100000000017,
+                73.16599999999926,
+                69.375,
+                72.95899999999983,
+                77.5
+              ],
+              "batch_p90_ms": 77.79199999999992,
+              "batch_p95_ms": 81.25,
+              "batch_max_ms": 96.08299999999963,
+              "batch_min_ms": 65.04199999999946,
+              "measured_batches": 72,
+              "peak_process_rss_bytes": 262471680
+            },
+            "initfix": {
+              "processes": 8,
+              "process_median_ms": 78.06250000000023,
+              "per_process_medians_ms": [
+                79.75,
+                79.75,
+                78.29200000000037,
+                77.83300000000008,
+                66.375,
+                77.75,
+                79.375,
+                77.75
+              ],
+              "batch_p90_ms": 81.54100000000017,
+              "batch_p95_ms": 82.04200000000037,
+              "batch_max_ms": 83.125,
+              "batch_min_ms": 61.875,
+              "measured_batches": 72,
+              "peak_process_rss_bytes": 252313600
+            }
+          },
+          "aggregate_less_time_percent": -6.268207683302873,
+          "paired_median_less_time_percent": -7.136683272928568,
+          "p90_less_time_percent": -4.81926162073254,
+          "pairs": [
+            {
+              "tag": "initfix-async-controls",
+              "pair": 0,
+              "head_ms": 73.75,
+              "final_ms": 79.75,
+              "less_time_percent": -8.135593220338988
+            },
+            {
+              "tag": "initfix-async-controls",
+              "pair": 1,
+              "head_ms": 74.29199999999992,
+              "final_ms": 79.75,
+              "less_time_percent": -7.346686049642082
+            },
+            {
+              "tag": "initfix-async-controls",
+              "pair": 2,
+              "head_ms": 74.33300000000054,
+              "final_ms": 78.29200000000037,
+              "less_time_percent": -5.326032852164997
+            },
+            {
+              "tag": "initfix-async-controls",
+              "pair": 3,
+              "head_ms": 72.79100000000017,
+              "final_ms": 77.83300000000008,
+              "less_time_percent": -6.926680496215054
+            },
+            {
+              "tag": "initfix-async-controls-followup",
+              "pair": 0,
+              "head_ms": 73.16599999999926,
+              "final_ms": 66.375,
+              "less_time_percent": 9.281633545635026
+            },
+            {
+              "tag": "initfix-async-controls-followup",
+              "pair": 1,
+              "head_ms": 69.375,
+              "final_ms": 77.75,
+              "less_time_percent": -12.072072072072082
+            },
+            {
+              "tag": "initfix-async-controls-followup",
+              "pair": 2,
+              "head_ms": 72.95899999999983,
+              "final_ms": 79.375,
+              "less_time_percent": -8.793980180649651
+            },
+            {
+              "tag": "initfix-async-controls-followup",
+              "pair": 3,
+              "head_ms": 77.5,
+              "final_ms": 77.75,
+              "less_time_percent": -0.3225806451612856
+            }
+          ],
+          "gate_failures": [
+            "regression"
+          ]
+        }
+      ]
+    },
+    "intra_worklist": {
+      "decision": "reject metadata/size alignment variants",
+      "same_binary_sha256": "cfc2ab8195c2e68cfeb39ce959f47cd0a856e9dfa53ef706ad244a124e2f4bd8",
+      "processes": 32,
+      "results_file": "results/intra-worklist10-20-summary.json",
+      "conclusion": "Queue address layout changes performance; separating queue metadata from mutex did not improve either10or20MB. Specific pthread/cache mechanism remains unproved."
+    }
+  },
+  "capacity_plan": {
+    "name": "Object marking queue segment capacity control",
+    "capacities": [
+      64,
+      128,
+      256,
+      512
+    ],
+    "layouts": {
+      "slow8": 0,
+      "fast104": 3
+    },
+    "families": [
+      "records60"
+    ],
+    "sizes_mb": [
+      10,
+      20
+    ],
+    "jobs": 4,
+    "pairs_per_layout": 4,
+    "warmups": 2,
+    "samples": 9,
+    "processes": 64,
+    "same_binary": true,
+    "scope": "Only Tagged<HeapObject> worklists vary minimum segment capacity; original JSON barriers, GC scheduling, and64KJSONtaskcap remain. Layout storage and executable code identical acrossalllabels.",
+    "hypothesis": "Reduce measured PublishPushSegment/mutex work by amortizing more entries per object-marking segment, avoiding reliance on native mutex address placement.",
+    "selection_rule": "Keep allresults. A productioncandidate must improve20MB atbothlayouts and regress10MB no morethan5% atbothlayouts in aggregateandpairedmedian. Amongeligiblecapacities within2percentagepoints ofthebest worst-layout20MB aggregateimprovement, prefersmallestcapacity. No productionchange ifnonequalify. Thisdiagnosticdoesnotreplaceuninstrumentedqualification."
+  }
+}

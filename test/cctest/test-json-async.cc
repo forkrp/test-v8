@@ -15,6 +15,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/base/platform/time.h"
 #include "src/handles/persistent-handles.h"
+#include "src/heap/incremental-marking.h"
 #include "src/json/json-parser-background.h"
 #include "src/json/json-stringifier-async.h"
 #include "src/json/json-stringifier-escape.h"
@@ -25,6 +26,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 
 namespace {
 
@@ -243,9 +245,11 @@ TEST_WITH_PLATFORM(JsonParseAsyncYieldsAndSurvivesGC, JsonTestPlatform) {
   v8::HandleScope scope(isolate);
   LocalContext context;
   auto runner = platform.HoldTasks(isolate);
+  // More than 64K physical nodes force a yield even on a fast machine. The
+  // pending-state assertion below must not depend on the 2 ms soft deadline.
   auto large = CompileRun(
-                   "JSON.parseAsync('[0,'.repeat(20000) + '1' + "
-                   "']'.repeat(20000))")
+                   "JSON.parseAsync('[0,'.repeat(40000) + '1' + "
+                   "']'.repeat(40000))")
                    .As<v8::Promise>();
   auto small = CompileRun("JSON.parseAsync('42')").As<v8::Promise>();
   CHECK_EQ(v8::Promise::kPending, large->State());
@@ -276,7 +280,7 @@ TEST_WITH_PLATFORM(JsonParseAsyncYieldsAndSurvivesGC, JsonTestPlatform) {
             .FromJust());
   CHECK(CompileRun("Object.getPrototypeOf(result) === Array.prototype")
             ->IsTrue());
-  CHECK(CompileRun("let leaf = result; for (let i = 0; i < 20000; ++i) "
+  CHECK(CompileRun("let leaf = result; for (let i = 0; i < 40000; ++i) "
                    "leaf = leaf[1]; leaf === 1")
             ->IsTrue());
 }
@@ -397,6 +401,13 @@ TEST_WITH_PLATFORM(JsonParseAsyncKeyCacheSurvivesGC, JsonTestPlatform) {
       "JSON.parseAsync(JSON.stringify(Array.from({length:20000}, (_, i) => "
       "({['dynamic' + String.fromCharCode(0x6f22)]: i, id: i, "
       "nested: {id: i + 0.25}, '': i & 1}))))").As<v8::Promise>();
+  // Start marking after the worker has finished, so the first foreground
+  // slice initializes fresh objects while the marking barrier is active.
+  runner->WaitForTasks(1);
+  if (i::v8_flags.incremental_marking) {
+    i::heap::SimulateIncrementalMarking(CcTest::heap(), false);
+    CHECK(CcTest::heap()->incremental_marking()->IsMajorMarking());
+  }
   CHECK(runner->RunOne(isolate));
   CHECK_EQ(v8::Promise::kPending, promise->State());
   isolate->LowMemoryNotification();
