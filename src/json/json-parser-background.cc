@@ -85,6 +85,57 @@ V8_NOINLINE const Char* ScanBackgroundString(const Char* begin, const Char* end,
   return ScanJsonStringCharacters(begin, end, bits);
 }
 
+// The synchronous frontend has already scanned its short-string prefix.
+// Check four vectors together, then reuse the worker scanner to locate the
+// first special character. Only completely accepted blocks affect width.
+template <typename Char>
+V8_NOINLINE const Char* ScanLongJsonString(const Char* begin, const Char* end,
+                                           uint32_t* bits) {
+#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+  constexpr size_t kVectorChars = 16 / sizeof(Char);
+  auto load = [](const Char* p) {
+    if constexpr (sizeof(Char) == 1) {
+      return vld1q_u8(p);
+    } else {
+      return vld1q_u16(p);
+    }
+  };
+  auto special = [](auto input) -> uint8x16_t {
+    if constexpr (sizeof(Char) == 1) {
+      return vorrq_u8(vcltq_u8(input, vdupq_n_u8(0x20)),
+                      vorrq_u8(vceqq_u8(input, vdupq_n_u8(0x22)),
+                               vceqq_u8(input, vdupq_n_u8(0x5c))));
+    } else {
+      return vreinterpretq_u8_u16(
+          vorrq_u16(vcltq_u16(input, vdupq_n_u16(0x20)),
+                    vorrq_u16(vceqq_u16(input, vdupq_n_u16(0x22)),
+                              vceqq_u16(input, vdupq_n_u16(0x5c)))));
+    }
+  };
+  uint16x8_t width = vdupq_n_u16(0);
+  while (static_cast<size_t>(end - begin) >= 4 * kVectorChars) {
+    auto a = load(begin);
+    auto b = load(begin + kVectorChars);
+    auto c = load(begin + 2 * kVectorChars);
+    auto d = load(begin + 3 * kVectorChars);
+    auto mask = vorrq_u8(vorrq_u8(special(a), special(b)),
+                         vorrq_u8(special(c), special(d)));
+    auto merged = vorr_u8(vget_low_u8(mask), vget_high_u8(mask));
+    if (vget_lane_u64(vreinterpret_u64_u8(merged), 0)) break;
+    if constexpr (sizeof(Char) == 2) {
+      width = vorrq_u16(width, vorrq_u16(vorrq_u16(a, b), vorrq_u16(c, d)));
+    }
+    begin += 4 * kVectorChars;
+  }
+  if constexpr (sizeof(Char) == 2) {
+    auto wide = vreinterpretq_u8_u16(vcgtq_u16(width, vdupq_n_u16(0xff)));
+    auto merged = vorr_u8(vget_low_u8(wide), vget_high_u8(wide));
+    if (vget_lane_u64(vreinterpret_u64_u8(merged), 0)) *bits |= 0x100;
+  }
+#endif
+  return ScanBackgroundString(begin, end, bits);
+}
+
 template <typename Char>
 class BackgroundJsonParser {
  public:
@@ -643,13 +694,13 @@ void ParseJsonInBackground(BackgroundJsonData* data) {
 const uint8_t* ScanJsonStringCharactersLong(const uint8_t* begin,
                                             const uint8_t* end,
                                             uint32_t* bits) {
-  return ScanBackgroundString(begin, end, bits);
+  return ScanLongJsonString(begin, end, bits);
 }
 
 const uint16_t* ScanJsonStringCharactersLong(const uint16_t* begin,
                                              const uint16_t* end,
                                              uint32_t* bits) {
-  return ScanBackgroundString(begin, end, bits);
+  return ScanLongJsonString(begin, end, bits);
 }
 
 }  // namespace internal

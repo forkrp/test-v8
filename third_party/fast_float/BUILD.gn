@@ -1,0 +1,18 @@
+# Copyright 2026 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("fast_float") {
+  public = [ "include/fast_float/fast_float.h" ]
+  sources = [
+    "include/fast_float/ascii_number.h",
+    "include/fast_float/bigint.h",
+    "include/fast_float/constexpr_feature_detect.h",
+    "include/fast_float/decimal_to_binary.h",
+    "include/fast_float/digit_comparison.h",
+    "include/fast_float/fast_float.h",
+    "include/fast_float/fast_table.h",
+    "include/fast_float/float_common.h",
+    "include/fast_float/parse_number.h",
+  ]
+}

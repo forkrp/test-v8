@@ -3761,6 +3761,7 @@ v8_header_set("v8_internal_headers") {
     "src/interpreter/interpreter-intrinsics.h",
     "src/interpreter/interpreter.h",
     "src/json/json-clone.h",
+    "src/json/json-number-parser.h",
     "src/json/json-parser.h",
     "src/json/json-parser-background.h",
     "src/json/json-stringifier-async.h",
@@ -5506,6 +5507,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/interpreter/interpreter-intrinsics.cc",
     "src/interpreter/interpreter.cc",
     "src/json/json-clone.cc",
+    "src/json/json-number-parser.cc",
     "src/json/json-parser.cc",
     "src/json/json-parser-async.cc",
     "src/json/json-parser-background.cc",
@@ -6172,6 +6174,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/inspector:inspector",
     ":v8_msgpack",
     "//third_party/dragonbox",
+    "//third_party/fast_float",
     "//third_party/highway:libhwy",
   ]
 

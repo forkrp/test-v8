@@ -427,6 +427,94 @@ TEST_WITH_PLATFORM(JsonParseAsyncKeyCacheSurvivesGC, JsonTestPlatform) {
                    "result[1].nested.id === 1.25")->IsTrue());
 }
 
+TEST_WITH_PLATFORM(JsonParseAsyncWideKeyCacheSurvivesGC, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  auto promise = CompileRun(
+      "JSON.parseAsync(JSON.stringify(Array.from({length:1200}, (_, i) => {"
+      "const row = {};"
+      "for (let k = 0; k < 65; ++k) "
+      "row['field' + String.fromCharCode(0x6f22) + k] = i + k / 4;"
+      "row[''] = i; return row; })))").As<v8::Promise>();
+  // Every record exceeds the 128-node small-subtree limit. More than two
+  // 64K slices of tape ensure the first two tasks cannot finish the parse.
+  runner->WaitForTasks(1);
+  if (i::v8_flags.incremental_marking) {
+    i::heap::SimulateIncrementalMarking(CcTest::heap(), false);
+    CHECK(CcTest::heap()->incremental_marking()->IsMajorMarking());
+  }
+  for (int slice = 0; slice < 2; ++slice) {
+    CHECK(runner->RunOne(isolate));
+    CHECK_EQ(v8::Promise::kPending, promise->State());
+    isolate->LowMemoryNotification();
+  }
+  while (runner->RunOne(isolate)) {
+  }
+  CHECK_EQ(v8::Promise::kFulfilled, promise->State());
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("result"), promise->Result())
+            .FromJust());
+  CHECK(CompileRun(
+      "result.length === 1200 && result.every((row, i) => {"
+      "if (Object.keys(row).length !== 66 || row[''] !== i || "
+      "Object.getPrototypeOf(row) !== Object.prototype) return false;"
+      "for (let k = 0; k < 65; ++k) "
+      "if (row['field' + String.fromCharCode(0x6f22) + k] !== i + k / 4) "
+      "return false; return true; })")->IsTrue());
+  CHECK(CompileRun(
+      "result[0]['field' + String.fromCharCode(0x6f22) + '1'] = 99.5;"
+      "result[1]['field' + String.fromCharCode(0x6f22) + '1'] === 1.25")
+            ->IsTrue());
+}
+
+TEST_WITH_PLATFORM(JsonParseAsyncDictionaryObjectsSurviveGC, JsonTestPlatform) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  for (int width : {128, 192}) {
+    CompileRun(width == 128 ? "var dictionaryWidth = 128;"
+                            : "var dictionaryWidth = 192;");
+    auto promise = CompileRun(
+        "JSON.parseAsync(JSON.stringify(Array.from({length:700}, (_, i) => {"
+        "const row = {};"
+        "for (let k = 0; k < dictionaryWidth - 1; ++k) "
+        "row['dict' + String.fromCharCode(0x6f22) + k] = i + k / 4;"
+        "row[''] = i; return row; })))").As<v8::Promise>();
+    // Both inputs exceed two 64K work slices. Width 128 exercises the flat
+    // record's cached-key builder; width 192 exercises resumable construction.
+    runner->WaitForTasks(1);
+    if (i::v8_flags.incremental_marking) {
+      i::heap::SimulateIncrementalMarking(CcTest::heap(), false);
+      CHECK(CcTest::heap()->incremental_marking()->IsMajorMarking());
+    }
+    for (int slice = 0; slice < 2; ++slice) {
+      CHECK(runner->RunOne(isolate));
+      CHECK_EQ(v8::Promise::kPending, promise->State());
+      isolate->LowMemoryNotification();
+    }
+    while (runner->RunOne(isolate)) {
+    }
+    CHECK_EQ(v8::Promise::kFulfilled, promise->State());
+    CHECK(context->Global()
+              ->Set(context.local(), v8_str("result"), promise->Result())
+              .FromJust());
+    CHECK(CompileRun(
+        "result.length === 700 && result.every((row, i) => {"
+        "if (Object.keys(row).length !== dictionaryWidth || row[''] !== i || "
+        "Object.getPrototypeOf(row) !== Object.prototype) return false;"
+        "for (let k = 0; k < dictionaryWidth - 1; ++k) "
+        "if (row['dict' + String.fromCharCode(0x6f22) + k] !== i + k / 4) "
+        "return false; return true; })")->IsTrue());
+    CHECK(CompileRun(
+        "result[0]['dict' + String.fromCharCode(0x6f22) + '1'] = 99.5;"
+        "result[1]['dict' + String.fromCharCode(0x6f22) + '1'] === 1.25")
+              ->IsTrue());
+  }
+}
+
 TEST_WITH_PLATFORM(JsonParseAsyncTaskTiming, JsonTestPlatform) {
   using v8::base::TimeTicks;
   auto isolate = CcTest::isolate();

@@ -4,14 +4,15 @@
 // Iterative full-tree checks keep validation outside the timed API interval.
 globalThis.largeJson = (() => {
   function wordsDigest() {
-    let first = 2166136261, second = 0x9e3779b9;
+    // Keep digest words unboxed even when the closure is not scalar-replaced.
+    const state = new Int32Array([2166136261, 0x9e3779b9]);
     return {
       word(value) {
-        first = Math.imul(first ^ value, 16777619);
-        second = Math.imul(second ^ value, 0x85ebca6b);
+        state[0] = Math.imul(state[0] ^ value, 16777619);
+        state[1] = Math.imul(state[1] ^ value, 0x85ebca6b);
       },
       result() {
-        return [first, second].map(v => ('00000000' + (v >>> 0).toString(16)).slice(-8)).join('');
+        return [state[0], state[1]].map(v => ('00000000' + (v >>> 0).toString(16)).slice(-8)).join('');
       }
     };
   }

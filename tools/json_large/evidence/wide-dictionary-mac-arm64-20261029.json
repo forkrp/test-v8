@@ -1,0 +1,5193 @@
+{
+  "date": "2026-10-29",
+  "candidate": "normalized",
+  "baseline_parent": "blockscan",
+  "qualification": {
+    "candidate": "normalized",
+    "baseline": "before",
+    "reference": "v12_6",
+    "groups": {
+      "micro": [
+        {
+          "case": "dense_unicode",
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 2.3101666666666665,
+            "normalized": 2.3125
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.10100281364981978,
+              "paired_median_less_time_percent": -0.20220520404049536,
+              "paired_less_time_percent": [
+                -0.2020007695267667,
+                0.9904761904761861,
+                -0.20682025876586074,
+                0.0,
+                -0.202409638554224,
+                0.19680314885036632,
+                -0.40000000000000036,
+                -0.20682025876586074
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 46399488.0,
+            "normalized": 46383104.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 46481408,
+            "normalized": 46448640
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.259731,
+            "normalized": 0.2599245
+          }
+        },
+        {
+          "case": "dense_unicode",
+          "mode": "parse",
+          "jobs": 4,
+          "values_ms": {
+            "before": 9.5625,
+            "normalized": 9.409666666666666
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 1.5982570806100216,
+              "paired_median_less_time_percent": 2.0919320814745737,
+              "paired_less_time_percent": [
+                0.003544967918045483,
+                2.1648165439015377,
+                0.5902728686554504,
+                3.0042918454935785,
+                0.1513513513513587,
+                2.7789473684210697,
+                2.662582469368513,
+                2.019047619047609
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 51912704.0,
+            "normalized": 51929088.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 51970048,
+            "normalized": 52002816
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.35399499999999995,
+            "normalized": 0.34569
+          }
+        },
+        {
+          "case": "integers",
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 1.5240384615384617,
+            "normalized": 1.5048461538461542
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 1.2593059936908402,
+              "paired_median_less_time_percent": -0.0006696064020872416,
+              "paired_less_time_percent": [
+                9.77011494252874,
+                -1.9108280254777066,
+                0.2089171974522075,
+                -1.045000000000007,
+                10.17136539524599,
+                -0.21025641025638198,
+                -0.21538461538461728,
+                8.149632598530388
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 38199296.0,
+            "normalized": 37388288.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 39141376,
+            "normalized": 39141376
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.39157,
+            "normalized": 0.3839805
+          }
+        },
+        {
+          "case": "integers",
+          "mode": "parse",
+          "jobs": 4,
+          "values_ms": {
+            "before": 6.307374999999997,
+            "normalized": 6.00525
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 4.790027547117415,
+              "paired_median_less_time_percent": 4.276978882524807,
+              "paired_less_time_percent": [
+                7.11073200992568,
+                6.947890818858571,
+                9.275471698113202,
+                6.190476190476191,
+                0.519923467265615,
+                2.363481574573423,
+                -5.535024706224312,
+                0.34643960263793794
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 41549824.0,
+            "normalized": 40624128.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 41615360,
+            "normalized": 41664512
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.485197,
+            "normalized": 0.47167799999999993
+          }
+        },
+        {
+          "case": "long_ascii",
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 0.4787045454545452,
+            "normalized": 0.4772727272727273
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.29910269192416905,
+              "paired_median_less_time_percent": 0.002390400153129413,
+              "paired_less_time_percent": [
+                2.83549587151789,
+                1.2212453270876722e-13,
+                1.754385964912275,
+                0.19842207209322948,
+                -0.19562002003912227,
+                -0.5963832243168765,
+                -0.7967745032158913,
+                0.004780800306136701
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 213680128.0,
+            "normalized": 213770240.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 213729280,
+            "normalized": 213811200
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.40786849999999997,
+            "normalized": 0.40831549999999994
+          }
+        },
+        {
+          "case": "long_ascii",
+          "mode": "parse",
+          "jobs": 4,
+          "values_ms": {
+            "before": 1.9185909090909106,
+            "normalized": 1.9242727272727287
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.29614537184012857,
+              "paired_median_less_time_percent": -0.2946628300989351,
+              "paired_less_time_percent": [
+                0.004724335049588468,
+                0.782788037873694,
+                -0.5940499952474587,
+                -5.4870588235294,
+                -1.5857142857142792,
+                1.7869023857048139,
+                -0.6024096385542466,
+                14.019297818860077
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 213712896.0,
+            "normalized": 213770240.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 213762048,
+            "normalized": 213794816
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.40803599999999995,
+            "normalized": 0.41073
+          }
+        },
+        {
+          "case": "long_unicode",
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 0.3757592592592592,
+            "normalized": 0.3773240740740741
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.41644078655564964,
+              "paired_median_less_time_percent": -0.31174002925457023,
+              "paired_less_time_percent": [
+                -0.41156344523229915,
+                -8.210132071752696,
+                7.851087357169195,
+                -1.6410408042581093,
+                0.6198552018248593,
+                0.6111083731703437,
+                -0.2119166132768413,
+                -1.450931677018641
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 253984768.0,
+            "normalized": 254001152.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 254050304,
+            "normalized": 254033920
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.4309345,
+            "normalized": 0.434642
+          }
+        },
+        {
+          "case": "long_unicode",
+          "mode": "parse",
+          "jobs": 4,
+          "values_ms": {
+            "before": 1.5064230769230758,
+            "normalized": 1.5048076923076934
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.1072331299306617,
+              "paired_median_less_time_percent": 0.2163338036984097,
+              "paired_less_time_percent": [
+                0.21310061393272628,
+                0.850955414012744,
+                0.21956699346409314,
+                0.4256410256411658,
+                -0.4238370014810089,
+                13.445303867403203,
+                -9.419805745413745,
+                -0.4265378488106153
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 245948416.0,
+            "normalized": 245972992.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 246005760,
+            "normalized": 245989376
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.41676749999999996,
+            "normalized": 0.42036799999999996
+          }
+        },
+        {
+          "case": "short_ascii",
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 1.8928571428571428,
+            "normalized": 1.8829285714285708
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.5245283018868174,
+              "paired_median_less_time_percent": 0.1595176078260374,
+              "paired_less_time_percent": [
+                -6.889295287722019,
+                -0.41534023079978777,
+                1.0435696589003118,
+                1.25118625443279,
+                0.10666666666666602,
+                0.2123685489854088,
+                0.7351640855923658,
+                -0.423675064058604
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 84459520.0,
+            "normalized": 85843968.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 86802432,
+            "normalized": 87277568
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.9506754999999999,
+            "normalized": 0.9492725
+          }
+        },
+        {
+          "case": "short_ascii",
+          "mode": "parse",
+          "jobs": 4,
+          "values_ms": {
+            "before": 7.003499999999994,
+            "normalized": 7.052083333333334
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.6937007686633967,
+              "paired_median_less_time_percent": -1.4521502389202134,
+              "paired_less_time_percent": [
+                -1.1024986760386213,
+                1.6781065088756209,
+                -1.8018018018018056,
+                7.024665069647817,
+                -3.467960610817955,
+                -2.5785714285713635,
+                -1.0959035222054103,
+                -2.4566201433423362
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 88350720.0,
+            "normalized": 88268800.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 89636864,
+            "normalized": 96960512
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.0122685,
+            "normalized": 1.0174185
+          }
+        },
+        {
+          "case": "short_fractions",
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 1.7424545454545468,
+            "normalized": 1.7443181818181819
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.1069546616579764,
+              "paired_median_less_time_percent": -0.21437908496730884,
+              "paired_less_time_percent": [
+                -0.21401273885350847,
+                -5.1948051948051965,
+                -0.43303594720089933,
+                -0.005206164098314758,
+                -0.2148396562565269,
+                -0.21437908496730884,
+                0.005217300568849392,
+                -0.21437908496730884
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 53452800.0,
+            "normalized": 53673984.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 55541760,
+            "normalized": 55705600
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.3394935,
+            "normalized": 0.3398985
+          }
+        },
+        {
+          "case": "short_fractions",
+          "mode": "parse",
+          "jobs": 4,
+          "values_ms": {
+            "before": 6.979166666666667,
+            "normalized": 6.979166666666667
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.0,
+              "paired_median_less_time_percent": -0.09820359281436097,
+              "paired_less_time_percent": [
+                -0.19640718562872195,
+                0.0,
+                -0.20080321285143032,
+                -2.385723828609465,
+                0.4015872257016051,
+                0.0,
+                3.0976744186046457,
+                -1.1605236282610676
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 54419456.0,
+            "normalized": 55386112.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 56459264,
+            "normalized": 56590336
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.3688025,
+            "normalized": 0.36800099999999997
+          }
+        },
+        {
+          "case": "smi_records",
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 11.0625,
+            "normalized": 10.958333333333334
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.941619585687381,
+              "paired_median_less_time_percent": 0.44242693664285904,
+              "paired_less_time_percent": [
+                1.4943662392780888,
+                -0.3759398496240518,
+                -0.38119053427665417,
+                0.5041509433959757,
+                0.3807029298897424,
+                -0.25375278975214854,
+                4.724409448818989,
+                3.7860805860806646
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 71278592.0,
+            "normalized": 71204864.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 73760768,
+            "normalized": 72253440
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.91289,
+            "normalized": 0.9093844999999999
+          }
+        },
+        {
+          "case": "smi_records",
+          "mode": "parse",
+          "jobs": 4,
+          "values_ms": {
+            "before": 41.66650000000004,
+            "normalized": 41.125
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 1.2996051984208945,
+              "paired_median_less_time_percent": 1.050107014885887,
+              "paired_less_time_percent": [
+                1.9167932256432096,
+                3.2258064516129004,
+                0.998802395209375,
+                0.30333915744509277,
+                1.1014116345623992,
+                1.9912509263019906,
+                -0.1022320667916965,
+                -0.9211948511347767
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 75325440.0,
+            "normalized": 75251712.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 76890112,
+            "normalized": 76873728
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.2082875,
+            "normalized": 1.187427
+          }
+        },
+        {
+          "case": "unique_doubles",
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 2.797571428571428,
+            "normalized": 2.8005714285714305
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.10723586784464612,
+              "paired_median_less_time_percent": -0.2144717356891368,
+              "paired_less_time_percent": [
+                -0.2144717356891368,
+                0.21401273885335304,
+                -0.2144717356891368,
+                2.2805357765272705,
+                0.8476740029617291,
+                -1.2903225806451646,
+                -0.8638079966897472,
+                -0.4326328800988932
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 52174848.0,
+            "normalized": 51355648.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 53264384,
+            "normalized": 53411840
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.3085005,
+            "normalized": 0.3091325
+          }
+        },
+        {
+          "case": "unique_doubles",
+          "mode": "parse",
+          "jobs": 4,
+          "values_ms": {
+            "before": 11.25,
+            "normalized": 11.21875
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.2777777777777768,
+              "paired_median_less_time_percent": -0.18397509414171953,
+              "paired_less_time_percent": [
+                -1.0928961748633892,
+                -0.1798876798877913,
+                0.0,
+                -0.3709497206703771,
+                1.8262240518525097,
+                -0.18806250839564775,
+                -0.919337016574584,
+                0.18840839763156758
+              ]
+            }
+          },
+          "pairs": 8,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 54149120.0,
+            "normalized": 52830208.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 54214656,
+            "normalized": 54362112
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.35165599999999997,
+            "normalized": 0.35363049999999996
+          }
+        }
+      ],
+      "wide-sync": [
+        {
+          "case": {
+            "width": 128,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "churn",
+            "id": "churn-128-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 62.5625,
+            "normalized": 49.10449999999997,
+            "v12_6": 64.72899999999998
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 21.511288711288756,
+              "paired_median_less_time_percent": 21.943778043912218,
+              "paired_less_time_percent": [
+                21.821956087824436,
+                17.678797291022942,
+                22.065599999999996,
+                23.322383109013288,
+                20.45803252741577,
+                22.077676332844543
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 24.13833057825706,
+              "paired_median_less_time_percent": 24.06512359824091,
+              "paired_less_time_percent": [
+                24.24139264990337,
+                20.94800282894129,
+                24.822508951722465,
+                25.74054054054059,
+                23.888854546578443,
+                23.435902203216553
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 83771392.0,
+            "normalized": 83771392.0,
+            "v12_6": 83558400.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 83836928,
+            "normalized": 83935232,
+            "v12_6": 83886080
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.234835,
+            "normalized": 1.090867,
+            "v12_6": 1.3017125
+          }
+        },
+        {
+          "case": {
+            "width": 192,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "churn",
+            "id": "churn-192-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 63.83349999999999,
+            "normalized": 49.35400000000001,
+            "v12_6": 65.45850000000002
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 22.683230592087188,
+              "paired_median_less_time_percent": 22.012947044339914,
+              "paired_less_time_percent": [
+                21.073558648111334,
+                24.951404564835688,
+                22.449914681160188,
+                19.437964774950977,
+                24.513618677042803,
+                21.57597940751964
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 24.602610814485516,
+              "paired_median_less_time_percent": 24.55477933870399,
+              "paired_less_time_percent": [
+                24.140513933686936,
+                27.415931350253288,
+                24.969044743721046,
+                21.135632183907948,
+                25.954198473282442,
+                19.93680980663177
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 92282880.0,
+            "normalized": 92520448.0,
+            "v12_6": 92487680.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 92684288,
+            "normalized": 92684288,
+            "v12_6": 92684288
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.3539150000000002,
+            "normalized": 1.1991355,
+            "v12_6": 1.400235
+          }
+        },
+        {
+          "case": {
+            "width": 128,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "cold",
+            "id": "cold-128-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 173.54150000000004,
+            "normalized": 161.39550000000008,
+            "v12_6": 187.45849999999996
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 6.99890227985811,
+              "paired_median_less_time_percent": 9.857898869458776,
+              "paired_less_time_percent": [
+                13.202317250136119,
+                18.094629156010235,
+                6.897854023964012,
+                12.81794371495354,
+                4.079394282479798,
+                -3.018103873124489
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 13.903343940125346,
+              "paired_median_less_time_percent": 13.419318815746156,
+              "paired_less_time_percent": [
+                18.676842351241653,
+                14.695086543532732,
+                12.143551087959581,
+                20.521024742532312,
+                7.837960339943251,
+                5.599294851216962
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 320364544.0,
+            "normalized": 320389120.0,
+            "v12_6": 318685184.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 322650112,
+            "normalized": 321208320,
+            "v12_6": 318963712
+          },
+          "process_cpu_median_seconds": {
+            "before": 5.7749205,
+            "normalized": 5.6192595,
+            "v12_6": 6.294853
+          }
+        },
+        {
+          "case": {
+            "width": 192,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "cold",
+            "id": "cold-192-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 208.437,
+            "normalized": 199.37499999999977,
+            "v12_6": 218.89550000000008
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 4.347596635914086,
+              "paired_median_less_time_percent": 11.357721767836859,
+              "paired_less_time_percent": [
+                15.876911367207015,
+                -12.576654296863898,
+                7.659259259259166,
+                15.274551781714374,
+                15.056184276414552,
+                6.1736725872516995
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 8.917725581384861,
+              "paired_median_less_time_percent": 13.402721406653939,
+              "paired_less_time_percent": [
+                12.311760966306462,
+                3.1292549969715755,
+                17.029773261747483,
+                17.546505781799905,
+                12.725603908478256,
+                14.079838904829622
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 320856064.0,
+            "normalized": 320020480.0,
+            "v12_6": 317521920.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 321191936,
+            "normalized": 321454080,
+            "v12_6": 318308352
+          },
+          "process_cpu_median_seconds": {
+            "before": 6.6483315,
+            "normalized": 6.4819405,
+            "v12_6": 7.172982
+          }
+        },
+        {
+          "case": {
+            "width": 128,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "duplicates",
+            "id": "duplicates-128-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 42.29150000000001,
+            "normalized": 32.25,
+            "v12_6": 45.39599999999999
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 23.74354184647035,
+              "paired_median_less_time_percent": 24.34900547261858,
+              "paired_less_time_percent": [
+                23.31428571428572,
+                23.511904761904624,
+                24.531089873447897,
+                31.2666373220985,
+                24.16692107178926,
+                27.89714844966418
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 28.958498546127387,
+              "paired_median_less_time_percent": 28.963329486231643,
+              "paired_less_time_percent": [
+                32.311960153836495,
+                37.00980392156852,
+                29.10491201361215,
+                27.195222130947382,
+                28.636464088397783,
+                28.821746958851136
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 74874880.0,
+            "normalized": 74760192.0,
+            "v12_6": 74432512.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 76857344,
+            "normalized": 76611584,
+            "v12_6": 76136448
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.860201,
+            "normalized": 0.744354,
+            "v12_6": 0.9215445
+          }
+        },
+        {
+          "case": {
+            "width": 192,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "duplicates",
+            "id": "duplicates-192-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 46.416499999999985,
+            "normalized": 35.6455,
+            "v12_6": 48.89599999999999
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 23.205110251742354,
+              "paired_median_less_time_percent": 22.96077414589095,
+              "paired_less_time_percent": [
+                6.794490358126781,
+                23.02293333333315,
+                21.99296294687455,
+                28.971086007911573,
+                24.397854288217815,
+                22.89861495844875
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 27.09935373036647,
+              "paired_median_less_time_percent": 27.270927803248803,
+              "paired_less_time_percent": [
+                13.615752277462311,
+                26.981139711834047,
+                26.264140097312627,
+                30.157393483709384,
+                27.560715894663556,
+                28.32598574430386
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 82591744.0,
+            "normalized": 82567168.0,
+            "v12_6": 82567168.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 83017728,
+            "normalized": 82690048,
+            "v12_6": 82821120
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.9115119999999999,
+            "normalized": 0.7947974999999999,
+            "v12_6": 0.966715
+          }
+        },
+        {
+          "case": {
+            "width": 128,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "indexed",
+            "id": "indexed-128-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 52.37499999999994,
+            "normalized": 38.99999999999997,
+            "v12_6": 55.04199999999996
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 25.53699284009544,
+              "paired_median_less_time_percent": 25.68431893587736,
+              "paired_less_time_percent": [
+                28.27717411187929,
+                25.418802111221485,
+                25.949835760533237,
+                25.359522300942682,
+                26.289603111060234,
+                23.100239808153578
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 29.14501653282947,
+              "paired_median_less_time_percent": 29.015069115724827,
+              "paired_less_time_percent": [
+                29.08791665913073,
+                29.14501653282948,
+                28.82042671241645,
+                28.94222157231893,
+                30.84805780098726,
+                27.175611351331696
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 82165760.0,
+            "normalized": 81993728.0,
+            "v12_6": 82075648.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 82345984,
+            "normalized": 82165760,
+            "v12_6": 82280448
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.080661,
+            "normalized": 0.9391224999999999,
+            "v12_6": 1.1674155
+          }
+        },
+        {
+          "case": {
+            "width": 192,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "indexed",
+            "id": "indexed-192-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 52.083,
+            "normalized": 38.521000000000015,
+            "v12_6": 54.875000000000014
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 26.03920665092253,
+              "paired_median_less_time_percent": 26.250228937078894,
+              "paired_less_time_percent": [
+                26.57638676064975,
+                26.702546450373752,
+                25.9016898263982,
+                25.36231884057971,
+                26.95035460992907,
+                25.92407111350804
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 29.80227790432801,
+              "paired_median_less_time_percent": 29.80220749243734,
+              "paired_less_time_percent": [
+                30.77562076749436,
+                29.71021100432216,
+                29.894203980552515,
+                29.34494301864017,
+                29.290617848970246,
+                31.223062753724363
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 89587712.0,
+            "normalized": 89841664.0,
+            "v12_6": 89743360.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 90046464,
+            "normalized": 90128384,
+            "v12_6": 90030080
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.0780120000000002,
+            "normalized": 0.92459,
+            "v12_6": 1.1544315
+          }
+        },
+        {
+          "case": {
+            "width": 128,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "reverse",
+            "id": "reverse-128-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 50.229500000000016,
+            "normalized": 37.353500000000025,
+            "v12_6": 53.083000000000055
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 25.634338386804544,
+              "paired_median_less_time_percent": 25.634378075343335,
+              "paired_less_time_percent": [
+                24.854847689493344,
+                25.72690393877014,
+                25.602481507993325,
+                25.66627464269334,
+                24.189526184538657,
+                31.87862068965507
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 29.631897217564973,
+              "paired_median_less_time_percent": 29.366236109626925,
+              "paired_less_time_percent": [
+                29.47016777709338,
+                29.26230444216047,
+                35.904068522483946,
+                29.194751931949583,
+                28.132387706855866,
+                30.49295378206448
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 79880192.0,
+            "normalized": 79863808.0,
+            "v12_6": 79888384.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 79921152,
+            "normalized": 79904768,
+            "v12_6": 80183296
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.043542,
+            "normalized": 0.9088949999999999,
+            "v12_6": 1.1254445
+          }
+        },
+        {
+          "case": {
+            "width": 192,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "reverse",
+            "id": "reverse-192-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 55.99999999999997,
+            "normalized": 42.58300000000003,
+            "v12_6": 58.0625
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 23.958928571428483,
+              "paired_median_less_time_percent": 23.74550853749077,
+              "paired_less_time_percent": [
+                23.933725856250565,
+                20.908928571428575,
+                23.757683741648083,
+                23.7250554323724,
+                24.33035714285706,
+                23.733333333333462
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 26.66006458557584,
+              "paired_median_less_time_percent": 26.791617996437743,
+              "paired_less_time_percent": [
+                26.93965517241379,
+                23.580868905069153,
+                26.6435808204617,
+                26.02150537634399,
+                26.93965517241379,
+                27.772814733369987
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 88637440.0,
+            "normalized": 88481792.0,
+            "v12_6": 88514560.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 88932352,
+            "normalized": 88948736,
+            "v12_6": 88801280
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.176312,
+            "normalized": 1.030408,
+            "v12_6": 1.2295645
+          }
+        },
+        {
+          "case": {
+            "width": 12,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-12-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 13.645750000000021,
+            "normalized": 13.573,
+            "v12_6": 19.48975
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.53313302676673,
+              "paired_median_less_time_percent": 0.6117099030361284,
+              "paired_less_time_percent": [
+                0.7633027522935709,
+                1.9502014968335257,
+                -0.0036254214552666753,
+                0.15366041049312829,
+                1.071559633027419,
+                0.46011705377868584
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 30.35826524198617,
+              "paired_median_less_time_percent": 30.395124057863015,
+              "paired_less_time_percent": [
+                30.588567468364182,
+                30.276590845124474,
+                29.271794871794864,
+                29.114285714285725,
+                31.02371875239882,
+                30.513657270601556
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 66387968.0,
+            "normalized": 66658304.0,
+            "v12_6": 66764800.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 67092480,
+            "normalized": 67305472,
+            "v12_6": 66945024
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.7506364999999999,
+            "normalized": 0.7508915,
+            "v12_6": 0.9116154999999999
+          }
+        },
+        {
+          "case": {
+            "width": 12,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-12-smi-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 7.604166666666667,
+            "normalized": 7.6110000000000095,
+            "v12_6": 13.173500000000008
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.08986301369875438,
+              "paired_median_less_time_percent": -0.09214163485593563,
+              "paired_less_time_percent": [
+                -5.853187661796344,
+                0.17956466517771164,
+                -2.6645352591003757e-13,
+                -0.1842832697116048,
+                -1.0992861209649263,
+                1.3322676295501878e-13
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 42.22492124340528,
+              "paired_median_less_time_percent": 42.12448161476906,
+              "paired_less_time_percent": [
+                39.999502586549895,
+                42.54021075984477,
+                42.31614582017515,
+                42.13340767398258,
+                41.436436055509226,
+                42.11555555555554
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 61407232.0,
+            "normalized": 61292544.0,
+            "v12_6": 61677568.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 62111744,
+            "normalized": 61751296,
+            "v12_6": 61800448
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.684148,
+            "normalized": 0.690226,
+            "v12_6": 0.8796809999999999
+          }
+        },
+        {
+          "case": {
+            "width": 127,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-127-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 13.041749999999993,
+            "normalized": 13.052249999999987,
+            "v12_6": 19.520749999999992
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.08051066766341375,
+              "paired_median_less_time_percent": 0.07834594511961224,
+              "paired_less_time_percent": [
+                1.5810426540284417,
+                -0.1612779356423122,
+                0.6423076923076976,
+                0.0,
+                -1.4423076923076872,
+                0.15669189023922447
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 33.136534200786386,
+              "paired_median_less_time_percent": 33.20759255639721,
+              "paired_less_time_percent": [
+                34.353345809519,
+                32.46860841423952,
+                33.04564186299661,
+                31.921824104234474,
+                33.36954324979781,
+                33.79035936945618
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 63717376.0,
+            "normalized": 63840256.0,
+            "v12_6": 63897600.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 63848448,
+            "normalized": 63897600,
+            "v12_6": 63995904
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.8606185,
+            "normalized": 0.867068,
+            "v12_6": 1.0402685
+          }
+        },
+        {
+          "case": {
+            "width": 127,
+            "pattern": "mixed",
+            "charset": "utf16",
+            "kind": "same",
+            "id": "same-127-mixed-utf16"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 17.208249999999992,
+            "normalized": 17.676999999999992,
+            "v12_6": 19.343499999999977
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -2.7239841355163996,
+              "paired_median_less_time_percent": -0.7893014038430235,
+              "paired_less_time_percent": [
+                -1.1152416356877248,
+                1.4616463985032802,
+                -7.948243992606474,
+                -0.46336117199832216,
+                -3.1990218102197376,
+                0.3610108303249149
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 8.615297128234223,
+              "paired_median_less_time_percent": 10.834130382276058,
+              "paired_less_time_percent": [
+                11.591866451713484,
+                12.065322307150572,
+                4.1250814332246755,
+                10.320743034055802,
+                8.699371069182593,
+                11.347517730496314
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 84328448.0,
+            "normalized": 84344832.0,
+            "v12_6": 84303872.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 84410368,
+            "normalized": 84541440,
+            "v12_6": 84328448
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.9966925,
+            "normalized": 1.0052984999999999,
+            "v12_6": 1.0740135
+          }
+        },
+        {
+          "case": {
+            "width": 127,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-127-smi-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 6.791666666666667,
+            "normalized": 6.805666666666648,
+            "v12_6": 11.277666666666665
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.20613496932486708,
+              "paired_median_less_time_percent": -0.20613496932487818,
+              "paired_less_time_percent": [
+                -0.2061349693250225,
+                0.4057092579919708,
+                -1.614545454545313,
+                -0.2061349693250225,
+                -0.20613496932473385,
+                0.4082034131705603
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 39.65359264623313,
+              "paired_median_less_time_percent": 39.65448444748853,
+              "paired_less_time_percent": [
+                39.653592646232994,
+                39.777731800313354,
+                37.90222222222231,
+                39.655376248744055,
+                39.50518518518543,
+                40.65934065934066
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 54706176.0,
+            "normalized": 54681600.0,
+            "v12_6": 54616064.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 54820864,
+            "normalized": 54820864,
+            "v12_6": 54673408
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.8722074999999999,
+            "normalized": 0.874731,
+            "v12_6": 1.0122065
+          }
+        },
+        {
+          "case": {
+            "width": 127,
+            "pattern": "smi",
+            "charset": "utf16",
+            "kind": "same",
+            "id": "same-127-smi-utf16"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 12.166749999999979,
+            "normalized": 12.281249999999993,
+            "v12_6": 12.104250000000008
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.9410894445929685,
+              "paired_median_less_time_percent": -0.6851175098437357,
+              "paired_less_time_percent": [
+                -0.49504950495027344,
+                -1.014587238204001,
+                -1.027411334401962,
+                -0.5154639175257714,
+                -0.17409326424859817,
+                -0.8547711021616999
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": -1.4622963008859236,
+              "paired_median_less_time_percent": -0.7615829413853858,
+              "paired_less_time_percent": [
+                -0.6624880990161897,
+                1.654236750238136,
+                -1.3731958762886576,
+                -0.860677783754582,
+                -0.348793754930643,
+                -1.9016774622155674
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 61423616.0,
+            "normalized": 61521920.0,
+            "v12_6": 61489152.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 61521920,
+            "normalized": 61751296,
+            "v12_6": 61620224
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.725406,
+            "normalized": 0.735909,
+            "v12_6": 0.725816
+          }
+        },
+        {
+          "case": {
+            "width": 128,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-128-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 50.8125,
+            "normalized": 36.83300000000003,
+            "v12_6": 52.35400000000004
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 27.51193111931114,
+              "paired_median_less_time_percent": 27.511794519156773,
+              "paired_less_time_percent": [
+                27.578215527230554,
+                27.445373511082995,
+                26.25946331602527,
+                27.73722627737226,
+                26.8269345772036,
+                28.618536585365806
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 29.646254345417734,
+              "paired_median_less_time_percent": 29.749620934360884,
+              "paired_less_time_percent": [
+                29.481172668336875,
+                29.529957094698023,
+                28.788516746411542,
+                33.655598841988734,
+                29.96928477402374,
+                31.620560747663507
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": true,
+          "target_pass": true,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 79708160.0,
+            "normalized": 79699968.0,
+            "v12_6": 79675392.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 79773696,
+            "normalized": 79757312,
+            "v12_6": 79855616
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.993022,
+            "normalized": 0.8334239999999999,
+            "v12_6": 1.0536175
+          }
+        },
+        {
+          "case": {
+            "width": 128,
+            "pattern": "mixed",
+            "charset": "utf16",
+            "kind": "same",
+            "id": "same-128-mixed-utf16"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 54.0415,
+            "normalized": 39.72900000000001,
+            "v12_6": 56.47900000000001
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 26.48427597309473,
+              "paired_median_less_time_percent": 26.268762147690495,
+              "paired_less_time_percent": [
+                26.30801609865968,
+                25.835521048613742,
+                29.358323199084413,
+                21.870653040784916,
+                27.514359931218745,
+                26.22950819672131
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 29.657040669983527,
+              "paired_median_less_time_percent": 29.427253662524716,
+              "paired_less_time_percent": [
+                29.455843627944756,
+                31.617167381974166,
+                31.945832328313983,
+                25.277161862527787,
+                29.398663697104677,
+                29.372197309417114
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 91742208.0,
+            "normalized": 91783168.0,
+            "v12_6": 91684864.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 91799552,
+            "normalized": 91832320,
+            "v12_6": 91783168
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.0331875,
+            "normalized": 0.876406,
+            "v12_6": 1.132372
+          }
+        },
+        {
+          "case": {
+            "width": 128,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-128-smi-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 45.85400000000004,
+            "normalized": 32.10400000000004,
+            "v12_6": 45.25
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 29.986478824093833,
+              "paired_median_less_time_percent": 29.90794520547945,
+              "paired_less_time_percent": [
+                29.95287671232876,
+                29.98260869565199,
+                29.675283664002492,
+                29.129279553968203,
+                29.863013698630137,
+                30.3000524109017
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 29.05193370165736,
+              "paired_median_less_time_percent": 28.991690231542286,
+              "paired_less_time_percent": [
+                29.695543138721582,
+                29.01818181818163,
+                28.965198644902944,
+                27.82140005323398,
+                28.888888888888886,
+                29.269806094183014
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": true,
+          "target_pass": true,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 69804032.0,
+            "normalized": 69230592.0,
+            "v12_6": 69517312.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 70451200,
+            "normalized": 69959680,
+            "v12_6": 70074368
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.8656029999999999,
+            "normalized": 0.7143785,
+            "v12_6": 0.863077
+          }
+        },
+        {
+          "case": {
+            "width": 128,
+            "pattern": "smi",
+            "charset": "utf16",
+            "kind": "same",
+            "id": "same-128-smi-utf16"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 47.4375,
+            "normalized": 33.29200000000003,
+            "v12_6": 47.375000000000014
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 29.81923583662708,
+              "paired_median_less_time_percent": 29.846062759029035,
+              "paired_less_time_percent": [
+                27.968337730870708,
+                30.17684210526317,
+                30.166136591898272,
+                29.692125518058067,
+                29.451851851851806,
+                30.000000000000004
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 29.72664907651711,
+              "paired_median_less_time_percent": 29.72667244047595,
+              "paired_less_time_percent": [
+                27.713523131672634,
+                31.202290076335927,
+                30.768752074344462,
+                29.753026429763587,
+                29.700318451188313,
+                29.38153088097868
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 77086720.0,
+            "normalized": 77684736.0,
+            "v12_6": 77651968.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 77824000,
+            "normalized": 78741504,
+            "v12_6": 78528512
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.8787764999999998,
+            "normalized": 0.7264269999999999,
+            "v12_6": 0.8783805
+          }
+        },
+        {
+          "case": {
+            "width": 129,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-129-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 53.853999999999985,
+            "normalized": 38.83300000000001,
+            "v12_6": 54.99999999999997
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 27.892078582835033,
+              "paired_median_less_time_percent": 27.630637870447263,
+              "paired_less_time_percent": [
+                25.847754137115786,
+                27.806604206010157,
+                29.564372410252616,
+                27.665657268606438,
+                27.257859003860517,
+                27.595618472288088
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 29.394545454545394,
+              "paired_median_less_time_percent": 29.073781629879846,
+              "paired_less_time_percent": [
+                28.767123287671147,
+                28.35437970814072,
+                29.831963470319632,
+                29.380439972088546,
+                31.74639995717421,
+                28.248404197771293
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": true,
+          "target_pass": true,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 79634432.0,
+            "normalized": 79691776.0,
+            "v12_6": 79724544.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 79708160,
+            "normalized": 79740928,
+            "v12_6": 79855616
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.0734835,
+            "normalized": 0.8999999999999999,
+            "v12_6": 1.1279569999999999
+          }
+        },
+        {
+          "case": {
+            "width": 129,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-129-smi-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 46.5,
+            "normalized": 32.60400000000003,
+            "v12_6": 46.20849999999996
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 29.883870967741878,
+              "paired_median_less_time_percent": 29.611687426706887,
+              "paired_less_time_percent": [
+                28.55761586558088,
+                22.06461611313195,
+                30.85106382978712,
+                30.77671957671958,
+                29.721409214092233,
+                29.501965639321536
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 29.44155296103519,
+              "paired_median_less_time_percent": 29.09945355191261,
+              "paired_less_time_percent": [
+                27.783328265496586,
+                25.40738756927128,
+                29.919137466307156,
+                29.596624908519566,
+                29.14535519125684,
+                29.053551912568377
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": true,
+          "target_pass": true,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 69533696.0,
+            "normalized": 69165056.0,
+            "v12_6": 69001216.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 70811648,
+            "normalized": 69844992,
+            "v12_6": 70156288
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.8811370000000001,
+            "normalized": 0.724365,
+            "v12_6": 0.8803639999999999
+          }
+        },
+        {
+          "case": {
+            "width": 192,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-192-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 54.70849999999999,
+            "normalized": 41.37499999999997,
+            "v12_6": 57.37499999999996
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 24.371898333896958,
+              "paired_median_less_time_percent": 24.15774877659186,
+              "paired_less_time_percent": [
+                24.00733944954132,
+                24.90494991591712,
+                22.96503139144399,
+                24.904618291486504,
+                23.838856495274975,
+                24.3081581036424
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 27.886710239651414,
+              "paired_median_less_time_percent": 27.896475424524848,
+              "paired_less_time_percent": [
+                27.710675137890107,
+                28.08227571115959,
+                26.53938529012505,
+                29.040343347639407,
+                26.36257599321361,
+                28.746459046592932
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": true,
+          "target_pass": true,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 88358912.0,
+            "normalized": 88227840.0,
+            "v12_6": 88342528.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 88473600,
+            "normalized": 88801280,
+            "v12_6": 88621056
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.093202,
+            "normalized": 0.9452119999999999,
+            "v12_6": 1.147968
+          }
+        },
+        {
+          "case": {
+            "width": 192,
+            "pattern": "mixed",
+            "charset": "utf16",
+            "kind": "same",
+            "id": "same-192-mixed-utf16"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 58.728999999999985,
+            "normalized": 44.64599999999999,
+            "v12_6": 60.896
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 23.979635273885137,
+              "paired_median_less_time_percent": 24.229726677208042,
+              "paired_less_time_percent": [
+                24.823829787233954,
+                24.210526315789473,
+                23.775294678749027,
+                22.691039032435445,
+                24.344798301486247,
+                24.24892703862661
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 26.684839726747267,
+              "paired_median_less_time_percent": 27.02203010224605,
+              "paired_less_time_percent": [
+                28.331034482758533,
+                28.477200120794034,
+                26.236669029291015,
+                26.128995190176795,
+                26.52865979381448,
+                27.515400410677614
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 99557376.0,
+            "normalized": 99516416.0,
+            "v12_6": 99590144.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 100155392,
+            "normalized": 99663872,
+            "v12_6": 99975168
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.211446,
+            "normalized": 1.0529324999999998,
+            "v12_6": 1.3173724999999998
+          }
+        },
+        {
+          "case": {
+            "width": 192,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-192-smi-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 47.99999999999997,
+            "normalized": 33.729,
+            "v12_6": 47.5835
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 29.731249999999964,
+              "paired_median_less_time_percent": 29.614571435739133,
+              "paired_less_time_percent": [
+                31.056867282370703,
+                30.077995353468346,
+                29.381486441245276,
+                28.88376963350786,
+                29.581151832460726,
+                29.64799103901754
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 29.116185232275893,
+              "paired_median_less_time_percent": 29.06569583743156,
+              "paired_less_time_percent": [
+                28.935092348285018,
+                30.619133871233338,
+                29.1962993265781,
+                28.697112860892393,
+                29.27306381725633,
+                28.472910559503937
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": true,
+          "target_pass": true,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 81715200.0,
+            "normalized": 81731584.0,
+            "v12_6": 81813504.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 81936384,
+            "normalized": 81772544,
+            "v12_6": 82083840
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.912379,
+            "normalized": 0.7567409999999999,
+            "v12_6": 0.9115245000000001
+          }
+        },
+        {
+          "case": {
+            "width": 192,
+            "pattern": "smi",
+            "charset": "utf16",
+            "kind": "same",
+            "id": "same-192-smi-utf16"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 51.43749999999997,
+            "normalized": 37.603999999999985,
+            "v12_6": 50.91650000000001
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 26.893803159173746,
+              "paired_median_less_time_percent": 27.080057481438253,
+              "paired_less_time_percent": [
+                27.91800000000001,
+                27.23703803979958,
+                26.923076923076927,
+                25.281585018319884,
+                26.727364891211124,
+                27.33947820653019
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 26.145748431255143,
+              "paired_median_less_time_percent": 26.63018188582668,
+              "paired_less_time_percent": [
+                26.571317971599264,
+                24.435652313624722,
+                26.6890458000541,
+                27.33682741978054,
+                26.30784313725496,
+                26.80345444888167
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 89473024.0,
+            "normalized": 89563136.0,
+            "v12_6": 89489408.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 89702400,
+            "normalized": 89751552,
+            "v12_6": 89931776
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.974891,
+            "normalized": 0.8258405,
+            "v12_6": 0.9717884999999999
+          }
+        },
+        {
+          "case": {
+            "width": 256,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-256-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 53.52099999999999,
+            "normalized": 39.22949999999997,
+            "v12_6": 56.33299999999997
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 26.70260271669068,
+              "paired_median_less_time_percent": 26.387473845808458,
+              "paired_less_time_percent": [
+                27.909433962264096,
+                25.420531968128145,
+                26.25298329355609,
+                25.325400457665804,
+                27.264982054163724,
+                26.521964398060828
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 30.361422256936443,
+              "paired_median_less_time_percent": 30.733128667186136,
+              "paired_less_time_percent": [
+                30.424648554155453,
+                29.00720004396977,
+                31.23063775237681,
+                27.803539823008748,
+                31.79848044464838,
+                31.041608780216823
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 79847424.0,
+            "normalized": 79912960.0,
+            "v12_6": 79831040.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 79904768,
+            "normalized": 80019456,
+            "v12_6": 80248832
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.045416,
+            "normalized": 0.8930319999999999,
+            "v12_6": 1.1313710000000001
+          }
+        },
+        {
+          "case": {
+            "width": 256,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-256-smi-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 47.89599999999999,
+            "normalized": 33.291500000000056,
+            "v12_6": 47.24950000000001
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 30.492107900450836,
+              "paired_median_less_time_percent": 30.3680752457379,
+              "paired_less_time_percent": [
+                28.411768385495805,
+                29.16040590329947,
+                30.656994818652638,
+                30.834361215060767,
+                30.729682462757335,
+                30.079155672823155
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 29.54105334447974,
+              "paired_median_less_time_percent": 29.199754350570867,
+              "paired_less_time_percent": [
+                27.909711286089177,
+                28.793991682701225,
+                28.93976722453462,
+                29.91865785460086,
+                30.483601530946768,
+                29.459741476607114
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 68952064.0,
+            "normalized": 68820992.0,
+            "v12_6": 68747264.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 69025792,
+            "normalized": 69173248,
+            "v12_6": 69091328
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.9082475,
+            "normalized": 0.7413730000000001,
+            "v12_6": 0.895849
+          }
+        },
+        {
+          "case": {
+            "width": 512,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-512-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 57.35400000000001,
+            "normalized": 43.25049999999999,
+            "v12_6": 59.8125
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 24.590263974613833,
+              "paired_median_less_time_percent": 24.45167948681369,
+              "paired_less_time_percent": [
+                24.76451982899439,
+                25.69241280241058,
+                24.138839144632986,
+                23.97753909666601,
+                26.77948717948717,
+                23.678356678599965
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 27.689864158829693,
+              "paired_median_less_time_percent": 27.86557656285383,
+              "paired_less_time_percent": [
+                27.99667359667355,
+                28.610138683182996,
+                27.734479529034108,
+                27.366169170858946,
+                28.010084033613435,
+                27.159490479665582
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 79822848.0,
+            "normalized": 79880192.0,
+            "v12_6": 79683584.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 79904768,
+            "normalized": 79953920,
+            "v12_6": 79822848
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.072017,
+            "normalized": 0.9143034999999999,
+            "v12_6": 1.1072495
+          }
+        },
+        {
+          "case": {
+            "width": 512,
+            "pattern": "mixed",
+            "charset": "utf16",
+            "kind": "same",
+            "id": "same-512-mixed-utf16"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 67.35399999999998,
+            "normalized": 51.27099999999999,
+            "v12_6": 69.06250000000006
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 23.878314576714075,
+              "paired_median_less_time_percent": 23.33447480400561,
+              "paired_less_time_percent": [
+                23.280367655893354,
+                22.368241965973535,
+                22.65481481481477,
+                26.13389342576803,
+                23.80668967980003,
+                23.38858195211786
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 25.761447963800986,
+              "paired_median_less_time_percent": 25.621659526456455,
+              "paired_less_time_percent": [
+                26.144348379261583,
+                25.781453315212733,
+                25.461865737700172,
+                27.071158224452198,
+                25.37996357012755,
+                24.0410178503609
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 91840512.0,
+            "normalized": 91873280.0,
+            "v12_6": 91668480.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 92028928,
+            "normalized": 91897856,
+            "v12_6": 91799552
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.1662314999999999,
+            "normalized": 1.0170785,
+            "v12_6": 1.279589
+          }
+        },
+        {
+          "case": {
+            "width": 512,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-512-smi-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 52.18799999999993,
+            "normalized": 37.08349999999999,
+            "v12_6": 51.854
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 28.94247719782319,
+              "paired_median_less_time_percent": 28.8564573326937,
+              "paired_less_time_percent": [
+                29.143768494677257,
+                28.205769230769228,
+                39.86435568952517,
+                15.81768925518916,
+                28.651501434982773,
+                29.061413230404632
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 28.484784201797375,
+              "paired_median_less_time_percent": 28.44506971271061,
+              "paired_less_time_percent": [
+                28.45640448566218,
+                27.15512195121952,
+                36.390101892285266,
+                22.017213650743116,
+                28.535874828777086,
+                28.433734939759038
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 68550656.0,
+            "normalized": 68534272.0,
+            "v12_6": 68534272.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 68648960,
+            "normalized": 68583424,
+            "v12_6": 68599808
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.971476,
+            "normalized": 0.7894515,
+            "v12_6": 0.9686104999999999
+          }
+        },
+        {
+          "case": {
+            "width": 512,
+            "pattern": "smi",
+            "charset": "utf16",
+            "kind": "same",
+            "id": "same-512-smi-utf16"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 53.50049999999996,
+            "normalized": 38.125,
+            "v12_6": 53.0625
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 28.738983747815382,
+              "paired_median_less_time_percent": 28.929424406952542,
+              "paired_less_time_percent": [
+                26.033034662077537,
+                28.58216809502342,
+                27.86885245901639,
+                30.640057072822568,
+                29.41615927682929,
+                29.276680718881664
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 28.150765606595996,
+              "paired_median_less_time_percent": 28.229085777902558,
+              "paired_less_time_percent": [
+                25.334692875620902,
+                28.805620608899297,
+                27.414641503742388,
+                28.515138946495135,
+                28.862117647058817,
+                27.94303260930998
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 76496896.0,
+            "normalized": 76472320.0,
+            "v12_6": 76316672.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 76759040,
+            "normalized": 81018880,
+            "v12_6": 76414976
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.9872989999999999,
+            "normalized": 0.8234745,
+            "v12_6": 0.956429
+          }
+        },
+        {
+          "case": {
+            "width": 64,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-64-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 12.124749999999999,
+            "normalized": 12.0835,
+            "v12_6": 18.58325
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.34021320027215474,
+              "paired_median_less_time_percent": 0.8634168497900829,
+              "paired_less_time_percent": [
+                0.6982481080403113,
+                3.3924503742273737,
+                -0.6898545935227984,
+                1.0285855915398545,
+                -0.5187106335680092,
+                1.325373134328467
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 34.97639002865483,
+              "paired_median_less_time_percent": 35.56385611860789,
+              "paired_less_time_percent": [
+                35.73786460306299,
+                35.51977845953357,
+                36.065573770491795,
+                35.60793377768221,
+                34.23030303030302,
+                33.74134751583517
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 63733760.0,
+            "normalized": 63889408.0,
+            "v12_6": 63913984.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 63913984,
+            "normalized": 63963136,
+            "v12_6": 64061440
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.778127,
+            "normalized": 0.7785335,
+            "v12_6": 0.945352
+          }
+        },
+        {
+          "case": {
+            "width": 64,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-64-smi-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 6.708333333333333,
+            "normalized": 6.715166666666676,
+            "v12_6": 11.333333333333334
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.10186335403741253,
+              "paired_median_less_time_percent": -0.10434782608689241,
+              "paired_less_time_percent": [
+                -0.20869565217378483,
+                -0.4082852021512151,
+                1.425352664576518,
+                0.0,
+                -0.4082852021512151,
+                0.0
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 40.748529411764636,
+              "paired_median_less_time_percent": 40.808823529411775,
+              "paired_less_time_percent": [
+                40.97520999795127,
+                40.68823529411749,
+                40.808823529411775,
+                40.73735975735436,
+                41.47827853390961,
+                40.808823529411775
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 54886400.0,
+            "normalized": 54870016.0,
+            "v12_6": 54853632.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 54984704,
+            "normalized": 55017472,
+            "v12_6": 54919168
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.775755,
+            "normalized": 0.7781009999999999,
+            "v12_6": 0.9354155
+          }
+        },
+        {
+          "case": {
+            "width": 128,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "single",
+            "id": "single-128-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 0.012137507146941107,
+            "normalized": 0.008731275014293891,
+            "v12_6": 0.012733276157804459
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 28.06368796664853,
+              "paired_median_less_time_percent": 27.394925870474154,
+              "paired_less_time_percent": [
+                29.691954022988366,
+                27.589122164294764,
+                26.79994407940707,
+                27.092795333938913,
+                28.54105641122554,
+                27.200729576653547
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 31.429469477559923,
+              "paired_median_less_time_percent": 31.067967738920473,
+              "paired_less_time_percent": [
+                32.41104972375677,
+                30.31864406779661,
+                30.316742081447977,
+                30.945480891142918,
+                32.525874375446094,
+                31.190454586698024
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 46186496.0,
+            "normalized": 46071808.0,
+            "v12_6": 46022656.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 46301184,
+            "normalized": 46268416,
+            "v12_6": 46219264
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.3729055,
+            "normalized": 0.30998499999999996,
+            "v12_6": 0.384503
+          }
+        },
+        {
+          "case": {
+            "width": 192,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "single",
+            "id": "single-192-mixed-ascii"
+          },
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 0.0225372314453125,
+            "normalized": 0.017572875976562506,
+            "v12_6": 0.024047851562500007
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 22.02735274204466,
+              "paired_median_less_time_percent": 21.974290682153235,
+              "paired_less_time_percent": [
+                18.139863945578295,
+                23.827098241586064,
+                22.14776725304466,
+                23.558063685520537,
+                21.229268292682868,
+                21.80081411126181
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 26.925380710659898,
+              "paired_median_less_time_percent": 27.130879894705334,
+              "paired_less_time_percent": [
+                22.830113175797106,
+                28.792787010199728,
+                25.21759023365615,
+                27.29591836734698,
+                27.030446658097596,
+                27.231313131313073
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 72826880.0,
+            "normalized": 72425472.0,
+            "v12_6": 72450048.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 73465856,
+            "normalized": 73302016,
+            "v12_6": 73089024
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.6316405,
+            "normalized": 1.3897265,
+            "v12_6": 1.742037
+          }
+        }
+      ],
+      "large-sync": [
+        {
+          "family": "canada",
+          "requested_mb": 10,
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 23.792,
+            "normalized": 23.625,
+            "v12_6": 53.04199999999999
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.7019166106254304,
+              "paired_median_less_time_percent": 0.07845177704907114,
+              "paired_less_time_percent": [
+                -12.582864814970062,
+                -1.4220438143229153,
+                1.5789473684210575,
+                -1.4322580645162342,
+                3.243641725027646,
+                2.238682446412077
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 55.459824290185125,
+              "paired_median_less_time_percent": 55.45054066535021,
+              "paired_less_time_percent": [
+                49.53072394530448,
+                55.77939971698813,
+                55.546469391248095,
+                56.39480058428704,
+                55.354611939452326,
+                55.21327014218009
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 82739200.0,
+            "normalized": 82485248.0,
+            "v12_6": 81207296.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 83066880,
+            "normalized": 83476480,
+            "v12_6": 81379328
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.036843,
+            "normalized": 1.026549,
+            "v12_6": 1.3740415000000001
+          }
+        },
+        {
+          "family": "canada",
+          "requested_mb": 50,
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 129.16650000000016,
+            "normalized": 126.45849999999996,
+            "v12_6": 263.97900000000004
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 2.0965188342179975,
+              "paired_median_less_time_percent": -0.8322797557717143,
+              "paired_less_time_percent": [
+                -17.812397781818046,
+                -0.39774399605427835,
+                -11.966413910212692,
+                3.798011367989085,
+                3.7450872863540208,
+                -1.2668155154891503
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 52.09524242458683,
+              "paired_median_less_time_percent": 51.86080150684408,
+              "paired_less_time_percent": [
+                41.67567343649383,
+                51.859311049826985,
+                45.31866838386188,
+                52.624649638037965,
+                52.96939428673506,
+                51.86229196386118
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 221642752.0,
+            "normalized": 221913088.0,
+            "v12_6": 220323840.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 221872128,
+            "normalized": 222167040,
+            "v12_6": 220479488
+          },
+          "process_cpu_median_seconds": {
+            "before": 4.702002,
+            "normalized": 4.6332185,
+            "v12_6": 6.445781
+          }
+        },
+        {
+          "family": "citm_catalog",
+          "requested_mb": 10,
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 29.416999999999973,
+            "normalized": 29.354000000000013,
+            "v12_6": 34.0
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.21416187918537055,
+              "paired_median_less_time_percent": 0.9901462187988874,
+              "paired_less_time_percent": [
+                4.081632653061229,
+                -4.865236051502242,
+                1.8142259414225093,
+                -8.014973411698833,
+                0.5766773714561024,
+                1.4036150661416724
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 13.664705882352902,
+              "paired_median_less_time_percent": 11.680278253389204,
+              "paired_less_time_percent": [
+                17.92858739383103,
+                11.580105378958939,
+                11.780451127819468,
+                7.720126726044507,
+                18.99161555342973,
+                10.446666055214425
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 83771392.0,
+            "normalized": 83484672.0,
+            "v12_6": 84647936.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 85360640,
+            "normalized": 84393984,
+            "v12_6": 84951040
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.2583475,
+            "normalized": 1.2923075000000002,
+            "v12_6": 1.4509949999999998
+          }
+        },
+        {
+          "family": "citm_catalog",
+          "requested_mb": 50,
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 142.72949999999992,
+            "normalized": 145.72899999999998,
+            "v12_6": 164.625
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -2.101527715013418,
+              "paired_median_less_time_percent": -1.1138768964355616,
+              "paired_less_time_percent": [
+                -0.3443350331570061,
+                -2.1032756044930156,
+                -1.3097093484265576,
+                -4.315714285714223,
+                -0.17746228926354135,
+                -0.9180444444445657
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 11.478208048595306,
+              "paired_median_less_time_percent": 11.08331923192507,
+              "paired_less_time_percent": [
+                13.184477611940327,
+                10.598031794095386,
+                10.538610586296759,
+                11.017821782178272,
+                11.14881668167187,
+                11.18648734909975
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 249659392.0,
+            "normalized": 249856000.0,
+            "v12_6": 249200640.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 250068992,
+            "normalized": 250085376,
+            "v12_6": 249413632
+          },
+          "process_cpu_median_seconds": {
+            "before": 6.0738215,
+            "normalized": 6.129962,
+            "v12_6": 6.6885335
+          }
+        },
+        {
+          "family": "mixed_nested",
+          "requested_mb": 10,
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 31.604000000000013,
+            "normalized": 31.375,
+            "v12_6": 35.20849999999999
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.724591823819809,
+              "paired_median_less_time_percent": 0.5260425471583063,
+              "paired_less_time_percent": [
+                -0.13404397919136724,
+                -1.7251806346881393,
+                1.0547257397290677,
+                0.12998953742764385,
+                0.9220955568889688,
+                0.9220955568889688
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 10.887995796469575,
+              "paired_median_less_time_percent": 10.763447624469052,
+              "paired_less_time_percent": [
+                10.144055904000703,
+                9.122188415275767,
+                12.862228155069955,
+                10.850738665308214,
+                10.676156583629892,
+                10.99290780141844
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 91807744.0,
+            "normalized": 92086272.0,
+            "v12_6": 91783168.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 92110848,
+            "normalized": 92307456,
+            "v12_6": 92110848
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.2745155,
+            "normalized": 1.2787025,
+            "v12_6": 1.3772115
+          }
+        },
+        {
+          "family": "mixed_nested",
+          "requested_mb": 50,
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 171.9580000000003,
+            "normalized": 174.10400000000004,
+            "v12_6": 189.64549999999997
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -1.24797915770114,
+              "paired_median_less_time_percent": -0.15333311460065668,
+              "paired_less_time_percent": [
+                -3.7691629955949324,
+                -1.9906571822911223,
+                1.683990953089809,
+                5.600919170961472,
+                -6.830014430013942,
+                10.489549769446372
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 8.19502703728796,
+              "paired_median_less_time_percent": 8.25503011868911,
+              "paired_less_time_percent": [
+                6.833487145682071,
+                8.971409619970593,
+                11.532905212320621,
+                9.793471019320387,
+                6.641614123581519,
+                7.538650617407628
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 287596544.0,
+            "normalized": 288456704.0,
+            "v12_6": 288153600.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 288440320,
+            "normalized": 288718848,
+            "v12_6": 288784384
+          },
+          "process_cpu_median_seconds": {
+            "before": 5.998952,
+            "normalized": 6.021904500000001,
+            "v12_6": 6.4740465
+          }
+        },
+        {
+          "family": "records12",
+          "requested_mb": 10,
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 18.95900000000003,
+            "normalized": 18.729499999999973,
+            "v12_6": 27.25
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 1.2105068832747423,
+              "paired_median_less_time_percent": 1.2105068832747368,
+              "paired_less_time_percent": [
+                0.4387587883915356,
+                1.3186349491012828,
+                1.969330952631032,
+                1.965099827071215,
+                0.21770296819411117,
+                1.1023788174481908
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 31.267889908256976,
+              "paired_median_less_time_percent": 31.269724770642156,
+              "paired_less_time_percent": [
+                30.352784557355296,
+                31.96727272727292,
+                31.497247706422115,
+                31.34678899082559,
+                31.142134769704178,
+                31.19266055045872
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 72728576.0,
+            "normalized": 72794112.0,
+            "v12_6": 72327168.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 72876032,
+            "normalized": 72843264,
+            "v12_6": 72761344
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.8959345,
+            "normalized": 0.882755,
+            "v12_6": 1.043398
+          }
+        },
+        {
+          "family": "records12",
+          "requested_mb": 50,
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 118.39599999999996,
+            "normalized": 119.79149999999998,
+            "v12_6": 159.08299999999997
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -1.1786715767424738,
+              "paired_median_less_time_percent": -1.18594449411209,
+              "paired_less_time_percent": [
+                0.4279612780636599,
+                0.6400531815157984,
+                -3.5490605427974886,
+                -2.79985026628784,
+                4.3942419167848135,
+                -6.987840670859602
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 24.69874216603911,
+              "paired_median_less_time_percent": 26.515101570334366,
+              "paired_less_time_percent": [
+                26.642199983604854,
+                26.388003157063878,
+                27.183895896460264,
+                23.724245025755074,
+                28.856857000784785,
+                20.052261205767408
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 193765376.0,
+            "normalized": 195026944.0,
+            "v12_6": 193093632.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 195330048,
+            "normalized": 196509696,
+            "v12_6": 195952640
+          },
+          "process_cpu_median_seconds": {
+            "before": 3.849078,
+            "normalized": 3.979831,
+            "v12_6": 4.776774
+          }
+        },
+        {
+          "family": "records60",
+          "requested_mb": 10,
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 16.333999999999975,
+            "normalized": 16.1665,
+            "v12_6": 25.1875
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 1.0254683482305404,
+              "paired_median_less_time_percent": 0.7703139275318405,
+              "paired_less_time_percent": [
+                1.027692307692496,
+                0.5116647377714889,
+                0.7692307692307665,
+                -0.7575757575757569,
+                2.295824660217949,
+                0.7713970858329144
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 35.815384615384616,
+              "paired_median_less_time_percent": 36.25692404188387,
+              "paired_less_time_percent": [
+                36.618719211822636,
+                34.99303482587032,
+                36.13861386138614,
+                33.5,
+                36.3752342223816,
+                37.95980861244019
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 68132864.0,
+            "normalized": 68288512.0,
+            "v12_6": 68403200.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 68255744,
+            "normalized": 68616192,
+            "v12_6": 68665344
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.9186645,
+            "normalized": 0.8881815,
+            "v12_6": 1.08488
+          }
+        },
+        {
+          "family": "records60",
+          "requested_mb": 50,
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 95.83399999999983,
+            "normalized": 96.72900000000004,
+            "v12_6": 141.10400000000004
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.9339065467372842,
+              "paired_median_less_time_percent": 0.005653134152644457,
+              "paired_less_time_percent": [
+                6.418948752416109,
+                -12.030256109809457,
+                1.2582740102408674,
+                -1.2469677419355785,
+                2.4988952252687158,
+                -5.082874090278167
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 31.448435196734316,
+              "paired_median_less_time_percent": 30.932706577654855,
+              "paired_less_time_percent": [
+                33.99653979238755,
+                25.007703512801736,
+                33.16685216754255,
+                30.06559714795003,
+                31.79981600735968,
+                26.71160532222333
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 168583168.0,
+            "normalized": 168640512.0,
+            "v12_6": 168771584.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 169066496,
+            "normalized": 169410560,
+            "v12_6": 169213952
+          },
+          "process_cpu_median_seconds": {
+            "before": 3.7944050000000002,
+            "normalized": 3.822894,
+            "v12_6": 4.5219135
+          }
+        },
+        {
+          "family": "twitter",
+          "requested_mb": 10,
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 16.2915,
+            "normalized": 16.49950000000004,
+            "v12_6": 16.562499999999986
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -1.2767394039839175,
+              "paired_median_less_time_percent": -0.8913241043269626,
+              "paired_less_time_percent": [
+                -3.5876923076928247,
+                0.24975633528263597,
+                -0.7611097471154737,
+                -1.7924007120497798,
+                0.4942829919003855,
+                -1.0215384615384515
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 0.3803773584902359,
+              "paired_median_less_time_percent": 0.3787878787877119,
+              "paired_less_time_percent": [
+                -1.5075679913171047,
+                0.7575757575757569,
+                0.7616974972793344,
+                -3.3306690738754696e-13,
+                -1.2666666666666826,
+                1.747665788843511
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 75546624.0,
+            "normalized": 75669504.0,
+            "v12_6": 75366400.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 75857920,
+            "normalized": 75808768,
+            "v12_6": 75759616
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.8638285,
+            "normalized": 0.863157,
+            "v12_6": 0.888079
+          }
+        },
+        {
+          "family": "twitter",
+          "requested_mb": 50,
+          "mode": "parse",
+          "jobs": 1,
+          "values_ms": {
+            "before": 95.68749999999989,
+            "normalized": 95.79199999999997,
+            "v12_6": 96.95850000000007
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.10920966688447997,
+              "paired_median_less_time_percent": 0.1737746334001089,
+              "paired_less_time_percent": [
+                1.458314036658448,
+                -0.13140604467805073,
+                0.47895531147826853,
+                -1.8244940938519694,
+                -0.5677889752562892,
+                1.5410853350320664
+              ]
+            },
+            "v12_6": {
+              "less_time_percent": 1.203092044534615,
+              "paired_median_less_time_percent": 1.2893984636777045,
+              "paired_less_time_percent": [
+                1.075513219204205,
+                1.1242253433403793,
+                2.146493270955163,
+                -0.8175483870966893,
+                1.4545715840150297,
+                1.5825417201540959
+              ]
+            }
+          },
+          "pairs": 6,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 3,
+          "process_peak_rss_median_bytes": {
+            "before": 206757888.0,
+            "normalized": 206692352.0,
+            "v12_6": 206389248.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 207077376,
+            "normalized": 206848000,
+            "v12_6": 206651392
+          },
+          "process_cpu_median_seconds": {
+            "before": 3.6166435000000003,
+            "normalized": 3.5805445000000002,
+            "v12_6": 3.764113
+          }
+        }
+      ],
+      "wide-async": [
+        {
+          "case": {
+            "width": 127,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-127-mixed-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 20.958499999999987,
+            "normalized": 20.6875
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 1.293031466946526,
+              "paired_median_less_time_percent": -0.11617821442970189,
+              "paired_less_time_percent": [
+                -1.0335403726708048,
+                -1.0104935872522258,
+                12.412765957446814,
+                0.778137158392822
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 77045760.0,
+            "normalized": 77127680.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 77103104,
+            "normalized": 77152256
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.6016665,
+            "normalized": 0.5862989999999999
+          }
+        },
+        {
+          "case": {
+            "width": 127,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-127-mixed-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 52.64549999999997,
+            "normalized": 53.750500000000045
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -2.0989448290928525,
+              "paired_median_less_time_percent": -2.4613479633844526,
+              "paired_less_time_percent": [
+                -8.489719626168291,
+                1.378245768785491,
+                -3.944700816744451,
+                -0.9779951100244544
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 170270720.0,
+            "normalized": 170254336.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 210354176,
+            "normalized": 217907200
+          },
+          "process_cpu_median_seconds": {
+            "before": 2.2722115,
+            "normalized": 2.2891095
+          }
+        },
+        {
+          "case": {
+            "width": 127,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-127-smi-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 19.021000000000015,
+            "normalized": 19.062500000000014
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.2181799064192136,
+              "paired_median_less_time_percent": -7.771561172376096e-14,
+              "paired_less_time_percent": [
+                1.4432899320127035e-13,
+                -1.5543122344752192e-13,
+                0.0,
+                -0.4368421052632909
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 68411392.0,
+            "normalized": 68558848.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 68632576,
+            "normalized": 68665344
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.47603249999999997,
+            "normalized": 0.4699675
+          }
+        },
+        {
+          "case": {
+            "width": 127,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-127-smi-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 42.62450000000004,
+            "normalized": 43.0625
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -1.0275780361058917,
+              "paired_median_less_time_percent": -1.2732439645233407,
+              "paired_less_time_percent": [
+                -2.397717336278782,
+                -2.24972406828996,
+                0.48750761730644854,
+                -0.29676386075672134
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 140075008.0,
+            "normalized": 140197888.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 140230656,
+            "normalized": 140623872
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.817173,
+            "normalized": 1.8686005
+          }
+        },
+        {
+          "case": {
+            "width": 128,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-128-mixed-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 53.22949999999997,
+            "normalized": 40.375
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 24.149202979550775,
+              "paired_median_less_time_percent": 24.03119332758478,
+              "paired_less_time_percent": [
+                21.7480973152525,
+                23.65013437576342,
+                27.30704225352123,
+                24.412252279406143
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 99188736.0,
+            "normalized": 99631104.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 99909632,
+            "normalized": 99958784
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.013126,
+            "normalized": 0.9104935
+          }
+        },
+        {
+          "case": {
+            "width": 128,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-128-mixed-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 178.39599999999996,
+            "normalized": 123.31200000000013
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 30.877373932150853,
+              "paired_median_less_time_percent": 31.390679178487336,
+              "paired_less_time_percent": [
+                31.70497561827037,
+                30.220476995639455,
+                31.403389830508377,
+                31.377968526466294
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 290586624.0,
+            "normalized": 268574720.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 304857088,
+            "normalized": 296878080
+          },
+          "process_cpu_median_seconds": {
+            "before": 4.001898,
+            "normalized": 3.3815945000000003
+          }
+        },
+        {
+          "case": {
+            "width": 128,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-128-smi-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 49.228999999999985,
+            "normalized": 36.062
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 26.7464299498263,
+              "paired_median_less_time_percent": 27.300709309954147,
+              "paired_less_time_percent": [
+                28.108651006610852,
+                26.481218274111672,
+                27.773939196878462,
+                26.827479423029832
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 88293376.0,
+            "normalized": 88080384.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 91832320,
+            "normalized": 89767936
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.924811,
+            "normalized": 0.7940335
+          }
+        },
+        {
+          "case": {
+            "width": 128,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-128-smi-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 171.60400000000004,
+            "normalized": 116.91699999999992
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 31.86813827183522,
+              "paired_median_less_time_percent": 31.593706724111396,
+              "paired_less_time_percent": [
+                29.381443298969067,
+                18.952138269782925,
+                37.99566901714992,
+                33.805970149253724
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 239017984.0,
+            "normalized": 230367232.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 257032192,
+            "normalized": 230703104
+          },
+          "process_cpu_median_seconds": {
+            "before": 3.712233,
+            "normalized": 3.1492835
+          }
+        },
+        {
+          "case": {
+            "width": 129,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-129-mixed-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 63.042,
+            "normalized": 48.64550000000003
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 22.83636305954756,
+              "paired_median_less_time_percent": 22.527604145454283,
+              "paired_less_time_percent": [
+                23.473018383079648,
+                21.58218990782892,
+                24.05619788162765,
+                19.507575757575758
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 99794944.0,
+            "normalized": 99557376.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 100057088,
+            "normalized": 99663872
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.1209715,
+            "normalized": 0.974321
+          }
+        },
+        {
+          "case": {
+            "width": 129,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-129-mixed-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 228.37550000000005,
+            "normalized": 174.20800000000008
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 23.71861254819363,
+              "paired_median_less_time_percent": 23.711097713602413,
+              "paired_less_time_percent": [
+                22.81560900648677,
+                24.606586420718056,
+                20.362403267704288,
+                28.066581091873044
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 258613248.0,
+            "normalized": 259284992.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 293699584,
+            "normalized": 296714240
+          },
+          "process_cpu_median_seconds": {
+            "before": 4.783468,
+            "normalized": 4.092342
+          }
+        },
+        {
+          "case": {
+            "width": 129,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-129-smi-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 59.24999999999994,
+            "normalized": 45.937499999999986
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 22.4683544303797,
+              "paired_median_less_time_percent": 22.46844864245358,
+              "paired_less_time_percent": [
+                22.401995483196746,
+                22.534901801710415,
+                19.302236122493422,
+                22.653365400901038
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 91414528.0,
+            "normalized": 88121344.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 91717632,
+            "normalized": 88522752
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.0417865,
+            "normalized": 0.895963
+          }
+        },
+        {
+          "case": {
+            "width": 129,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-129-smi-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 208.54199999999992,
+            "normalized": 154.5625
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 25.884234350874134,
+              "paired_median_less_time_percent": 26.262717181353885,
+              "paired_less_time_percent": [
+                26.523297491039422,
+                22.842722401281247,
+                26.323411953770737,
+                26.202022408937033
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 229441536.0,
+            "normalized": 229711872.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 229687296,
+            "normalized": 238501888
+          },
+          "process_cpu_median_seconds": {
+            "before": 4.1187325,
+            "normalized": 3.494841
+          }
+        },
+        {
+          "case": {
+            "width": 192,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-192-mixed-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 63.4795,
+            "normalized": 49.896000000000015
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 21.398246678061394,
+              "paired_median_less_time_percent": 21.29465593241988,
+              "paired_less_time_percent": [
+                21.484775375687892,
+                22.15047374839736,
+                21.10453648915187,
+                21.049069906518447
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 108666880.0,
+            "normalized": 108756992.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 108871680,
+            "normalized": 108838912
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.18337,
+            "normalized": 1.0313914999999998
+          }
+        },
+        {
+          "case": {
+            "width": 192,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-192-mixed-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 238.83300000000008,
+            "normalized": 182.89600000000007
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 23.42096778920836,
+              "paired_median_less_time_percent": 23.084872290137774,
+              "paired_less_time_percent": [
+                24.580859672979305,
+                22.905766101570503,
+                23.26397847870505,
+                22.23777584179857
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 293912576.0,
+            "normalized": 294494208.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 320847872,
+            "normalized": 300417024
+          },
+          "process_cpu_median_seconds": {
+            "before": 4.98951,
+            "normalized": 4.401786
+          }
+        },
+        {
+          "case": {
+            "width": 192,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-192-smi-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 63.271000000000015,
+            "normalized": 48.916499999999985
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 22.687329108122245,
+              "paired_median_less_time_percent": 23.21364604124281,
+              "paired_less_time_percent": [
+                23.219402536134414,
+                19.617012507331687,
+                23.20788954635121,
+                24.311093321838673
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 98885632.0,
+            "normalized": 99033088.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 99090432,
+            "normalized": 99090432
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.114768,
+            "normalized": 0.9479325
+          }
+        },
+        {
+          "case": {
+            "width": 192,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-192-smi-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 212.83350000000002,
+            "normalized": 152.9999999999999
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 28.112820585105315,
+              "paired_median_less_time_percent": 28.200511691933272,
+              "paired_less_time_percent": [
+                28.745001971053608,
+                29.492067168500324,
+                27.656021412812937,
+                21.396598873194293
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 266526720.0,
+            "normalized": 267575296.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 304119808,
+            "normalized": 269942784
+          },
+          "process_cpu_median_seconds": {
+            "before": 4.322397,
+            "normalized": 3.6047789999999997
+          }
+        },
+        {
+          "case": {
+            "width": 512,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-512-mixed-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 70.25,
+            "normalized": 53.6875
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 23.576512455516017,
+              "paired_median_less_time_percent": 23.756579858557764,
+              "paired_less_time_percent": [
+                21.05622775800716,
+                24.02561523312976,
+                23.48754448398577,
+                24.256952470642002
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 99368960.0,
+            "normalized": 99590144.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 99500032,
+            "normalized": 99663872
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.1596625,
+            "normalized": 1.0212625
+          }
+        },
+        {
+          "case": {
+            "width": 512,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-512-mixed-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 259.5835000000001,
+            "normalized": 191.85449999999986
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 26.09141181931833,
+              "paired_median_less_time_percent": 26.251481656417717,
+              "paired_less_time_percent": [
+                25.52158593984086,
+                25.30274212392003,
+                26.981377372994576,
+                27.136594911937316
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 258588672.0,
+            "normalized": 258203648.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 259555328,
+            "normalized": 258686976
+          },
+          "process_cpu_median_seconds": {
+            "before": 4.897477500000001,
+            "normalized": 4.1980805
+          }
+        },
+        {
+          "case": {
+            "width": 512,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-512-smi-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 63.06299999999999,
+            "normalized": 48.625
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 22.894565751708594,
+              "paired_median_less_time_percent": 22.953246025855556,
+              "paired_less_time_percent": [
+                23.005728692932482,
+                22.90076335877863,
+                22.274039529202796,
+                23.844397945596242
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 92864512.0,
+            "normalized": 92266496.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 93011968,
+            "normalized": 93028352
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.0743955,
+            "normalized": 0.9320815
+          }
+        },
+        {
+          "case": {
+            "width": 512,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-512-smi-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 227.39600000000002,
+            "normalized": 167.3125
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 26.422408485637394,
+              "paired_median_less_time_percent": 26.428764255912405,
+              "paired_less_time_percent": [
+                26.250572433386544,
+                26.60695607843827,
+                27.225246815494042,
+                24.86248624862486
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 231456768.0,
+            "normalized": 231555072.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 231522304,
+            "normalized": 238567424
+          },
+          "process_cpu_median_seconds": {
+            "before": 4.1872065,
+            "normalized": 3.563594
+          }
+        },
+        {
+          "case": {
+            "width": 64,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-64-mixed-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 18.749999999999986,
+            "normalized": 18.708500000000015
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.2213333333331735,
+              "paired_median_less_time_percent": -0.8000000000001561,
+              "paired_less_time_percent": [
+                0.4446349172336106,
+                -1.6000000000000014,
+                -3.1086244689504383e-13,
+                -8.022281222343675
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 77070336.0,
+            "normalized": 77094912.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 77135872,
+            "normalized": 77201408
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.5492789999999999,
+            "normalized": 0.5431025
+          }
+        },
+        {
+          "case": {
+            "width": 64,
+            "pattern": "mixed",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-64-mixed-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 52.10400000000004,
+            "normalized": 49.166000000000025
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 5.638722554890252,
+              "paired_median_less_time_percent": 7.272721732163589,
+              "paired_less_time_percent": [
+                -3.6821665605025977,
+                12.6293959160521,
+                11.70306620334527,
+                2.84237726098191
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 170082304.0,
+            "normalized": 170745856.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 171147264,
+            "normalized": 175226880
+          },
+          "process_cpu_median_seconds": {
+            "before": 2.206464,
+            "normalized": 2.185987
+          }
+        },
+        {
+          "case": {
+            "width": 64,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-64-smi-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 17.1665,
+            "normalized": 17.375
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -1.2145748987854255,
+              "paired_median_less_time_percent": -1.0872307049165308,
+              "paired_less_time_percent": [
+                -1.690975652274962,
+                -2.429220552254474,
+                -0.48348575755809975,
+                -0.23941605839414848
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 68190208.0,
+            "normalized": 68214784.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 68419584,
+            "normalized": 68239360
+          },
+          "process_cpu_median_seconds": {
+            "before": 0.4302505,
+            "normalized": 0.432376
+          }
+        },
+        {
+          "case": {
+            "width": 64,
+            "pattern": "smi",
+            "charset": "ascii",
+            "kind": "same",
+            "id": "same-64-smi-ascii"
+          },
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 37.72900000000004,
+            "normalized": 37.58349999999996
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.3856449945667362,
+              "paired_median_less_time_percent": 0.82630623129748,
+              "paired_less_time_percent": [
+                -4.314235650188647,
+                1.211896697714021,
+                0.440715764880939,
+                3.0050986249163913
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 140165120.0,
+            "normalized": 140378112.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 140394496,
+            "normalized": 140574720
+          },
+          "process_cpu_median_seconds": {
+            "before": 1.6147395,
+            "normalized": 1.6216545
+          }
+        }
+      ],
+      "large-async": [
+        {
+          "family": "canada",
+          "requested_mb": 50,
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 279.14599999999996,
+            "normalized": 278.8125
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.11947153102676022,
+              "paired_median_less_time_percent": 0.05982082409450862,
+              "paired_less_time_percent": [
+                0.0,
+                -0.10489447687469511,
+                0.11964164818901724,
+                1.1523106487686285
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 319250432.0,
+            "normalized": 319447040.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 320045056,
+            "normalized": 319569920
+          },
+          "process_cpu_median_seconds": {
+            "before": 5.921524,
+            "normalized": 5.9120795
+          }
+        },
+        {
+          "family": "canada",
+          "requested_mb": 50,
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 569.2495000000001,
+            "normalized": 545.6879999999996
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 4.1390462354381485,
+              "paired_median_less_time_percent": 4.443223026105126,
+              "paired_less_time_percent": [
+                0.966706364527814,
+                3.773551594587843,
+                5.112894457622408,
+                7.430887011879939
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 800833536.0,
+            "normalized": 802316288.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 802373632,
+            "normalized": 803291136
+          },
+          "process_cpu_median_seconds": {
+            "before": 26.2099265,
+            "normalized": 25.299198999999998
+          }
+        },
+        {
+          "family": "citm_catalog",
+          "requested_mb": 50,
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 220.45849999999996,
+            "normalized": 216.75
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 1.682176010450931,
+              "paired_median_less_time_percent": 4.248103281100901,
+              "paired_less_time_percent": [
+                6.1325420375865525,
+                2.7441159420289463,
+                -3.208239224982745,
+                5.752090620172856
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 427835392.0,
+            "normalized": 427450368.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 428359680,
+            "normalized": 428539904
+          },
+          "process_cpu_median_seconds": {
+            "before": 7.3514745,
+            "normalized": 7.320895500000001
+          }
+        },
+        {
+          "family": "citm_catalog",
+          "requested_mb": 50,
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 643.75,
+            "normalized": 605.25
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 5.980582524271849,
+              "paired_median_less_time_percent": -1.7367677400435766,
+              "paired_less_time_percent": [
+                -22.71731834385222,
+                -0.44256688795010213,
+                -3.030968592137051,
+                13.542353161943922
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 1114251264.0,
+            "normalized": 1114865664.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 1115914240,
+            "normalized": 1115766784
+          },
+          "process_cpu_median_seconds": {
+            "before": 30.749999000000003,
+            "normalized": 29.557145
+          }
+        },
+        {
+          "family": "mixed_nested",
+          "requested_mb": 50,
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 231.77099999999996,
+            "normalized": 231.2294999999997
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.23363578704853616,
+              "paired_median_less_time_percent": 0.5486543625722096,
+              "paired_less_time_percent": [
+                0.7339765245014673,
+                -1.1627247956402798,
+                0.3633322006429518,
+                1.5311965811968142
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 443826176.0,
+            "normalized": 444579840.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 444596224,
+            "normalized": 446595072
+          },
+          "process_cpu_median_seconds": {
+            "before": 6.9227810000000005,
+            "normalized": 6.97992
+          }
+        },
+        {
+          "family": "mixed_nested",
+          "requested_mb": 50,
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 685.2710000000006,
+            "normalized": 648.7290000000003
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 5.33248889855259,
+              "paired_median_less_time_percent": 3.5455014359388306,
+              "paired_less_time_percent": [
+                4.454301403111072,
+                0.4637320478181328,
+                2.636701468766589,
+                17.453435114503748
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 1136680960.0,
+            "normalized": 1138221056.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 1139884032,
+            "normalized": 1139392512
+          },
+          "process_cpu_median_seconds": {
+            "before": 28.8466095,
+            "normalized": 28.410332
+          }
+        },
+        {
+          "family": "records12",
+          "requested_mb": 50,
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 164.47900000000004,
+            "normalized": 165.47949999999997
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.608284340250087,
+              "paired_median_less_time_percent": -0.37755161446891283,
+              "paired_less_time_percent": [
+                4.897574893010037,
+                -1.3110023062786746,
+                0.555899077340849,
+                -11.12804878048781
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 318210048.0,
+            "normalized": 318005248.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 321568768,
+            "normalized": 318373888
+          },
+          "process_cpu_median_seconds": {
+            "before": 4.7004505000000005,
+            "normalized": 4.851695
+          }
+        },
+        {
+          "family": "records12",
+          "requested_mb": 50,
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 436.85399999999936,
+            "normalized": 445.77099999999973
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -2.0411853845908157,
+              "paired_median_less_time_percent": -0.7341437081035906,
+              "paired_less_time_percent": [
+                6.450770436145204,
+                -13.599170359744782,
+                -4.176525821596111,
+                2.7082384053889297
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 854122496.0,
+            "normalized": 851566592.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 857341952,
+            "normalized": 858570752
+          },
+          "process_cpu_median_seconds": {
+            "before": 21.8574085,
+            "normalized": 22.4569525
+          }
+        },
+        {
+          "family": "records60",
+          "requested_mb": 50,
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 157.93700000000013,
+            "normalized": 156.6244999999999
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 0.8310275616228102,
+              "paired_median_less_time_percent": 1.052407838636521,
+              "paired_less_time_percent": [
+                0.8720967107684774,
+                1.2327189665045646,
+                0.7370044498382966,
+                1.402539682539572
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 300138496.0,
+            "normalized": 301031424.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 301301760,
+            "normalized": 302448640
+          },
+          "process_cpu_median_seconds": {
+            "before": 4.8361675,
+            "normalized": 4.878241000000001
+          }
+        },
+        {
+          "family": "records60",
+          "requested_mb": 50,
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 356.625,
+            "normalized": 359.75
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": -0.8762705923589298,
+              "paired_median_less_time_percent": -0.6028794103492054,
+              "paired_less_time_percent": [
+                4.0181152181153585,
+                -5.223874038813769,
+                9.478991596638654,
+                -8.70981709593115
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 806838272.0,
+            "normalized": 806043648.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 807223296,
+            "normalized": 808681472
+          },
+          "process_cpu_median_seconds": {
+            "before": 21.1799245,
+            "normalized": 20.855086999999997
+          }
+        },
+        {
+          "family": "twitter",
+          "requested_mb": 50,
+          "mode": "parseAsync",
+          "jobs": 1,
+          "values_ms": {
+            "before": 112.66650000000004,
+            "normalized": 109.58299999999997
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 2.7368383681041553,
+              "paired_median_less_time_percent": 2.5014244448967604,
+              "paired_less_time_percent": [
+                17.01885111619439,
+                0.5161210361373958,
+                2.7808676307007785,
+                2.2219812590927424
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 324149248.0,
+            "normalized": 323706880.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 324763648,
+            "normalized": 324288512
+          },
+          "process_cpu_median_seconds": {
+            "before": 4.030721,
+            "normalized": 3.787599
+          }
+        },
+        {
+          "family": "twitter",
+          "requested_mb": 50,
+          "mode": "parseAsync",
+          "jobs": 4,
+          "values_ms": {
+            "before": 313.64649999999983,
+            "normalized": 309.5835000000002
+          },
+          "changes": {
+            "before": {
+              "less_time_percent": 1.295407409296656,
+              "paired_median_less_time_percent": 2.8268548663338775,
+              "paired_less_time_percent": [
+                4.016427741185469,
+                -2.9806150221931116,
+                1.6372819914822867,
+                4.424639647876538
+              ]
+            }
+          },
+          "pairs": 4,
+          "target": false,
+          "target_pass": null,
+          "control_pass": true,
+          "regression_limit_percent": 5,
+          "process_peak_rss_median_bytes": {
+            "before": 790683648.0,
+            "normalized": 792215552.0
+          },
+          "process_peak_rss_max_bytes": {
+            "before": 793133056,
+            "normalized": 792576000
+          },
+          "process_cpu_median_seconds": {
+            "before": 16.119869,
+            "normalized": 16.035180999999998
+          }
+        }
+      ]
+    },
+    "group_tags": {
+      "micro": [
+        "normalized-micro",
+        "normalized-micro-followup"
+      ],
+      "wide-sync": [
+        "normalized-wide-sync"
+      ],
+      "large-sync": [
+        "normalized-large-sync"
+      ],
+      "wide-async": [
+        "normalized-wide-async"
+      ],
+      "large-async": [
+        "normalized-large-async"
+      ]
+    },
+    "failures": [],
+    "status": "qualified",
+    "plan_sha256": "a1157645083bca9abb5798b0761c1aa80d70aff400eac0df172aa54d835bb6a3"
+  },
+  "formal_processes": 1408,
+  "measured_batches": 12672,
+  "plan_sha256": "a1157645083bca9abb5798b0761c1aa80d70aff400eac0df172aa54d835bb6a3",
+  "binary_sha256": {
+    "before": "e7c6973091f170d5e3585db1665bbe6e4bd719954175d98524a4f27e5f5e939a",
+    "v12_6": "8131011b31ddb6e50e5ff1dde01e6ab2163b05461a615cccbbc2984feb92a484",
+    "normalized": "507938bf75442aefb37a9bc1cb833ed7b200de72dd84e52eec77cf0868e76bf1",
+    "normalized-dcheck": "2497d6677b05cd0e2187902ea28c675563187a4894af5ecf698f0b39ea0e2163"
+  },
+  "source_head": "3d4e3d8e5ad0f5b1752315db8a8479f176e4f4dc",
+  "correctness": {
+    "label": "normalized",
+    "binary_sha256": "507938bf75442aefb37a9bc1cb833ed7b200de72dd84e52eec77cf0868e76bf1",
+    "fixtures": 18,
+    "fixture_manifest_sha256": "58acc9785e8090c8ec8e8fc58c81cc3e607fb50d58fa01c31a02ba03d1d8665e",
+    "identical_full_canonical_sha256": true,
+    "identical_full_tree_fingerprints": true,
+    "async_full_tree_fingerprints": true,
+    "conformance": [
+      {
+        "api": "parse",
+        "cases": 293,
+        "failures": 0
+      },
+      {
+        "api": "parseAsync",
+        "cases": 293,
+        "failures": 0
+      }
+    ]
+  },
+  "raw_directory": "/Users/james/.codex/worktrees/json-async-wide-keys/v8-standalone/out/json-wide-dictionary-20261029",
+  "prior_report": "docs/json-parse-final-mac-arm64.md",
+  "audit": {
+    "path": "/Users/james/.codex/worktrees/json-async-wide-keys/v8-standalone/out/json-wide-dictionary-20261029/results/final-audit.json",
+    "sha256": "1552ad7eeb8afd21388725741ac34e78d64f7d022c8f6f1ea0562f361c8053bf",
+    "status": "passed"
+  }
+}

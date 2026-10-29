@@ -469,7 +469,8 @@ class JsonParseAsyncState final {
     // repeated generic CreateDataProperty calls or a serialized object clone.
     // Count physical tape nodes. The deadline is primary; a larger node cap
     // avoids overslicing cheap scalar arrays. Check every 512 nodes, plus at
-    // most one bounded 128-node subtree, rather than every 64 containers.
+    // most one bounded 128-node recursive subtree. Flat records additionally
+    // check the deadline after every record (at most 257 nodes).
     constexpr int kMaximumSliceWork = 64 * 1024;
     for (int work = 0; work < kMaximumSliceWork; ++work) {
       if (work >= next_budget_check) {
@@ -500,10 +501,15 @@ class JsonParseAsyncState final {
         case Node::kObject:
         case Node::kArray: {
           bool array = token.kind == Node::kArray;
-          // Keep recursion bounded in both depth and work. Large/deep values
-          // use the resumable path; small records need no persistent roots.
-          if (!data_->track_source && token.depth <= 16 &&
-              token.data.container.end - cursor_ <= 128 &&
+          // Recursive subtrees keep their 128-node limit. A flat record has
+          // no recursive children, so up to 128 fields can also use local
+          // handles and the cached-key builder (at most 257 physical nodes).
+          size_t subtree_size = token.data.container.end - cursor_;
+          bool small = token.depth <= 16 && subtree_size <= 128;
+          bool flat_record = !array && token.depth == 1 &&
+                             token.data.container.count <= 128;
+          if (!data_->track_source && (small || flat_record) &&
+              subtree_size <= static_cast<size_t>(kMaximumSliceWork - work) &&
               GetCurrentStackPosition() >
                   isolate_->stack_guard()->real_climit() + 64 * KB) {
             auto feedback = ObjectFeedback(
@@ -511,6 +517,9 @@ class JsonParseAsyncState final {
             size_t before = cursor_;
             auto value = BuildSmallValue(&parser, source_offset, feedback);
             work += static_cast<int>(cursor_ - before) - 1;
+            // Wide flat records do more work per iteration. Recheck the soft
+            // deadline before admitting another, even below 512 nodes.
+            if (!small) next_budget_check = work + 1;
             Emit(&parser, value, isolate_->factory()->undefined_value());
             continue;
           }

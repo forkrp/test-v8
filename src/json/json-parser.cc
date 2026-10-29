@@ -12,6 +12,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/heap/factory.h"
+#include "src/json/json-number-parser.h"
 #include "src/json/json-scanner.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/hash-seed-inl.h"
@@ -689,6 +690,36 @@ class JsonParser<Char>::CachedNamedPropertyIterator
   base::Vector<const Handle<String>> keys_;
 };
 
+namespace {
+
+// These properties belong to a new, unpublished ordinary object. The keys are
+// already internalized and every property is writable enumerable data, so the
+// generic LookupIterator/DefineOwnProperty path is unnecessary. The normalized
+// store keeps duplicate-key enumeration order and dictionary metadata intact.
+template <typename PropertyIterator>
+V8_NOINLINE Handle<JSObject> BuildJsonDictionary(
+    Isolate* isolate, int named_length, ElementsKind elements_kind,
+    Handle<FixedArrayBase> elements, PropertyIterator&& it) {
+  Handle<Map> map = isolate->factory()->ObjectLiteralMapFromCache(
+      isolate->native_context(), named_length);
+  if (elements_kind == DICTIONARY_ELEMENTS) {
+    map = Map::AsElementsKind(isolate, map, elements_kind);
+  }
+  Handle<JSObject> object =
+      isolate->factory()->NewSlowJSObjectFromMap(map, named_length);
+  object->set_elements(*elements);
+  const PropertyDetails details(PropertyKind::kData, NONE,
+                               PropertyConstness::kMutable);
+  for (; !it.Done(); it.Advance()) {
+    Handle<String> key = it.GetKey({});
+    Handle<Object> value = it.GetValue(false);
+    JSObject::SetNormalizedProperty(object, key, value, details);
+  }
+  return object;
+}
+
+}  // namespace
+
 template <typename Char>
 Handle<JSObject> JsonParser<Char>::BuildJsonObject(
     const JsonContinuation& cont, Handle<Map> feedback) {
@@ -761,6 +792,26 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObjectImpl(
     }
   } else {
     elements = factory()->empty_fixed_array();
+  }
+
+  // Keep experimental dictionary constness tracking on its existing path.
+  // Ordinary builds can fill wide dictionary objects without generic property
+  // definition machinery; fast-map feedback still uses the existing builder.
+  if constexpr (!V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+    if (V8_UNLIKELY(named_length >= JSObject::kMapCacheSize) &&
+        (feedback.is_null() || feedback->is_dictionary_map())) {
+      if constexpr (cached_keys) {
+        CachedNamedPropertyIterator it(this, property_stack_.begin() + start,
+                                       property_stack_.end(), keys);
+        return BuildJsonDictionary(isolate_, named_length, elements_kind,
+                                   elements, it);
+      } else {
+        NamedPropertyIterator it(*this, property_stack_.begin() + start,
+                                 property_stack_.end());
+        return BuildJsonDictionary(isolate_, named_length, elements_kind,
+                                   elements, it);
+      }
+    }
   }
 
   JSDataObjectBuilder js_data_object_builder(
@@ -1747,46 +1798,60 @@ bool JsonParser<Char>::ParseJsonNumberAsDoubleOrSmi(double* result_double,
         *result_smi = i * sign;
         return false;
       }
-      AdvanceToNonDecimal();
     }
 
-    if (CurrentCharacter() == '.') {
-      c = NextCharacter();
-      if (!IsDecimalDigit(c)) {
-        AllowGarbageCollection allow_before_exception;
-        ReportUnexpectedToken(
-            JsonToken::ILLEGAL,
-            MessageTemplate::kJsonParseUnterminatedFractionalNumber);
-        *result_smi = 0;
-        return false;
-      }
-      AdvanceToNonDecimal();
-    }
+    return FinishJsonNumber(result_double, result_smi, start);
+  }
+}
 
-    if (AsciiAlphaToLower(CurrentCharacter()) == 'e') {
-      c = NextCharacter();
-      if (c == '-' || c == '+') c = NextCharacter();
-      if (!IsDecimalDigit(c)) {
-        AllowGarbageCollection allow_before_exception;
-        ReportUnexpectedToken(
-            JsonToken::ILLEGAL,
-            MessageTemplate::kJsonParseExponentPartMissingNumber);
-        *result_smi = 0;
-        return false;
-      }
-      AdvanceToNonDecimal();
-    }
-
-    base::Vector<const Char> chars(start, cursor_ - start);
-    *result_double =
-        StringToDouble(chars,
-                       NO_CONVERSION_FLAGS,  // Hex, octal or trailing junk.
-                       std::numeric_limits<double>::quiet_NaN());
-    DCHECK(!std::isnan(*result_double));
-
-    // The result might still be a smi even if it has a decimal part.
+template <typename Char>
+V8_NOINLINE bool JsonParser<Char>::FinishJsonNumber(
+    double* result_double, int* result_smi, const Char* start) {
+  DisallowGarbageCollection no_gc;
+  const Char* number_end = TryParseJsonNumber(start, end_, result_double);
+  if (V8_LIKELY(number_end != nullptr)) {
+    cursor_ = number_end;
     return !DoubleToSmiInteger(*result_double, result_smi);
   }
+
+  // Invalid numbers use the original scanner and error positions/messages.
+  base::uc32 c;
+  AdvanceToNonDecimal();
+  if (CurrentCharacter() == '.') {
+    c = NextCharacter();
+    if (!IsDecimalDigit(c)) {
+      AllowGarbageCollection allow_before_exception;
+      ReportUnexpectedToken(
+          JsonToken::ILLEGAL,
+          MessageTemplate::kJsonParseUnterminatedFractionalNumber);
+      *result_smi = 0;
+      return false;
+    }
+    AdvanceToNonDecimal();
+  }
+
+  if (AsciiAlphaToLower(CurrentCharacter()) == 'e') {
+    c = NextCharacter();
+    if (c == '-' || c == '+') c = NextCharacter();
+    if (!IsDecimalDigit(c)) {
+      AllowGarbageCollection allow_before_exception;
+      ReportUnexpectedToken(
+          JsonToken::ILLEGAL,
+          MessageTemplate::kJsonParseExponentPartMissingNumber);
+      *result_smi = 0;
+      return false;
+    }
+    AdvanceToNonDecimal();
+  }
+
+  base::Vector<const Char> chars(start, cursor_ - start);
+  *result_double =
+      StringToDouble(chars, NO_CONVERSION_FLAGS,
+                     std::numeric_limits<double>::quiet_NaN());
+  DCHECK(!std::isnan(*result_double));
+
+  // The result might still be a smi even if it has a decimal part.
+  return !DoubleToSmiInteger(*result_double, result_smi);
 }
 
 namespace {

@@ -48,6 +48,7 @@ def main():
         'LICENSE.highway-source': ROOT / 'third_party/highway/src/LICENSE',
         'LICENSE.zlib': ROOT / 'third_party/zlib/LICENSE',
         'LICENSE.fp16': ROOT / 'third_party/fp16/src/LICENSE',
+        'LICENSE.fast_float': ROOT / 'third_party/fast_float/LICENSE-MIT',
     }
     for target, source in files.items():
         shutil.copy2(source, folder / target)

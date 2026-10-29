@@ -27,6 +27,10 @@ are:
     implementation also formed the basis of V8's implementation in
     src/wasm/c-api.cc.
 
+  - fast_float decimal number parser, located in third_party/fast_float.
+    This is used under the MIT license; see
+    third_party/fast_float/LICENSE-MIT.
+
 These libraries have their own licenses; we recommend you read them,
 as their terms may differ from the terms below.
 

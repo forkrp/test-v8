@@ -353,6 +353,10 @@ class JsonParser final {
   // Returns true for a double, false for a Smi, without allocating a number.
   bool ParseJsonNumberAsDoubleOrSmi(double* result_double, int* result_smi);
 
+  // Keep conversion and error fallback state out of the short-integer frame.
+  V8_NOINLINE bool FinishJsonNumber(double* result_double, int* result_smi,
+                                   const Char* start);
+
   // Parse a single JSON value from input (grammar production JSONValue).
   // A JSON value is either a (double-quoted) string literal, a number literal,
   // one of "true", "false", or "null", or an object or array literal.

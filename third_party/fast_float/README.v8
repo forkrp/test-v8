@@ -1,0 +1,18 @@
+Name: fast_float
+URL: https://github.com/fastfloat/fast_float
+Version: 8.3.2
+Revision: 42f254836ee416ffcf2f4e6576260003ac33d48c
+License: MIT
+License File: LICENSE-MIT
+Security Critical: yes
+Shipped: yes
+
+Description:
+Locale-independent decimal-to-binary floating-point conversion with exact
+rounding, including ties to even. Used by the outlined JSON number parser;
+V8 retains its small-integer scanner and its original invalid-number error
+path. The generic StringToDouble path is unchanged.
+
+Local changes:
+None to upstream headers. Only include/fast_float and the three upstream license
+files are vendored from the pinned release. BUILD.gn and this metadata are local.

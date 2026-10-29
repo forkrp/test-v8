@@ -4,6 +4,33 @@ The report is [docs/json-large-mac-arm64.md](../../docs/json-large-mac-arm64.md)
 The committed summary is [evidence/mac-arm64-20261026.json](evidence/mac-arm64-20261026.json).
 The report records the immutable external evidence archive and exact engine commits.
 
+The 2026-10-29 JSON.parse / JSON.parseAsync follow-up is documented in
+[the final performance report](../../docs/json-parse-final-mac-arm64.md), with
+[all final comparison cells](evidence/json-parse-final-mac-arm64-20261029.json)
+and [PNG/SVG plots](../../docs/images/json-parse-final-mac-arm64.svg).
+It compares the final build with the local `12.6` branch and two intermediate
+builds, and separately rechecks async behavior against the task-start baseline.
+The report identifies the retained local raw-data directories and replay commands.
+Those directories contain the frozen binaries, source snapshots, calibration,
+protocols, runners and every sample, including rejected candidates.
+The added 5% ASCII pilot target was not fully met and is explicitly reported;
+the original numeric targets and all regression gates passed.
+
+The next follow-up targets the dictionary-construction cost at 128 named
+properties. See [the wide-object report](../../docs/json-wide-dictionary-mac-arm64.md)
+and [its complete results](evidence/wide-dictionary-mac-arm64-20261029.json).
+It retains dictionary maps and the global map-cache size, and uses V8's existing
+normalized property store for new JSON objects. `wide_objects.js` covers the
+boundary, UTF-16 keys, single objects, fresh keys, changing shapes, duplicates
+and indexed objects. The report records the frozen three-build comparison,
+all controls, source snapshots, raw data and replay commands.
+
+The current full-tree fingerprint uses an Int32Array for its two digest words.
+This avoids boxed accumulator state during validation without changing the
+fingerprint algorithm, traversal or checked values. All 18 prior references were
+verified unchanged before the new timing epoch. This is outside the API timer;
+validation speed is not counted as an engine improvement.
+
 `generate.py` creates six workload families near 10/20/50 decimal MB. The three
 public workloads derive from nativejson-benchmark's Canada, CITM catalog and
 Twitter documents. Complete compact seed documents are repeated inside an array.
