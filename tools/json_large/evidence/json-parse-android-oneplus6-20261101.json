@@ -1,0 +1,2816 @@
+{
+  "baseline_commit": "cd985f42b1e54328dfa52a01149d9350701df5b8",
+  "candidate_commit": "04d724ae860fb586994e4cc5fbbfa19f7217cba3",
+  "evidence_root": "/Users/james/projects/v8/v8-standalone/out/json-android-20261101",
+  "audit": {
+    "passed": true,
+    "processes": 696,
+    "timed_samples": 6264,
+    "warmups": 1392,
+    "regression_runs": 10,
+    "smoke_runs": 6,
+    "full_coverage": true,
+    "governors_restored": true,
+    "raw_sha256": "fae6680d7d5e4f48f9a04ccb25ae2d0eaf2cdcd3d831db8fb72c604e5248eced",
+    "telemetry_ranges": {
+      "battery_C": {
+        "min": 31.0,
+        "max": 42.5
+      },
+      "policy4_kHz": {
+        "min": 2803200.0,
+        "max": 2803200.0
+      },
+      "aoss0_usr_C": {
+        "min": 35.2,
+        "max": 63.9
+      }
+    }
+  },
+  "cells": [
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "canada-10mb",
+      "median_ms": 180.3265,
+      "min_process_median_ms": 178.47899999999981,
+      "max_process_median_ms": 182.44999999999982,
+      "process_medians_ms": [
+        178.47899999999981,
+        180.26999999999998,
+        180.38300000000004,
+        182.44999999999982
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "canada-20mb",
+      "median_ms": 372.0039999999999,
+      "min_process_median_ms": 370.97599999999966,
+      "max_process_median_ms": 374.33500000000004,
+      "process_medians_ms": [
+        371.4029999999998,
+        370.97599999999966,
+        374.33500000000004,
+        372.605
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "canada-50mb",
+      "median_ms": 894.6154999999999,
+      "min_process_median_ms": 893.402,
+      "max_process_median_ms": 897.1109999999999,
+      "process_medians_ms": [
+        893.402,
+        895.2399999999998,
+        897.1109999999999,
+        893.991
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "citm_catalog-10mb",
+      "median_ms": 115.61649999999986,
+      "min_process_median_ms": 115.25900000000001,
+      "max_process_median_ms": 115.91200000000003,
+      "process_medians_ms": [
+        115.43100000000004,
+        115.25900000000001,
+        115.91200000000003,
+        115.80199999999968
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "citm_catalog-20mb",
+      "median_ms": 229.70249999999987,
+      "min_process_median_ms": 229.43100000000004,
+      "max_process_median_ms": 232.45299999999952,
+      "process_medians_ms": [
+        232.45299999999952,
+        229.43100000000004,
+        229.6199999999999,
+        229.78499999999985
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "citm_catalog-50mb",
+      "median_ms": 577.3200000000002,
+      "min_process_median_ms": 576.1170000000002,
+      "max_process_median_ms": 578.991,
+      "process_medians_ms": [
+        578.3850000000002,
+        576.1170000000002,
+        576.2550000000001,
+        578.991
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "mixed_nested-10mb",
+      "median_ms": 131.5045,
+      "min_process_median_ms": 131.2399999999999,
+      "max_process_median_ms": 131.75800000000027,
+      "process_medians_ms": [
+        131.70299999999997,
+        131.2399999999999,
+        131.75800000000027,
+        131.30600000000004
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "mixed_nested-20mb",
+      "median_ms": 287.0654999999997,
+      "min_process_median_ms": 282.9459999999999,
+      "max_process_median_ms": 291.0930000000001,
+      "process_medians_ms": [
+        286.634,
+        291.0930000000001,
+        287.4969999999994,
+        282.9459999999999
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "mixed_nested-50mb",
+      "median_ms": 745.9110000000001,
+      "min_process_median_ms": 736.9110000000001,
+      "max_process_median_ms": 747.982,
+      "process_medians_ms": [
+        746.5969999999998,
+        745.2250000000004,
+        747.982,
+        736.9110000000001
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records12-10mb",
+      "median_ms": 98.74300000000005,
+      "min_process_median_ms": 98.5139999999999,
+      "max_process_median_ms": 98.981,
+      "process_medians_ms": [
+        98.85300000000007,
+        98.981,
+        98.63300000000004,
+        98.5139999999999
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records12-20mb",
+      "median_ms": 224.78900000000004,
+      "min_process_median_ms": 222.49000000000024,
+      "max_process_median_ms": 227.5709999999999,
+      "process_medians_ms": [
+        227.5709999999999,
+        222.49000000000024,
+        226.07400000000007,
+        223.50400000000002
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records12-50mb",
+      "median_ms": 614.4344999999998,
+      "min_process_median_ms": 610.0690000000004,
+      "max_process_median_ms": 621.9079999999994,
+      "process_medians_ms": [
+        621.9079999999994,
+        617.4619999999995,
+        610.0690000000004,
+        611.4070000000002
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records60-10mb",
+      "median_ms": 93.57450000000017,
+      "min_process_median_ms": 93.10699999999974,
+      "max_process_median_ms": 93.86699999999996,
+      "process_medians_ms": [
+        93.86699999999996,
+        93.3090000000002,
+        93.84000000000015,
+        93.10699999999974
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records60-20mb",
+      "median_ms": 213.57299999999998,
+      "min_process_median_ms": 211.30099999999993,
+      "max_process_median_ms": 214.8119999999999,
+      "process_medians_ms": [
+        213.56100000000015,
+        214.8119999999999,
+        211.30099999999993,
+        213.5849999999998
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records60-50mb",
+      "median_ms": 569.3915000000002,
+      "min_process_median_ms": 567.3639999999996,
+      "max_process_median_ms": 570.6459999999997,
+      "process_medians_ms": [
+        567.3639999999996,
+        568.3780000000006,
+        570.4049999999997,
+        570.6459999999997
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "twitter-10mb",
+      "median_ms": 59.45100000000002,
+      "min_process_median_ms": 59.412000000000035,
+      "max_process_median_ms": 59.55199999999991,
+      "process_medians_ms": [
+        59.412000000000035,
+        59.450000000000045,
+        59.452,
+        59.55199999999991
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "twitter-20mb",
+      "median_ms": 134.2594999999999,
+      "min_process_median_ms": 134.2249999999999,
+      "max_process_median_ms": 134.38200000000006,
+      "process_medians_ms": [
+        134.24699999999984,
+        134.2249999999999,
+        134.38200000000006,
+        134.27199999999993
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "twitter-50mb",
+      "median_ms": 362.45550000000003,
+      "min_process_median_ms": 360.116,
+      "max_process_median_ms": 363.59000000000015,
+      "process_medians_ms": [
+        362.22299999999996,
+        363.59000000000015,
+        362.6880000000001,
+        360.116
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide127",
+      "median_ms": 48.242999999999995,
+      "min_process_median_ms": 47.97300000000001,
+      "max_process_median_ms": 49.048,
+      "process_medians_ms": [
+        48.23900000000003,
+        48.24699999999996,
+        47.97300000000001,
+        49.048
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide128",
+      "median_ms": 164.57550000000003,
+      "min_process_median_ms": 163.1260000000002,
+      "max_process_median_ms": 165.50300000000016,
+      "process_medians_ms": [
+        164.66500000000008,
+        165.50300000000016,
+        164.486,
+        163.1260000000002
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide129",
+      "median_ms": 164.65949999999992,
+      "min_process_median_ms": 162.817,
+      "max_process_median_ms": 166.01600000000008,
+      "process_medians_ms": [
+        162.817,
+        164.83799999999997,
+        166.01600000000008,
+        164.48099999999988
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide192",
+      "median_ms": 174.32450000000017,
+      "min_process_median_ms": 173.99299999999994,
+      "max_process_median_ms": 174.98099999999977,
+      "process_medians_ms": [
+        174.98099999999977,
+        174.4530000000002,
+        174.19600000000014,
+        173.99299999999994
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide63",
+      "median_ms": 45.83350000000007,
+      "min_process_median_ms": 45.56899999999996,
+      "max_process_median_ms": 45.990999999999985,
+      "process_medians_ms": [
+        45.919000000000096,
+        45.56899999999996,
+        45.990999999999985,
+        45.74800000000005
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide64",
+      "median_ms": 45.76000000000005,
+      "min_process_median_ms": 45.67599999999993,
+      "max_process_median_ms": 45.834,
+      "process_medians_ms": [
+        45.80300000000011,
+        45.834,
+        45.67599999999993,
+        45.716999999999985
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide65",
+      "median_ms": 46.085000000000036,
+      "min_process_median_ms": 45.802000000000135,
+      "max_process_median_ms": 46.44100000000003,
+      "process_medians_ms": [
+        46.006000000000085,
+        46.44100000000003,
+        45.802000000000135,
+        46.16399999999999
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "canada-10mb",
+      "median_ms": 97.50649999999996,
+      "min_process_median_ms": 96.93600000000015,
+      "max_process_median_ms": 98.20699999999988,
+      "process_medians_ms": [
+        97.00800000000004,
+        98.00499999999988,
+        98.20699999999988,
+        96.93600000000015
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "canada-20mb",
+      "median_ms": 191.87350000000015,
+      "min_process_median_ms": 190.9319999999998,
+      "max_process_median_ms": 193.13300000000027,
+      "process_medians_ms": [
+        193.13300000000027,
+        190.9319999999998,
+        192.29300000000012,
+        191.45400000000018
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "canada-50mb",
+      "median_ms": 510.5045,
+      "min_process_median_ms": 501.21700000000055,
+      "max_process_median_ms": 513.7090000000007,
+      "process_medians_ms": [
+        513.7090000000007,
+        501.21700000000055,
+        510.60300000000007,
+        510.40599999999995
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "citm_catalog-10mb",
+      "median_ms": 101.21100000000007,
+      "min_process_median_ms": 100.3420000000001,
+      "max_process_median_ms": 105.33100000000002,
+      "process_medians_ms": [
+        105.33100000000002,
+        101.7170000000001,
+        100.70500000000004,
+        100.3420000000001
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "citm_catalog-20mb",
+      "median_ms": 200.39350000000036,
+      "min_process_median_ms": 200.221,
+      "max_process_median_ms": 200.836,
+      "process_medians_ms": [
+        200.836,
+        200.221,
+        200.32400000000052,
+        200.4630000000002
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "citm_catalog-50mb",
+      "median_ms": 505.53950000000077,
+      "min_process_median_ms": 503.01800000000003,
+      "max_process_median_ms": 506.8820000000005,
+      "process_medians_ms": [
+        505.0620000000017,
+        506.0169999999998,
+        506.8820000000005,
+        503.01800000000003
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "mixed_nested-10mb",
+      "median_ms": 123.27499999999986,
+      "min_process_median_ms": 122.35099999999966,
+      "max_process_median_ms": 124.32200000000012,
+      "process_medians_ms": [
+        123.22899999999981,
+        122.35099999999966,
+        124.32200000000012,
+        123.32099999999991
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "mixed_nested-20mb",
+      "median_ms": 268.1980000000003,
+      "min_process_median_ms": 263.6769999999997,
+      "max_process_median_ms": 270.90400000000045,
+      "process_medians_ms": [
+        265.6300000000001,
+        270.76600000000053,
+        263.6769999999997,
+        270.90400000000045
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "mixed_nested-50mb",
+      "median_ms": 685.3694999999998,
+      "min_process_median_ms": 682.4470000000001,
+      "max_process_median_ms": 688.0709999999999,
+      "process_medians_ms": [
+        682.4470000000001,
+        685.1000000000004,
+        685.6389999999992,
+        688.0709999999999
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records12-10mb",
+      "median_ms": 71.45850000000004,
+      "min_process_median_ms": 71.07400000000007,
+      "max_process_median_ms": 71.59899999999993,
+      "process_medians_ms": [
+        71.07400000000007,
+        71.38900000000007,
+        71.59899999999993,
+        71.52800000000002
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records12-20mb",
+      "median_ms": 167.71349999999995,
+      "min_process_median_ms": 167.30499999999984,
+      "max_process_median_ms": 168.90300000000002,
+      "process_medians_ms": [
+        168.90300000000002,
+        167.30499999999984,
+        167.5,
+        167.9269999999999
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records12-50mb",
+      "median_ms": 470.087,
+      "min_process_median_ms": 468.9580000000001,
+      "max_process_median_ms": 473.60100000000057,
+      "process_medians_ms": [
+        470.90200000000004,
+        473.60100000000057,
+        468.9580000000001,
+        469.27199999999993
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records60-10mb",
+      "median_ms": 64.06700000000012,
+      "min_process_median_ms": 63.59100000000012,
+      "max_process_median_ms": 64.84699999999998,
+      "process_medians_ms": [
+        64.31200000000013,
+        64.84699999999998,
+        63.822000000000116,
+        63.59100000000012
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records60-20mb",
+      "median_ms": 149.9345,
+      "min_process_median_ms": 147.17599999999993,
+      "max_process_median_ms": 151.21900000000005,
+      "process_medians_ms": [
+        151.21900000000005,
+        149.808,
+        147.17599999999993,
+        150.06100000000004
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records60-50mb",
+      "median_ms": 415.0059999999994,
+      "min_process_median_ms": 413.47000000000025,
+      "max_process_median_ms": 416.1999999999998,
+      "process_medians_ms": [
+        414.119999999999,
+        413.47000000000025,
+        415.8919999999998,
+        416.1999999999998
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "twitter-10mb",
+      "median_ms": 57.870000000000005,
+      "min_process_median_ms": 57.78899999999999,
+      "max_process_median_ms": 57.98900000000003,
+      "process_medians_ms": [
+        57.923,
+        57.78899999999999,
+        57.98900000000003,
+        57.81700000000001
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "twitter-20mb",
+      "median_ms": 131.72250000000008,
+      "min_process_median_ms": 131.00699999999983,
+      "max_process_median_ms": 132.62400000000002,
+      "process_medians_ms": [
+        131.00699999999983,
+        131.93500000000017,
+        132.62400000000002,
+        131.51
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "twitter-50mb",
+      "median_ms": 357.8899999999999,
+      "min_process_median_ms": 356.6270000000004,
+      "max_process_median_ms": 358.76099999999997,
+      "process_medians_ms": [
+        357.1239999999998,
+        358.76099999999997,
+        356.6270000000004,
+        358.65599999999995
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide127",
+      "median_ms": 31.84899999999999,
+      "min_process_median_ms": 31.65100000000001,
+      "max_process_median_ms": 33.33699999999999,
+      "process_medians_ms": [
+        31.65100000000001,
+        33.33699999999999,
+        31.88499999999999,
+        31.812999999999988
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide128",
+      "median_ms": 125.14499999999998,
+      "min_process_median_ms": 124.01600000000008,
+      "max_process_median_ms": 126.10899999999992,
+      "process_medians_ms": [
+        125.327,
+        124.01600000000008,
+        124.96299999999997,
+        126.10899999999992
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide129",
+      "median_ms": 124.17300000000006,
+      "min_process_median_ms": 123.68899999999985,
+      "max_process_median_ms": 124.952,
+      "process_medians_ms": [
+        124.53499999999997,
+        123.68899999999985,
+        124.952,
+        123.81100000000015
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide192",
+      "median_ms": 136.93649999999997,
+      "min_process_median_ms": 136.13699999999994,
+      "max_process_median_ms": 137.71699999999987,
+      "process_medians_ms": [
+        137.71699999999987,
+        137.67099999999994,
+        136.202,
+        136.13699999999994
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide63",
+      "median_ms": 29.994500000000016,
+      "min_process_median_ms": 29.964999999999975,
+      "max_process_median_ms": 30.355000000000018,
+      "process_medians_ms": [
+        29.964999999999975,
+        29.993000000000052,
+        30.355000000000018,
+        29.99599999999998
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide64",
+      "median_ms": 30.208999999999975,
+      "min_process_median_ms": 30.179000000000087,
+      "max_process_median_ms": 30.450000000000045,
+      "process_medians_ms": [
+        30.216999999999928,
+        30.179000000000087,
+        30.450000000000045,
+        30.201000000000022
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide65",
+      "median_ms": 30.069000000000017,
+      "min_process_median_ms": 29.93199999999996,
+      "max_process_median_ms": 30.14300000000003,
+      "process_medians_ms": [
+        30.101,
+        29.93199999999996,
+        30.14300000000003,
+        30.037000000000035
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 4,
+      "name": "records12-10mb",
+      "median_ms": 350.67049999999983,
+      "min_process_median_ms": 346.2530000000006,
+      "max_process_median_ms": 351.96100000000024,
+      "process_medians_ms": [
+        351.96100000000024,
+        351.1329999999998,
+        350.20799999999986,
+        346.2530000000006
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 4,
+      "name": "records12-20mb",
+      "median_ms": 808.7369999999992,
+      "min_process_median_ms": 747.4760000000006,
+      "max_process_median_ms": 867.6470000000008,
+      "process_medians_ms": [
+        867.6470000000008,
+        747.4760000000006,
+        759.5849999999991,
+        857.8889999999992
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 4,
+      "name": "records12-50mb",
+      "median_ms": 2079.419500000002,
+      "min_process_median_ms": 2078.3109999999997,
+      "max_process_median_ms": 2082.5959999999977,
+      "process_medians_ms": [
+        2080.487000000001,
+        2078.3109999999997,
+        2082.5959999999977,
+        2078.3520000000026
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 4,
+      "name": "records60-10mb",
+      "median_ms": 312.96349999999984,
+      "min_process_median_ms": 311.9499999999998,
+      "max_process_median_ms": 316.6090000000004,
+      "process_medians_ms": [
+        316.6090000000004,
+        313.85499999999956,
+        312.0720000000001,
+        311.9499999999998
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 4,
+      "name": "records60-20mb",
+      "median_ms": 720.1829999999995,
+      "min_process_median_ms": 699.5620000000008,
+      "max_process_median_ms": 778.3819999999996,
+      "process_medians_ms": [
+        716.6580000000004,
+        778.3819999999996,
+        699.5620000000008,
+        723.7079999999987
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 4,
+      "name": "records60-50mb",
+      "median_ms": 1764.8025000000016,
+      "min_process_median_ms": 1763.2980000000025,
+      "max_process_median_ms": 1783.1239999999998,
+      "process_medians_ms": [
+        1763.2980000000025,
+        1764.0920000000042,
+        1783.1239999999998,
+        1765.512999999999
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "canada-10mb",
+      "median_ms": 237.6880000000001,
+      "min_process_median_ms": 237.07499999999982,
+      "max_process_median_ms": 240.038,
+      "process_medians_ms": [
+        240.038,
+        237.07499999999982,
+        237.29300000000012,
+        238.08300000000008
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "canada-20mb",
+      "median_ms": 493.62949999999955,
+      "min_process_median_ms": 492.5050000000001,
+      "max_process_median_ms": 495.5540000000001,
+      "process_medians_ms": [
+        495.5540000000001,
+        492.5050000000001,
+        493.40799999999945,
+        493.85099999999966
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "canada-50mb",
+      "median_ms": 1259.7024999999994,
+      "min_process_median_ms": 1256.1990000000005,
+      "max_process_median_ms": 1269.7780000000002,
+      "process_medians_ms": [
+        1261.5389999999989,
+        1257.866,
+        1256.1990000000005,
+        1269.7780000000002
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "citm_catalog-10mb",
+      "median_ms": 219.30899999999997,
+      "min_process_median_ms": 218.56700000000046,
+      "max_process_median_ms": 221.06099999999992,
+      "process_medians_ms": [
+        219.9179999999999,
+        221.06099999999992,
+        218.70000000000005,
+        218.56700000000046
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "citm_catalog-20mb",
+      "median_ms": 452.2040000000002,
+      "min_process_median_ms": 451.16300000000047,
+      "max_process_median_ms": 456.1720000000005,
+      "process_medians_ms": [
+        451.52800000000025,
+        452.8800000000001,
+        456.1720000000005,
+        451.16300000000047
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "citm_catalog-50mb",
+      "median_ms": 1395.0229999999983,
+      "min_process_median_ms": 1389.2820000000029,
+      "max_process_median_ms": 1403.9209999999994,
+      "process_medians_ms": [
+        1391.450999999999,
+        1403.9209999999994,
+        1389.2820000000029,
+        1398.5949999999975
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "mixed_nested-10mb",
+      "median_ms": 225.06299999999993,
+      "min_process_median_ms": 224.35199999999986,
+      "max_process_median_ms": 226.36000000000013,
+      "process_medians_ms": [
+        226.36000000000013,
+        224.71099999999979,
+        225.41500000000008,
+        224.35199999999986
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "mixed_nested-20mb",
+      "median_ms": 477.02,
+      "min_process_median_ms": 473.826,
+      "max_process_median_ms": 477.884,
+      "process_medians_ms": [
+        477.884,
+        477.6099999999997,
+        476.4300000000003,
+        473.826
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "mixed_nested-50mb",
+      "median_ms": 1387.6260000000002,
+      "min_process_median_ms": 1386.929,
+      "max_process_median_ms": 1389.1110000000008,
+      "process_medians_ms": [
+        1386.929,
+        1389.1110000000008,
+        1387.143,
+        1388.1090000000004
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "records12-10mb",
+      "median_ms": 180.38799999999998,
+      "min_process_median_ms": 175.48000000000002,
+      "max_process_median_ms": 180.9559999999999,
+      "process_medians_ms": [
+        180.03100000000006,
+        180.9559999999999,
+        180.7449999999999,
+        175.48000000000002
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "records12-20mb",
+      "median_ms": 384.0100000000002,
+      "min_process_median_ms": 383.46099999999933,
+      "max_process_median_ms": 384.93899999999985,
+      "process_medians_ms": [
+        384.93899999999985,
+        384.1720000000005,
+        383.84799999999996,
+        383.46099999999933
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "records12-50mb",
+      "median_ms": 1215.7689999999993,
+      "min_process_median_ms": 1208.6730000000007,
+      "max_process_median_ms": 1233.2150000000001,
+      "process_medians_ms": [
+        1233.2150000000001,
+        1208.6730000000007,
+        1210.3949999999986,
+        1221.143
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "records60-10mb",
+      "median_ms": 153.454,
+      "min_process_median_ms": 153.27700000000004,
+      "max_process_median_ms": 154.27599999999984,
+      "process_medians_ms": [
+        153.27700000000004,
+        153.29700000000003,
+        154.27599999999984,
+        153.611
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "records60-20mb",
+      "median_ms": 339.6825000000001,
+      "min_process_median_ms": 337.8879999999999,
+      "max_process_median_ms": 340.5749999999998,
+      "process_medians_ms": [
+        340.4390000000003,
+        340.5749999999998,
+        337.8879999999999,
+        338.92599999999993
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "records60-50mb",
+      "median_ms": 1079.9250000000006,
+      "min_process_median_ms": 1071.3069999999989,
+      "max_process_median_ms": 1081.9300000000003,
+      "process_medians_ms": [
+        1071.3069999999989,
+        1080.3180000000011,
+        1079.5320000000002,
+        1081.9300000000003
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "twitter-10mb",
+      "median_ms": 112.97249999999997,
+      "min_process_median_ms": 112.66100000000006,
+      "max_process_median_ms": 113.0139999999999,
+      "process_medians_ms": [
+        112.66100000000006,
+        112.94900000000007,
+        113.0139999999999,
+        112.99599999999987
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "twitter-20mb",
+      "median_ms": 252.938,
+      "min_process_median_ms": 251.1199999999999,
+      "max_process_median_ms": 253.62400000000025,
+      "process_medians_ms": [
+        252.9749999999999,
+        251.1199999999999,
+        252.90100000000007,
+        253.62400000000025
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "twitter-50mb",
+      "median_ms": 681.5805000000009,
+      "min_process_median_ms": 669.223,
+      "max_process_median_ms": 687.616,
+      "process_medians_ms": [
+        678.9700000000012,
+        684.1910000000007,
+        669.223,
+        687.616
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "wide127",
+      "median_ms": 104.89850000000001,
+      "min_process_median_ms": 104.7879999999999,
+      "max_process_median_ms": 105.55600000000004,
+      "process_medians_ms": [
+        104.92100000000005,
+        104.7879999999999,
+        105.55600000000004,
+        104.87599999999998
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "wide128",
+      "median_ms": 173.00600000000003,
+      "min_process_median_ms": 172.02999999999997,
+      "max_process_median_ms": 173.95399999999995,
+      "process_medians_ms": [
+        173.64200000000005,
+        173.95399999999995,
+        172.37,
+        172.02999999999997
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "wide129",
+      "median_ms": 201.87649999999996,
+      "min_process_median_ms": 201.45199999999977,
+      "max_process_median_ms": 202.5329999999999,
+      "process_medians_ms": [
+        201.80600000000004,
+        201.45199999999977,
+        202.5329999999999,
+        201.9469999999999
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "wide192",
+      "median_ms": 212.18049999999994,
+      "min_process_median_ms": 211.98500000000013,
+      "max_process_median_ms": 212.54300000000012,
+      "process_medians_ms": [
+        211.98500000000013,
+        212.54300000000012,
+        212.3019999999999,
+        212.05899999999997
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "wide63",
+      "median_ms": 96.22750000000008,
+      "min_process_median_ms": 95.90000000000009,
+      "max_process_median_ms": 96.54499999999996,
+      "process_medians_ms": [
+        96.13499999999999,
+        96.54499999999996,
+        95.90000000000009,
+        96.32000000000016
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "wide64",
+      "median_ms": 100.14700000000005,
+      "min_process_median_ms": 99.71600000000001,
+      "max_process_median_ms": 100.55299999999988,
+      "process_medians_ms": [
+        100.03300000000013,
+        100.55299999999988,
+        100.26099999999997,
+        99.71600000000001
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "wide65",
+      "median_ms": 102.16250000000002,
+      "min_process_median_ms": 101.96400000000006,
+      "max_process_median_ms": 102.72699999999986,
+      "process_medians_ms": [
+        101.96400000000006,
+        102.72699999999986,
+        102.101,
+        102.22400000000005
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 4,
+      "name": "records12-10mb",
+      "median_ms": 662.2079999999999,
+      "min_process_median_ms": 660.4090000000006,
+      "max_process_median_ms": 665.4669999999996,
+      "process_medians_ms": [
+        663.8799999999997,
+        660.5360000000001,
+        665.4669999999996,
+        660.4090000000006
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 4,
+      "name": "records12-20mb",
+      "median_ms": 1817.896499999998,
+      "min_process_median_ms": 1808.041000000001,
+      "max_process_median_ms": 1822.7829999999994,
+      "process_medians_ms": [
+        1822.1479999999974,
+        1808.041000000001,
+        1813.6449999999986,
+        1822.7829999999994
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 4,
+      "name": "records12-50mb",
+      "median_ms": 8313.127499999999,
+      "min_process_median_ms": 8262.572,
+      "max_process_median_ms": 8346.112999999998,
+      "process_medians_ms": [
+        8306.159,
+        8346.112999999998,
+        8320.095999999998,
+        8262.572
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 4,
+      "name": "records60-10mb",
+      "median_ms": 596.1514999999999,
+      "min_process_median_ms": 591.5809999999997,
+      "max_process_median_ms": 599.5790000000006,
+      "process_medians_ms": [
+        591.5809999999997,
+        596.4759999999997,
+        599.5790000000006,
+        595.8270000000002
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 4,
+      "name": "records60-20mb",
+      "median_ms": 1605.3865000000005,
+      "min_process_median_ms": 1558.4989999999998,
+      "max_process_median_ms": 1613.4629999999997,
+      "process_medians_ms": [
+        1613.4629999999997,
+        1601.7299999999996,
+        1609.0430000000015,
+        1558.4989999999998
+      ]
+    },
+    {
+      "arch": "arm32",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 4,
+      "name": "records60-50mb",
+      "median_ms": 7245.187,
+      "min_process_median_ms": 7167.332999999999,
+      "max_process_median_ms": 7313.721999999994,
+      "process_medians_ms": [
+        7167.332999999999,
+        7226.291000000001,
+        7264.082999999999,
+        7313.721999999994
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "canada-10mb",
+      "median_ms": 165.01499999999993,
+      "min_process_median_ms": 163.7059999999999,
+      "max_process_median_ms": 166.00199999999995,
+      "process_medians_ms": [
+        164.2449999999999,
+        163.7059999999999,
+        165.78499999999997,
+        166.00199999999995
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "canada-20mb",
+      "median_ms": 336.4675000000002,
+      "min_process_median_ms": 336.18000000000006,
+      "max_process_median_ms": 339.75599999999986,
+      "process_medians_ms": [
+        336.3580000000002,
+        336.18000000000006,
+        339.75599999999986,
+        336.5770000000002
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "canada-50mb",
+      "median_ms": 810.5465000000008,
+      "min_process_median_ms": 809.2610000000004,
+      "max_process_median_ms": 812.5900000000001,
+      "process_medians_ms": [
+        809.2610000000004,
+        812.5900000000001,
+        810.4570000000012,
+        810.6360000000004
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "citm_catalog-10mb",
+      "median_ms": 113.04000000000008,
+      "min_process_median_ms": 112.73000000000002,
+      "max_process_median_ms": 113.42799999999988,
+      "process_medians_ms": [
+        113.42799999999988,
+        112.731,
+        112.73000000000002,
+        113.34900000000016
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "citm_catalog-20mb",
+      "median_ms": 224.1300000000001,
+      "min_process_median_ms": 223.77199999999993,
+      "max_process_median_ms": 225.875,
+      "process_medians_ms": [
+        224.22100000000046,
+        225.875,
+        223.77199999999993,
+        224.03899999999976
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "citm_catalog-50mb",
+      "median_ms": 561.8624999999993,
+      "min_process_median_ms": 561.0439999999999,
+      "max_process_median_ms": 564.3220000000001,
+      "process_medians_ms": [
+        561.759,
+        561.0439999999999,
+        564.3220000000001,
+        561.9659999999985
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "mixed_nested-10mb",
+      "median_ms": 123.38999999999999,
+      "min_process_median_ms": 121.99499999999989,
+      "max_process_median_ms": 124.11599999999999,
+      "process_medians_ms": [
+        123.41200000000003,
+        123.36799999999994,
+        121.99499999999989,
+        124.11599999999999
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "mixed_nested-20mb",
+      "median_ms": 266.1750000000002,
+      "min_process_median_ms": 264.80399999999963,
+      "max_process_median_ms": 267.24299999999994,
+      "process_medians_ms": [
+        264.80399999999963,
+        267.24299999999994,
+        265.5730000000003,
+        266.77700000000004
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "mixed_nested-50mb",
+      "median_ms": 683.0925000000007,
+      "min_process_median_ms": 681.2610000000004,
+      "max_process_median_ms": 686.1750000000002,
+      "process_medians_ms": [
+        686.1750000000002,
+        682.6990000000005,
+        681.2610000000004,
+        683.4860000000008
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records12-10mb",
+      "median_ms": 89.66800000000006,
+      "min_process_median_ms": 89.52499999999986,
+      "max_process_median_ms": 89.86199999999985,
+      "process_medians_ms": [
+        89.52499999999986,
+        89.86199999999985,
+        89.57000000000005,
+        89.76600000000008
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records12-20mb",
+      "median_ms": 202.7444999999999,
+      "min_process_median_ms": 201.317,
+      "max_process_median_ms": 204.26600000000008,
+      "process_medians_ms": [
+        202.4469999999999,
+        201.317,
+        203.04199999999992,
+        204.26600000000008
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records12-50mb",
+      "median_ms": 558.9960000000001,
+      "min_process_median_ms": 557.6020000000008,
+      "max_process_median_ms": 562.8129999999996,
+      "process_medians_ms": [
+        557.6020000000008,
+        559.5959999999995,
+        558.3960000000006,
+        562.8129999999996
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records60-10mb",
+      "median_ms": 79.82450000000006,
+      "min_process_median_ms": 79.78300000000013,
+      "max_process_median_ms": 79.85100000000011,
+      "process_medians_ms": [
+        79.8130000000001,
+        79.83600000000001,
+        79.85100000000011,
+        79.78300000000013
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records60-20mb",
+      "median_ms": 185.7104999999999,
+      "min_process_median_ms": 184.57499999999982,
+      "max_process_median_ms": 186.21000000000004,
+      "process_medians_ms": [
+        186.07000000000016,
+        184.57499999999982,
+        185.35099999999966,
+        186.21000000000004
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records60-50mb",
+      "median_ms": 505.9984999999997,
+      "min_process_median_ms": 504.47199999999975,
+      "max_process_median_ms": 510.0680000000002,
+      "process_medians_ms": [
+        507.0450000000001,
+        504.9519999999993,
+        510.0680000000002,
+        504.47199999999975
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "twitter-10mb",
+      "median_ms": 53.447,
+      "min_process_median_ms": 53.41100000000006,
+      "max_process_median_ms": 53.53200000000004,
+      "process_medians_ms": [
+        53.53200000000004,
+        53.41100000000006,
+        53.46799999999985,
+        53.42600000000016
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "twitter-20mb",
+      "median_ms": 121.88549999999998,
+      "min_process_median_ms": 121.61200000000008,
+      "max_process_median_ms": 122.72800000000007,
+      "process_medians_ms": [
+        122.09799999999996,
+        121.673,
+        122.72800000000007,
+        121.61200000000008
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "twitter-50mb",
+      "median_ms": 328.13949999999977,
+      "min_process_median_ms": 326.40099999999893,
+      "max_process_median_ms": 330.31600000000026,
+      "process_medians_ms": [
+        326.40099999999893,
+        329.7550000000001,
+        330.31600000000026,
+        326.52399999999943
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide127",
+      "median_ms": 37.07900000000001,
+      "min_process_median_ms": 37.014999999999986,
+      "max_process_median_ms": 37.16000000000008,
+      "process_medians_ms": [
+        37.096000000000004,
+        37.16000000000008,
+        37.06200000000001,
+        37.014999999999986
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide128",
+      "median_ms": 142.27999999999997,
+      "min_process_median_ms": 141.7739999999999,
+      "max_process_median_ms": 142.53999999999996,
+      "process_medians_ms": [
+        141.7739999999999,
+        142.53999999999996,
+        142.04500000000007,
+        142.51499999999987
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide129",
+      "median_ms": 142.8295,
+      "min_process_median_ms": 142.18999999999994,
+      "max_process_median_ms": 144.32100000000003,
+      "process_medians_ms": [
+        142.18999999999994,
+        142.34799999999996,
+        144.32100000000003,
+        143.31100000000004
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide192",
+      "median_ms": 152.9525,
+      "min_process_median_ms": 152.60699999999997,
+      "max_process_median_ms": 153.529,
+      "process_medians_ms": [
+        152.88300000000004,
+        152.60699999999997,
+        153.529,
+        153.02199999999993
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide63",
+      "median_ms": 37.202499999999986,
+      "min_process_median_ms": 37.139999999999986,
+      "max_process_median_ms": 37.20799999999997,
+      "process_medians_ms": [
+        37.19900000000007,
+        37.205999999999904,
+        37.139999999999986,
+        37.20799999999997
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide64",
+      "median_ms": 37.06449999999998,
+      "min_process_median_ms": 36.965000000000146,
+      "max_process_median_ms": 37.12700000000018,
+      "process_medians_ms": [
+        37.04399999999998,
+        36.965000000000146,
+        37.08499999999998,
+        37.12700000000018
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "baseline",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide65",
+      "median_ms": 37.01400000000001,
+      "min_process_median_ms": 36.95100000000002,
+      "max_process_median_ms": 37.152000000000044,
+      "process_medians_ms": [
+        37.028999999999996,
+        37.152000000000044,
+        36.999000000000024,
+        36.95100000000002
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "canada-10mb",
+      "median_ms": 82.65500000000003,
+      "min_process_median_ms": 81.91399999999999,
+      "max_process_median_ms": 83.75,
+      "process_medians_ms": [
+        83.75,
+        82.06900000000007,
+        83.24099999999999,
+        81.91399999999999
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "canada-20mb",
+      "median_ms": 161.05499999999984,
+      "min_process_median_ms": 159.46500000000015,
+      "max_process_median_ms": 162.54599999999994,
+      "process_medians_ms": [
+        161.92799999999988,
+        160.1819999999998,
+        162.54599999999994,
+        159.46500000000015
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "canada-50mb",
+      "median_ms": 425.7155,
+      "min_process_median_ms": 423.5470000000005,
+      "max_process_median_ms": 429.85199999999895,
+      "process_medians_ms": [
+        425.49800000000005,
+        425.933,
+        423.5470000000005,
+        429.85199999999895
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "citm_catalog-10mb",
+      "median_ms": 98.34199999999998,
+      "min_process_median_ms": 98.05299999999988,
+      "max_process_median_ms": 99.83399999999983,
+      "process_medians_ms": [
+        98.05299999999988,
+        99.83399999999983,
+        98.29999999999995,
+        98.38400000000001
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "citm_catalog-20mb",
+      "median_ms": 194.90699999999993,
+      "min_process_median_ms": 194.64600000000019,
+      "max_process_median_ms": 194.94900000000007,
+      "process_medians_ms": [
+        194.94900000000007,
+        194.92299999999977,
+        194.89100000000008,
+        194.64600000000019
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "citm_catalog-50mb",
+      "median_ms": 490.9904999999999,
+      "min_process_median_ms": 490.4340000000002,
+      "max_process_median_ms": 491.54399999999987,
+      "process_medians_ms": [
+        490.4340000000002,
+        490.6809999999996,
+        491.54399999999987,
+        491.3000000000002
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "mixed_nested-10mb",
+      "median_ms": 115.75149999999996,
+      "min_process_median_ms": 115.65100000000007,
+      "max_process_median_ms": 117.20099999999991,
+      "process_medians_ms": [
+        115.68299999999999,
+        115.81999999999994,
+        117.20099999999991,
+        115.65100000000007
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "mixed_nested-20mb",
+      "median_ms": 254.87400000000002,
+      "min_process_median_ms": 250.83599999999979,
+      "max_process_median_ms": 255.94899999999961,
+      "process_medians_ms": [
+        253.86900000000014,
+        250.83599999999979,
+        255.8789999999999,
+        255.94899999999961
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "mixed_nested-50mb",
+      "median_ms": 651.5370000000003,
+      "min_process_median_ms": 645.7519999999986,
+      "max_process_median_ms": 655.6660000000002,
+      "process_medians_ms": [
+        651.9930000000004,
+        645.7519999999986,
+        655.6660000000002,
+        651.0810000000001
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records12-10mb",
+      "median_ms": 58.20949999999996,
+      "min_process_median_ms": 58.093000000000075,
+      "max_process_median_ms": 58.41699999999997,
+      "process_medians_ms": [
+        58.31099999999998,
+        58.10799999999995,
+        58.093000000000075,
+        58.41699999999997
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records12-20mb",
+      "median_ms": 137.12149999999997,
+      "min_process_median_ms": 136.5999999999999,
+      "max_process_median_ms": 137.20299999999997,
+      "process_medians_ms": [
+        136.5999999999999,
+        137.13400000000001,
+        137.20299999999997,
+        137.10899999999992
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records12-50mb",
+      "median_ms": 393.07599999999957,
+      "min_process_median_ms": 391.54200000000037,
+      "max_process_median_ms": 393.8039999999992,
+      "process_medians_ms": [
+        393.8039999999992,
+        393.637999999999,
+        392.5140000000001,
+        391.54200000000037
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records60-10mb",
+      "median_ms": 48.56,
+      "min_process_median_ms": 48.54500000000007,
+      "max_process_median_ms": 48.64800000000014,
+      "process_medians_ms": [
+        48.64800000000014,
+        48.54500000000007,
+        48.557000000000016,
+        48.56299999999999
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records60-20mb",
+      "median_ms": 118.78550000000007,
+      "min_process_median_ms": 117.31799999999998,
+      "max_process_median_ms": 120.10400000000004,
+      "process_medians_ms": [
+        117.97399999999993,
+        120.10400000000004,
+        117.31799999999998,
+        119.59700000000021
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "records60-50mb",
+      "median_ms": 345.0699999999997,
+      "min_process_median_ms": 343.9269999999997,
+      "max_process_median_ms": 345.90200000000004,
+      "process_medians_ms": [
+        345.72400000000016,
+        345.90200000000004,
+        343.9269999999997,
+        344.41599999999926
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "twitter-10mb",
+      "median_ms": 53.947,
+      "min_process_median_ms": 53.87200000000007,
+      "max_process_median_ms": 54.128000000000156,
+      "process_medians_ms": [
+        54.00800000000004,
+        54.128000000000156,
+        53.87200000000007,
+        53.88599999999997
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "twitter-20mb",
+      "median_ms": 122.10299999999984,
+      "min_process_median_ms": 121.88299999999981,
+      "max_process_median_ms": 123.35699999999997,
+      "process_medians_ms": [
+        123.35699999999997,
+        122.04299999999967,
+        121.88299999999981,
+        122.16300000000001
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "twitter-50mb",
+      "median_ms": 331.5989999999997,
+      "min_process_median_ms": 330.64599999999996,
+      "max_process_median_ms": 338.88200000000006,
+      "process_medians_ms": [
+        331.4849999999997,
+        338.88200000000006,
+        331.71299999999974,
+        330.64599999999996
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide127",
+      "median_ms": 22.000500000000045,
+      "min_process_median_ms": 21.98599999999999,
+      "max_process_median_ms": 22.102999999999952,
+      "process_medians_ms": [
+        22.102999999999952,
+        21.99000000000001,
+        21.98599999999999,
+        22.01100000000008
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide128",
+      "median_ms": 93.70949999999999,
+      "min_process_median_ms": 93.24000000000001,
+      "max_process_median_ms": 93.84300000000007,
+      "process_medians_ms": [
+        93.24000000000001,
+        93.58500000000004,
+        93.84300000000007,
+        93.83399999999995
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide129",
+      "median_ms": 93.9514999999999,
+      "min_process_median_ms": 92.99399999999991,
+      "max_process_median_ms": 94.90499999999997,
+      "process_medians_ms": [
+        94.14999999999986,
+        93.75299999999993,
+        92.99399999999991,
+        94.90499999999997
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide192",
+      "median_ms": 103.78300000000002,
+      "min_process_median_ms": 102.41200000000003,
+      "max_process_median_ms": 105.846,
+      "process_medians_ms": [
+        103.4380000000001,
+        105.846,
+        104.12799999999993,
+        102.41200000000003
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide63",
+      "median_ms": 22.190499999999986,
+      "min_process_median_ms": 22.132999999999925,
+      "max_process_median_ms": 22.217999999999847,
+      "process_medians_ms": [
+        22.217999999999847,
+        22.187999999999988,
+        22.132999999999925,
+        22.192999999999984
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide64",
+      "median_ms": 22.020999999999958,
+      "min_process_median_ms": 21.976,
+      "max_process_median_ms": 22.05099999999993,
+      "process_medians_ms": [
+        22.05099999999993,
+        22.011999999999944,
+        21.976,
+        22.029999999999973
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 1,
+      "name": "wide65",
+      "median_ms": 22.075000000000074,
+      "min_process_median_ms": 22.024,
+      "max_process_median_ms": 22.15700000000004,
+      "process_medians_ms": [
+        22.12000000000012,
+        22.03000000000003,
+        22.024,
+        22.15700000000004
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 4,
+      "name": "records12-10mb",
+      "median_ms": 292.1334999999999,
+      "min_process_median_ms": 284.72199999999975,
+      "max_process_median_ms": 304.6930000000002,
+      "process_medians_ms": [
+        284.72199999999975,
+        296.0159999999996,
+        304.6930000000002,
+        288.2510000000002
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 4,
+      "name": "records12-20mb",
+      "median_ms": 711.7419999999995,
+      "min_process_median_ms": 683.1180000000004,
+      "max_process_median_ms": 712.6030000000001,
+      "process_medians_ms": [
+        711.5049999999997,
+        683.1180000000004,
+        711.9789999999994,
+        712.6030000000001
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 4,
+      "name": "records12-50mb",
+      "median_ms": 1741.3409999999967,
+      "min_process_median_ms": 1736.5679999999993,
+      "max_process_median_ms": 1746.8679999999986,
+      "process_medians_ms": [
+        1746.8679999999986,
+        1738.4639999999963,
+        1736.5679999999993,
+        1744.2179999999971
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 4,
+      "name": "records60-10mb",
+      "median_ms": 257.6959999999999,
+      "min_process_median_ms": 250.80099999999993,
+      "max_process_median_ms": 271.97200000000066,
+      "process_medians_ms": [
+        271.97200000000066,
+        262.2579999999998,
+        250.80099999999993,
+        253.13400000000001
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 4,
+      "name": "records60-20mb",
+      "median_ms": 583.9494999999997,
+      "min_process_median_ms": 575.9140000000007,
+      "max_process_median_ms": 623.0220000000008,
+      "process_medians_ms": [
+        589.3069999999989,
+        575.9140000000007,
+        578.5920000000006,
+        623.0220000000008
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parse",
+      "jobs": 4,
+      "name": "records60-50mb",
+      "median_ms": 1483.1375000000007,
+      "min_process_median_ms": 1480.2570000000014,
+      "max_process_median_ms": 1483.9799999999996,
+      "process_medians_ms": [
+        1483.9799999999996,
+        1483.8880000000026,
+        1480.2570000000014,
+        1482.3869999999988
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "canada-10mb",
+      "median_ms": 194.15500000000003,
+      "min_process_median_ms": 192.59400000000005,
+      "max_process_median_ms": 195.36799999999994,
+      "process_medians_ms": [
+        192.59400000000005,
+        194.07400000000007,
+        195.36799999999994,
+        194.236
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "canada-20mb",
+      "median_ms": 396.9620000000001,
+      "min_process_median_ms": 395.8410000000001,
+      "max_process_median_ms": 398.0809999999997,
+      "process_medians_ms": [
+        395.8410000000001,
+        397.09900000000016,
+        398.0809999999997,
+        396.82500000000005
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "canada-50mb",
+      "median_ms": 951.9865,
+      "min_process_median_ms": 949.0280000000002,
+      "max_process_median_ms": 955.2600000000002,
+      "process_medians_ms": [
+        951.0360000000001,
+        949.0280000000002,
+        955.2600000000002,
+        952.9369999999999
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "citm_catalog-10mb",
+      "median_ms": 176.3834999999999,
+      "min_process_median_ms": 175.7249999999999,
+      "max_process_median_ms": 179.79999999999995,
+      "process_medians_ms": [
+        176.9319999999998,
+        175.83500000000004,
+        179.79999999999995,
+        175.7249999999999
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "citm_catalog-20mb",
+      "median_ms": 351.8164999999999,
+      "min_process_median_ms": 350.49800000000005,
+      "max_process_median_ms": 352.5449999999996,
+      "process_medians_ms": [
+        351.1180000000004,
+        352.5449999999996,
+        352.5149999999994,
+        350.49800000000005
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "citm_catalog-50mb",
+      "median_ms": 945.7780000000005,
+      "min_process_median_ms": 942.130000000001,
+      "max_process_median_ms": 958.8050000000003,
+      "process_medians_ms": [
+        942.3210000000004,
+        942.130000000001,
+        949.2350000000006,
+        958.8050000000003
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "mixed_nested-10mb",
+      "median_ms": 182.01250000000005,
+      "min_process_median_ms": 179.4240000000002,
+      "max_process_median_ms": 183.17899999999997,
+      "process_medians_ms": [
+        182.6590000000001,
+        181.36599999999999,
+        183.17899999999997,
+        179.4240000000002
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "mixed_nested-20mb",
+      "median_ms": 376.3375000000001,
+      "min_process_median_ms": 373.9520000000002,
+      "max_process_median_ms": 377.90099999999984,
+      "process_medians_ms": [
+        374.9470000000001,
+        377.90099999999984,
+        373.9520000000002,
+        377.72800000000007
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "mixed_nested-50mb",
+      "median_ms": 988.8405000000002,
+      "min_process_median_ms": 987.4179999999997,
+      "max_process_median_ms": 993.8859999999995,
+      "process_medians_ms": [
+        993.8859999999995,
+        988.6650000000009,
+        989.0159999999996,
+        987.4179999999997
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "records12-10mb",
+      "median_ms": 135.32499999999993,
+      "min_process_median_ms": 133.36300000000006,
+      "max_process_median_ms": 136.644,
+      "process_medians_ms": [
+        136.644,
+        133.36300000000006,
+        135.18499999999995,
+        135.46499999999992
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "records12-20mb",
+      "median_ms": 269.3014999999999,
+      "min_process_median_ms": 268.1120000000001,
+      "max_process_median_ms": 270.44200000000023,
+      "process_medians_ms": [
+        269.28099999999995,
+        268.1120000000001,
+        269.3219999999999,
+        270.44200000000023
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "records12-50mb",
+      "median_ms": 683.4434999999999,
+      "min_process_median_ms": 680.1110000000008,
+      "max_process_median_ms": 687.1550000000007,
+      "process_medians_ms": [
+        680.1110000000008,
+        680.6539999999995,
+        686.2330000000002,
+        687.1550000000007
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "records60-10mb",
+      "median_ms": 113.91799999999989,
+      "min_process_median_ms": 113.49400000000014,
+      "max_process_median_ms": 113.92800000000011,
+      "process_medians_ms": [
+        113.92799999999988,
+        113.49400000000014,
+        113.92800000000011,
+        113.9079999999999
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "records60-20mb",
+      "median_ms": 238.02549999999974,
+      "min_process_median_ms": 236,
+      "max_process_median_ms": 239.4050000000002,
+      "process_medians_ms": [
+        238.6529999999998,
+        236,
+        237.39799999999968,
+        239.4050000000002
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "records60-50mb",
+      "median_ms": 616.3184999999994,
+      "min_process_median_ms": 614.6720000000005,
+      "max_process_median_ms": 621.1750000000011,
+      "process_medians_ms": [
+        615.6329999999998,
+        621.1750000000011,
+        614.6720000000005,
+        617.003999999999
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "twitter-10mb",
+      "median_ms": 92.43049999999994,
+      "min_process_median_ms": 92.27399999999989,
+      "max_process_median_ms": 92.94400000000002,
+      "process_medians_ms": [
+        92.27399999999989,
+        92.57600000000002,
+        92.94400000000002,
+        92.28499999999985
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "twitter-20mb",
+      "median_ms": 205.17650000000003,
+      "min_process_median_ms": 203.39499999999998,
+      "max_process_median_ms": 206.808,
+      "process_medians_ms": [
+        206.808,
+        203.39499999999998,
+        205.73800000000028,
+        204.61499999999978
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "twitter-50mb",
+      "median_ms": 533.8230000000003,
+      "min_process_median_ms": 530.6909999999998,
+      "max_process_median_ms": 535.7129999999997,
+      "process_medians_ms": [
+        533.3420000000006,
+        530.6909999999998,
+        534.3040000000001,
+        535.7129999999997
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "wide127",
+      "median_ms": 78.43150000000014,
+      "min_process_median_ms": 78.22800000000007,
+      "max_process_median_ms": 78.7349999999999,
+      "process_medians_ms": [
+        78.7349999999999,
+        78.4530000000002,
+        78.22800000000007,
+        78.41000000000008
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "wide128",
+      "median_ms": 125.81700000000001,
+      "min_process_median_ms": 125.75999999999999,
+      "max_process_median_ms": 126.78199999999993,
+      "process_medians_ms": [
+        125.75999999999999,
+        126.78199999999993,
+        125.77300000000002,
+        125.86099999999999
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "wide129",
+      "median_ms": 150.83199999999988,
+      "min_process_median_ms": 150.1070000000002,
+      "max_process_median_ms": 151.317,
+      "process_medians_ms": [
+        151.317,
+        150.1070000000002,
+        150.7929999999999,
+        150.87099999999987
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "wide192",
+      "median_ms": 161.0229999999999,
+      "min_process_median_ms": 160.71299999999997,
+      "max_process_median_ms": 161.45100000000002,
+      "process_medians_ms": [
+        160.71299999999997,
+        161.45100000000002,
+        161.24800000000005,
+        160.79799999999977
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "wide63",
+      "median_ms": 69.726,
+      "min_process_median_ms": 69.3900000000001,
+      "max_process_median_ms": 69.93299999999999,
+      "process_medians_ms": [
+        69.93299999999999,
+        69.82600000000002,
+        69.62599999999998,
+        69.3900000000001
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "wide64",
+      "median_ms": 72.85999999999996,
+      "min_process_median_ms": 72.4369999999999,
+      "max_process_median_ms": 73.24899999999991,
+      "process_medians_ms": [
+        72.4369999999999,
+        73.07099999999991,
+        72.649,
+        73.24899999999991
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 1,
+      "name": "wide65",
+      "median_ms": 74.78299999999996,
+      "min_process_median_ms": 74.37699999999995,
+      "max_process_median_ms": 75.12700000000007,
+      "process_medians_ms": [
+        75.12700000000007,
+        74.37699999999995,
+        74.57599999999991,
+        74.99000000000001
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 4,
+      "name": "records12-10mb",
+      "median_ms": 334.10199999999986,
+      "min_process_median_ms": 333.4879999999994,
+      "max_process_median_ms": 336.855,
+      "process_medians_ms": [
+        336.855,
+        333.4879999999994,
+        333.567,
+        334.6369999999997
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 4,
+      "name": "records12-20mb",
+      "median_ms": 782.3315000000002,
+      "min_process_median_ms": 772.7849999999999,
+      "max_process_median_ms": 788.9019999999982,
+      "process_medians_ms": [
+        780.6589999999997,
+        784.0040000000008,
+        772.7849999999999,
+        788.9019999999982
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 4,
+      "name": "records12-50mb",
+      "median_ms": 1987.315999999999,
+      "min_process_median_ms": 1919.3760000000002,
+      "max_process_median_ms": 2045.2150000000001,
+      "process_medians_ms": [
+        1919.3760000000002,
+        1964.4579999999987,
+        2045.2150000000001,
+        2010.173999999999
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 4,
+      "name": "records60-10mb",
+      "median_ms": 287.2485000000004,
+      "min_process_median_ms": 284.6869999999999,
+      "max_process_median_ms": 292.5659999999998,
+      "process_medians_ms": [
+        288.87699999999995,
+        292.5659999999998,
+        284.6869999999999,
+        285.6200000000008
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 4,
+      "name": "records60-20mb",
+      "median_ms": 589.2460000000005,
+      "min_process_median_ms": 584.3899999999994,
+      "max_process_median_ms": 601.9290000000001,
+      "process_medians_ms": [
+        601.9290000000001,
+        591.648000000001,
+        586.844,
+        584.3899999999994
+      ]
+    },
+    {
+      "arch": "arm64",
+      "label": "candidate",
+      "mode": "parseAsync",
+      "jobs": 4,
+      "name": "records60-50mb",
+      "median_ms": 1533.9565000000002,
+      "min_process_median_ms": 1530.0720000000001,
+      "max_process_median_ms": 1541.8070000000007,
+      "process_medians_ms": [
+        1541.8070000000007,
+        1530.0720000000001,
+        1535.9890000000014,
+        1531.923999999999
+      ]
+    }
+  ]
+}
