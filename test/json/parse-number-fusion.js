@@ -15,6 +15,14 @@ const literals = new Set([
   '0.' + '0'.repeat(4096) + '1',
   '1' + '0'.repeat(4096), '1.' + '0'.repeat(4096),
 ]);
+// Exercise decimal and exponent suffixes around the worker's bounded scan.
+for (const length of [127, 128, 129]) {
+  const prefix = '1' + '0'.repeat(length - 1);
+  literals.add(prefix);
+  literals.add(prefix + '.5');
+  literals.add(prefix + 'e-120');
+  literals.add('1.' + '0'.repeat(length - 2) + '1e-100');
+}
 for (const digits of ['1', '9', '10', '999999999', '1000000000',
                       '1073741823', '1073741824', '2147483647',
                       '99999999999999', '100000000000000',
@@ -77,6 +85,8 @@ async function main() {
   for (const text of ['00', '-00', '01', '+1', '1.', '1.e2', '1e', '1e+',
                       '1e-', '1e1.2', '1.2.3', '1e2x', '1e2\u0000',
                       '999999999999999.', '999999999999999e+',
+                      '1.' + '0'.repeat(125) + 'e-',
+                      '1.' + '0'.repeat(126) + 'e-',
                       '1.' + '0'.repeat(4096) + 'e-']) {
     for (const source of [text, '[' + text + ']', '["漢",' + text + ']']) {
       let expected;

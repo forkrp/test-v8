@@ -304,6 +304,34 @@ async function main() {
   // The worker may finish a whitespace-only prefix before the small job.
   check(await whitespace === 1);
 
+  // Distinct segments reuse cache slots for different property names.
+  // Include quotes, escapes and UTF-16 code units with ASCII low bytes.
+  for (const marker of ['a', 'śŝĢŜ']) {
+    const payload = ('x'.repeat(65536) + marker + '"\\').repeat(10);
+    const items = Array.from({length: 8}, (_, i) =>
+      JSON.stringify([{['key' + i]: 'value' + i, payload}, ['Aa', 'BB']]));
+    const text = '[' + items.join(',') + ']';
+    equal(await JSON.parseAsync(text), JSON.parse(text));
+    const malformed = '[' + items.slice(0, -1).join(',') + ',{"x":1,}]';
+    let expected;
+    try { JSON.parse(malformed); } catch (error) { expected = error; }
+    let rejected;
+    try { await JSON.parseAsync(malformed); } catch (error) { rejected = error; }
+    check(rejected instanceof SyntaxError && rejected.message === expected.message,
+          'late array error position');
+  }
+
+  // The outer array representation must combine the flags of all parts.
+  // Padding puts both inputs above the split threshold with few tape nodes.
+  const padding = ' '.repeat(600000);
+  const smis = '[' + Array(8).fill('1' + padding).join(',') + ']';
+  const doubles = '[' + Array(7).fill('1' + padding).join(',') +
+      ',-0' + padding + ']';
+  const [smiArray, doubleArray] =
+      await Promise.all([JSON.parseAsync(smis), JSON.parseAsync(doubles)]);
+  equal(smiArray, JSON.parse(smis));
+  equal(doubleArray, JSON.parse(doubles));
+
   // Large source-tracked arrays cross multiple slices too.
   const numbers = '[' + '1,'.repeat(10000) + '2]';
   equal(await JSON.parseAsync(numbers, (key, v) => typeof v === 'number' ? v + 1 : v),

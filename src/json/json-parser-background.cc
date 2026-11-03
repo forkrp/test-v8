@@ -9,6 +9,7 @@
 #include <cstring>
 #include <limits>
 
+#include "include/v8-platform.h"
 #include "src/base/bits.h"
 #include "src/base/memory.h"
 #include "src/base/small-vector.h"
@@ -16,6 +17,7 @@
 #include <arm_neon.h>
 #endif
 #include "src/base/strings.h"
+#include "src/json/json-number-parser.h"
 #include "src/json/json-scanner.h"
 #include "src/numbers/conversions-inl.h"
 
@@ -140,9 +142,22 @@ template <typename Char>
 class BackgroundJsonParser {
  public:
   BackgroundJsonParser(BackgroundJsonData* output,
-                       base::Vector<const Char> input)
-      : output_(output), input_(input) {}
+                       base::Vector<const Char> input,
+                       const std::atomic<bool>& cancelled)
+      : output_(output), input_(input), cancelled_(cancelled) {}
 
+  void ParseArrayPart(size_t start) {
+    position_ = static_cast<uint32_t>(start);
+    BackgroundJsonNode root;
+    root.kind = BackgroundJsonNode::kArray;
+    root.depth = 1;
+    root.flags = BackgroundJsonNode::kAllNumbers |
+                 BackgroundJsonNode::kAllSmis;
+    stack_.push_back({Append(root, position_), 0, true});
+    Parse<true>();
+  }
+
+  template <bool array_part = false>
   void Parse() {
     using Node = BackgroundJsonNode;
     // Grow by blocks, not by input bytes: a huge single string has one node.
@@ -150,6 +165,19 @@ class BackgroundJsonParser {
       SkipWhitespace();
       if (Cancelled()) return;
       uint32_t c = Current();
+      if constexpr (array_part) {
+        if (state_ == State::kArrayNext && stack_.size() == 1) {
+          if (position_ == input_.size()) {
+            output_->nodes.front().data.container.end =
+                static_cast<uint32_t>(output_->nodes.size());
+            return;
+          }
+          if (c == ']') {
+            Fail();
+            return;
+          }
+        }
+      }
       switch (state_) {
         case State::kDone:
           if (position_ != input_.size()) {
@@ -184,8 +212,10 @@ class BackgroundJsonParser {
             return;
           }
           ++position_;
-          state_ = State::kValue;
-          break;
+          SkipWhitespace();
+          if (Cancelled()) return;
+          c = Current();
+          goto read_value;
         }
         case State::kObjectNext:
         case State::kArrayNext: {
@@ -210,19 +240,29 @@ class BackgroundJsonParser {
           state_ = State::kValue;
           [[fallthrough]];
         case State::kValue: {
+        read_value:
           Node node;
           uint32_t start = position_;
           switch (c) {
             case '{':
-            case '[':
-              node.kind = c == '{' ? Node::kObject : Node::kArray;
+            case '[': {
+              bool array = c == '[';
+              node.kind = array ? Node::kArray : Node::kObject;
               node.depth = 1;
-              if (c == '[') node.flags |= Node::kAllNumbers | Node::kAllSmis;
+              if (array) node.flags |= Node::kAllNumbers | Node::kAllSmis;
               ++position_;
-              stack_.push_back({Append(node, start), c == '['});
-              state_ =
-                  c == '[' ? State::kArrayFirstValue : State::kObjectFirstKey;
+              uint32_t index = static_cast<uint32_t>(output_->nodes.size());
+              if (Current() == (array ? ']' : '}')) {
+                ++position_;
+                node.data.container.end = index + 1;
+                Append(node, start);
+                CompleteContainer(node.depth);
+                continue;
+              }
+              stack_.push_back({Append(node, start), index, array});
+              state_ = array ? State::kArrayFirstValue : State::kObjectFirstKey;
               continue;
+            }
             case '"':
               node.kind = Node::kString;
               node.data.string.start = start;
@@ -270,15 +310,15 @@ class BackgroundJsonParser {
     kDone
   };
   struct Frame {
-    uint32_t node;
+    BackgroundJsonNode* node;
+    uint32_t source_index;
     bool array;
     uint8_t key_count = 0;
     bool cached_keys = false;
   };
-  static_assert(sizeof(Frame) == 8);
 
   bool Cancelled() const {
-    return output_->cancelled.load(std::memory_order_relaxed);
+    return cancelled_.load(std::memory_order_relaxed);
   }
   uint32_t Current() const {
     return position_ < input_.size() ? input_[position_] : UINT32_MAX;
@@ -297,40 +337,55 @@ class BackgroundJsonParser {
       if ((position_ & 4095) == 0 && Cancelled()) return;
     }
   }
-  V8_INLINE uint32_t Append(const BackgroundJsonNode& node, uint32_t start) {
-    uint32_t index = static_cast<uint32_t>(output_->nodes.size());
+  V8_INLINE BackgroundJsonNode* Append(const BackgroundJsonNode& node,
+                                        uint32_t start) {
     output_->nodes.push_back(node);
     if (output_->track_source) {
       output_->source_starts.push_back(start);
       output_->source_ends.push_back(position_);
     }
-    return index;
+    // Appending to the deque preserves pointers to existing nodes.
+    return &output_->nodes.back();
   }
   void CompleteValue(bool number = false, bool smi = false) {
     if (stack_.empty()) {
       state_ = State::kDone;
     } else {
-      auto& parent = output_->nodes[stack_.back().node];
+      const auto& frame = stack_.back();
+      auto& parent = *frame.node;
       ++parent.data.container.count;
-      if (!number) parent.flags &= ~BackgroundJsonNode::kAllNumbers;
-      if (!smi) parent.flags &= ~BackgroundJsonNode::kAllSmis;
-      state_ = stack_.back().array ? State::kArrayNext : State::kObjectNext;
+      if (frame.array) {
+        if (!number) parent.flags &= ~BackgroundJsonNode::kAllNumbers;
+        if (!smi) parent.flags &= ~BackgroundJsonNode::kAllSmis;
+      }
+      // Compact JSON usually places a comma immediately after the value.
+      // Whitespace, closing delimiters, and errors keep the normal state.
+      if (Current() == ',') {
+        ++position_;
+        state_ = frame.array ? State::kValue : State::kObjectKey;
+      } else {
+        state_ = frame.array ? State::kArrayNext : State::kObjectNext;
+      }
     }
   }
   void Close() {
     ++position_;
-    uint32_t node = stack_.back().node;
-    output_->nodes[node].data.container.end =
+    auto* node = stack_.back().node;
+    node->data.container.end =
         static_cast<uint32_t>(output_->nodes.size());
     if (stack_.back().cached_keys) {
-      output_->nodes[node].flags |= BackgroundJsonNode::kHasCachedKeys;
+      node->flags |= BackgroundJsonNode::kHasCachedKeys;
     }
-    if (output_->track_source) output_->source_ends[node] = position_;
+    if (output_->track_source)
+      output_->source_ends[stack_.back().source_index] = position_;
     stack_.pop_back();
+    CompleteContainer(node->depth);
+  }
+  void CompleteContainer(uint16_t depth) {
     if (!stack_.empty()) {
-      auto& parent = output_->nodes[stack_.back().node];
+      auto& parent = *stack_.back().node;
       parent.depth = std::max<uint16_t>(
-          parent.depth, std::min<uint16_t>(17, output_->nodes[node].depth + 1));
+          parent.depth, std::min<uint16_t>(17, depth + 1));
     }
     CompleteValue();
   }
@@ -366,6 +421,21 @@ class BackgroundJsonParser {
         if (++digits <= 15) significand = significand * 10 + Current() - '0';
         ++position_;
         if ((position_ & 4095) == 0 && Cancelled()) return false;
+      }
+    }
+    if (digits > 15 || Current() == '.' || Current() == 'e' ||
+        Current() == 'E') {
+      // Keep the conversion bounded so long literals still use the scanner's
+      // cancellation checks. A prefix ending at the window boundary can be
+      // incomplete, so only accept it there at the actual end of the input.
+      constexpr size_t kNumberWindow = 128;
+      const Char* first = input_.begin() + start;
+      const Char* limit =
+          first + std::min(kNumberWindow, input_.size() - start);
+      const Char* end = TryParseJsonNumber(first, limit, number);
+      if (end != nullptr && (end != limit || limit == input_.end())) {
+        position_ = static_cast<uint32_t>(end - input_.begin());
+        return true;
       }
     }
     bool fast_decimal = digits <= 15;
@@ -670,6 +740,7 @@ class BackgroundJsonParser {
 
   BackgroundJsonData* const output_;
   base::Vector<const Char> input_;
+  const std::atomic<bool>& cancelled_;
   uint32_t position_ = 0;
   State state_ = State::kValue;
   // Parallel workers frequently update shallow container frames. Keep them on
@@ -681,13 +752,248 @@ class BackgroundJsonParser {
   std::array<BackgroundJsonNode, 64> key_strings_{};
 };
 
+#if defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64) && defined(__ARM_NEON)
+bool IsJsonSpace(uint32_t c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+}
+
+// This scan only finds cut positions. Each part still undergoes the full
+// grammar check, and any failure goes through the serial error reporter.
+uint64_t StructureLanes(uint8x16_t mask) {
+  constexpr uint64_t kLane = 0x1111111111111111;
+  return vget_lane_u64(
+             vreinterpret_u64_u8(vshrn_n_u16(vreinterpretq_u16_u8(mask), 4)), 0) &
+         kLane;
+}
+
+template <typename Char, typename Publish>
+size_t FindArrayCuts(base::Vector<const Char> input,
+                     const std::atomic<bool>& cancelled, size_t part_limit,
+                     Publish publish) {
+  constexpr uint64_t kLane = 0x1111111111111111;
+  const Char* start = input.begin();
+  const Char* end = input.end();
+  while (end != start && IsJsonSpace(end[-1])) {
+    --end;
+    if ((end - start) % 4096 == 0 &&
+        cancelled.load(std::memory_order_relaxed)) {
+      return 0;
+    }
+  }
+  if (end == start || end[-1] != ']') return 0;
+  const Char* p = start + 1;
+  size_t next_cancel_check = 4096;
+  size_t cuts_remaining = part_limit - 1;
+  const size_t spacing = input.size() / part_limit;
+  size_t target = spacing;
+  int depth = 1;
+  bool in_string = false;
+  bool escaped = false;
+  while (p != end) {
+    if (static_cast<size_t>(p - start) >= next_cancel_check) {
+      if (cancelled.load(std::memory_order_relaxed)) return 0;
+      next_cancel_check = p - start + 4096;
+    }
+    const Char* limit = p + std::min<ptrdiff_t>(16, end - p);
+    if (limit - p == 16 && !escaped) {
+      uint8x16_t block;
+      if constexpr (sizeof(Char) == 1) {
+        block = vld1q_u8(p);
+      } else {
+        // Saturation keeps non-ASCII code units from becoming syntax bytes.
+        block = vcombine_u8(vqmovn_u16(vld1q_u16(p)),
+                            vqmovn_u16(vld1q_u16(p + 8)));
+      }
+      if (!StructureLanes(vceqq_u8(block, vdupq_n_u8('\\')))) {
+        uint64_t strings = StructureLanes(vceqq_u8(block, vdupq_n_u8('"')));
+        strings ^= strings << 4;
+        strings ^= strings << 8;
+        strings ^= strings << 16;
+        strings ^= strings << 32;
+        if (in_string) strings ^= kLane;
+        const auto outside = ~strings;
+        const auto braces = vorrq_u8(block, vdupq_n_u8(0x20));
+        const auto close = vceqq_u8(braces, vdupq_n_u8('}'));
+        const int closes = __builtin_popcountll(StructureLanes(close) & outside);
+        const bool look_for_cut =
+            static_cast<size_t>(limit - start) > target;
+        if (depth > closes && (!look_for_cut || depth > closes + 1)) {
+          const auto open = vceqq_u8(braces, vdupq_n_u8('{'));
+          depth += __builtin_popcountll(StructureLanes(open) & outside) - closes;
+          in_string = ((strings >> 60) & 1) != 0;
+          p = limit;
+          continue;
+        }
+      }
+    }
+    for (; p != limit; ++p) {
+      const auto c = *p;
+      if (in_string) {
+        if (escaped) {
+          escaped = false;
+        } else if (c == '\\') {
+          escaped = true;
+        } else if (c == '"') {
+          in_string = false;
+        }
+        continue;
+      }
+      switch (c) {
+        case '"': in_string = true; break;
+        case '[': case '{': ++depth; break;
+        case ']': case '}':
+          if (--depth == 0) {
+            return p == end - 1 ? p - start : 0;
+          }
+          break;
+        case ',':
+          if (depth == 1 && static_cast<size_t>(p - start) >= target) {
+            publish(p - start);
+            if (--cuts_remaining == 0) {
+              // The part parser validates the final interval through its end.
+              // No further cuts are needed in the last part.
+              return end - start - 1;
+            }
+            target += spacing;
+          }
+          break;
+      }
+    }
+  }
+  return 0;
+}
+
+struct ArrayPart {
+  size_t begin = 0;
+  size_t end = 0;
+  std::unique_ptr<BackgroundJsonData> data;
+};
+
+constexpr size_t kMaxArrayParts = 8;
+
+struct ArrayPartsWork {
+  void Publish(size_t begin, size_t end) {
+    const size_t index = ready.load(std::memory_order_relaxed);
+    DCHECK_LT(index, parts.size());
+    parts[index] = {begin, end, std::make_unique<BackgroundJsonData>(false)};
+    ready.store(index + 1, std::memory_order_release);
+  }
+
+  std::array<ArrayPart, kMaxArrayParts> parts;
+  std::atomic<size_t> ready{0};
+  std::atomic<size_t> next{0};
+};
+
+template <typename Char>
+class ParseArrayPartsJob final : public JobTask {
+ public:
+  ParseArrayPartsJob(base::Vector<const Char> input,
+                     const std::atomic<bool>& cancelled, ArrayPartsWork& work)
+      : input_(input), cancelled_(cancelled), work_(work) {}
+
+  void Run(JobDelegate* delegate) override {
+    while (!delegate->ShouldYield()) {
+      size_t index = work_.next.load(std::memory_order_relaxed);
+      if (index >= work_.ready.load(std::memory_order_acquire)) return;
+      if (!work_.next.compare_exchange_weak(index, index + 1,
+                                            std::memory_order_relaxed)) {
+        continue;
+      }
+      const auto& part = work_.parts[index];
+      BackgroundJsonParser<Char>(part.data.get(),
+                                 input_.SubVector(0, part.end), cancelled_)
+          .ParseArrayPart(part.begin);
+    }
+  }
+
+  size_t GetMaxConcurrency(size_t worker_count) const override {
+    const size_t ready = work_.ready.load(std::memory_order_acquire);
+    const size_t next = work_.next.load(std::memory_order_relaxed);
+    return worker_count + ready - std::min(ready, next);
+  }
+
+ private:
+  base::Vector<const Char> input_;
+  const std::atomic<bool>& cancelled_;
+  ArrayPartsWork& work_;
+};
+
+template <typename Char>
+bool TryParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
+                             base::Vector<const Char> input) {
+  if (data->track_source || input.size() < 4 * 1024 * 1024 ||
+      input[0] != '[' || platform->NumberOfWorkerThreads() < 2) {
+    return false;
+  }
+  ArrayPartsWork work;
+  std::unique_ptr<JobHandle> job;
+  size_t begin = 1;
+  auto publish = [&](size_t end) {
+    work.Publish(begin, end);
+    begin = end + 1;
+    if (!job) {
+      job = platform->CreateJob(
+          TaskPriority::kUserVisible,
+          std::make_unique<ParseArrayPartsJob<Char>>(input, data->cancelled,
+                                                    work));
+    }
+    job->NotifyConcurrencyIncrease();
+  };
+  // More ranges let workers start earlier and shorten the last range after
+  // the scan. Reuse the same platform worker pool.
+  size_t part_limit = input.size() >= 16 * 1024 * 1024 ? kMaxArrayParts : 4;
+  size_t end = FindArrayCuts(input, data->cancelled, part_limit, publish);
+  if (end == 0 || !job) {
+    if (job) job->Join();
+    return false;
+  }
+  work.Publish(begin, end);
+  job->Join();
+  if (data->cancelled.load(std::memory_order_relaxed)) return true;
+  const size_t count = work.ready.load(std::memory_order_relaxed);
+  for (size_t i = 0; i < count; ++i) {
+    const auto& part = work.parts[i].data;
+    if (part->failed || part->nodes.empty() ||
+        part->nodes.front().data.container.end != part->nodes.size()) {
+      return false;
+    }
+  }
+  data->nodes.swap(work.parts[0].data->nodes);
+  auto& root = data->nodes.front();
+  size_t total_nodes = data->nodes.size();
+  for (size_t i = 1; i < count; ++i) {
+    auto& nodes = work.parts[i].data->nodes;
+    const auto& part_root = nodes.front();
+    root.flags &= part_root.flags;
+    root.depth = std::max(root.depth, part_root.depth);
+    root.data.container.count += part_root.data.container.count;
+    data->part_boundaries.push_back(total_nodes);
+    nodes.pop_front();
+    total_nodes += nodes.size();
+    data->remaining_parts.push_back(std::move(nodes));
+  }
+  root.data.container.end = static_cast<uint32_t>(total_nodes);
+  data->total_nodes = total_nodes;
+  return true;
+}
+#endif  // V8_OS_MACOS && V8_HOST_ARCH_ARM64 && __ARM_NEON
+
+template <typename Char>
+void ParseBackgroundInput(BackgroundJsonData* data, Platform* platform,
+                          base::Vector<const Char> input) {
+#if defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64) && defined(__ARM_NEON)
+  if (TryParseArrayInParallel(data, platform, input)) return;
+#endif
+  BackgroundJsonParser<Char>(data, input, data->cancelled).Parse();
+}
+
 }  // namespace
 
-void ParseJsonInBackground(BackgroundJsonData* data) {
+void ParseJsonInBackground(BackgroundJsonData* data, Platform* platform) {
   if (data->is_one_byte) {
-    BackgroundJsonParser<uint8_t>(data, data->one_byte.as_vector()).Parse();
+    ParseBackgroundInput<uint8_t>(data, platform, data->one_byte.as_vector());
   } else {
-    BackgroundJsonParser<uint16_t>(data, data->two_byte.as_vector()).Parse();
+    ParseBackgroundInput<uint16_t>(data, platform, data->two_byte.as_vector());
   }
 }
 

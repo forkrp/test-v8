@@ -1319,13 +1319,26 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
     base::SmallVector<double, 32> double_elements;
     base::SmallVector<int, 32> smi_elements;
     bool saw_double = false;
+    bool prefer_direct_double = false;
     while (peek() == JsonToken::NUMBER) {
       double current_double;
       int current_smi;
-      if (ParseJsonNumberAsDoubleOrSmi(&current_double, &current_smi)) {
+      // A preceding non-Smi suggests another double. Reuse the regular
+      // scanner for errors and resume the integer fast path on a Smi.
+      const Char* number_end =
+          prefer_direct_double
+              ? TryParseJsonNumber(cursor_, end_, &current_double)
+              : nullptr;
+      if (number_end != nullptr) {
+        cursor_ = number_end;
+        prefer_direct_double = !IsSmiDouble(current_double);
+        double_elements.push_back(current_double);
+      } else if (ParseJsonNumberAsDoubleOrSmi(&current_double, &current_smi)) {
         saw_double = true;
+        prefer_direct_double = true;
         double_elements.push_back(current_double);
       } else if (saw_double) {
+        prefer_direct_double = false;
         double_elements.push_back(current_smi);
       } else {
         smi_elements.push_back(current_smi);
@@ -1340,21 +1353,25 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
       if (V8_UNLIKELY(isolate_->has_exception())) return {};
       int length =
           static_cast<int>(smi_elements.size() + double_elements.size());
-      Handle<JSArray> array = factory()->NewJSArray(
-          saw_double ? PACKED_DOUBLE_ELEMENTS : PACKED_SMI_ELEMENTS, length,
-          length);
-      {
-        DisallowGarbageCollection no_gc;
-        if (saw_double) {
-          auto elements = FixedDoubleArray::cast(array->elements());
+      if (saw_double) {
+        // Fill the backing store before allocating the array header.
+        auto storage = factory()->NewFixedDoubleArray(length);
+        {
+          DisallowGarbageCollection no_gc;
+          auto elements = FixedDoubleArray::cast(*storage);
           int i = 0;
           for (int value : smi_elements) elements->set(i++, value);
           for (double value : double_elements) elements->set(i++, value);
-        } else {
-          auto elements = FixedArray::cast(array->elements());
-          for (int i = 0; i < length; ++i) {
-            elements->set(i, Smi::FromInt(smi_elements[i]), SKIP_WRITE_BARRIER);
-          }
+        }
+        return handle_scope.CloseAndEscape(factory()->NewJSArrayWithElements(
+            storage, PACKED_DOUBLE_ELEMENTS, length));
+      }
+      auto array = factory()->NewJSArray(PACKED_SMI_ELEMENTS, length, length);
+      {
+        DisallowGarbageCollection no_gc;
+        auto elements = FixedArray::cast(array->elements());
+        for (int i = 0; i < length; ++i) {
+          elements->set(i, Smi::FromInt(smi_elements[i]), SKIP_WRITE_BARRIER);
         }
       }
       return handle_scope.CloseAndEscape(array);

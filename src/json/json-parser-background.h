@@ -15,6 +15,7 @@
 #include "src/json/json-parser.h"
 
 namespace v8 {
+class Platform;
 namespace internal {
 
 // A preorder tape. A container points past its subtree; keys and values occupy
@@ -87,6 +88,10 @@ struct BackgroundJsonData {
   bool is_one_byte = true;
   std::deque<BackgroundJsonNode> nodes;
   size_t node_base = 0;
+  // The foreground owns the tapes once the background job has joined.
+  std::vector<std::deque<BackgroundJsonNode>> remaining_parts;
+  std::vector<size_t> part_boundaries;
+  size_t total_nodes = 0;
   // Needed only by revivers, not by the common no-reviver path.
   std::vector<uint32_t> source_ends;
   std::vector<uint32_t> source_starts;
@@ -98,10 +103,12 @@ struct BackgroundJsonData {
     DCHECK_GE(index, node_base);
     return nodes[index - node_base];
   }
-  size_t NodeCount() const { return node_base + nodes.size(); }
+  size_t NodeCount() const {
+    return total_nodes ? total_nodes : node_base + nodes.size();
+  }
   void DiscardBefore(size_t index) {
     DCHECK_GE(index, node_base);
-    DCHECK_LE(index, NodeCount());
+    DCHECK_LE(index, node_base + nodes.size());
     nodes.erase(nodes.begin(), nodes.begin() + (index - node_base));
     node_base = index;
   }
@@ -109,15 +116,17 @@ struct BackgroundJsonData {
   size_t MemoryUsage() const {
     // Estimate live payload; deque block slack and allocator bookkeeping are
     // deliberately not treated as an exact process-memory measurement.
+    size_t live_nodes = nodes.size();
+    for (const auto& part : remaining_parts) live_nodes += part.size();
     return one_byte.size() + two_byte.size() * sizeof(uint16_t) +
-           nodes.size() * sizeof(BackgroundJsonNode) +
+           live_nodes * sizeof(BackgroundJsonNode) +
            (source_starts.capacity() + source_ends.capacity()) *
                sizeof(uint32_t);
   }
 };
 
 // Uses only native memory, immutable input, and V8's numeric conversion helper.
-void ParseJsonInBackground(BackgroundJsonData* data);
+void ParseJsonInBackground(BackgroundJsonData* data, Platform* platform);
 
 }  // namespace internal
 }  // namespace v8

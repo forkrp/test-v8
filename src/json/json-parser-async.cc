@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <array>
+#include <limits>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -223,6 +224,31 @@ class JsonParseAsyncState final {
     }
   }
 
+  uint32_t NodeEnd(const BackgroundJsonNode& node) const {
+    return node.data.container.end + part_node_offset_;
+  }
+
+  void SwitchArrayPart() {
+    DCHECK_EQ(cursor_, next_part_);
+    DCHECK_EQ(cursor_, data_->node_base + data_->nodes.size());
+    // The synthetic part root has been removed. Translate local container
+    // ends using its original index in the logical tape.
+    part_node_offset_ = static_cast<uint32_t>(cursor_ - 1);
+    data_->nodes = std::move(data_->remaining_parts[part_boundary_index_]);
+    data_->node_base = cursor_;
+    next_ = data_->nodes.cbegin();
+    for (auto key : key_strings_) {
+      if (!key.is_null()) {
+        key.PatchValue(*isolate_->factory()->empty_string());
+      }
+    }
+    short_strings_.fill({});
+    ++part_boundary_index_;
+    next_part_ = part_boundary_index_ < data_->part_boundaries.size()
+                     ? data_->part_boundaries[part_boundary_index_]
+                     : std::numeric_limits<size_t>::max();
+  }
+
   const BackgroundJsonNode& Next() {
     DCHECK_LT(cursor_, data_->NodeCount());
     ++cursor_;
@@ -242,7 +268,7 @@ class JsonParseAsyncState final {
   int FillPrimitiveArray(JsonParser<Char>* parser, int offset, int limit) {
     Frame& frame = frames_.back();
     auto array = frame.direct_array;
-    size_t end = std::min<size_t>(frame.end, cursor_ + limit);
+    size_t end = std::min<size_t>({frame.end, cursor_ + limit, next_part_});
     size_t start = cursor_;
     if (array->HasDoubleElements()) {
       DisallowGarbageCollection no_gc;
@@ -314,7 +340,7 @@ class JsonParseAsyncState final {
         auto elements = FixedDoubleArray::cast(array->elements());
         for (int i = 0; i < length; ++i) elements->set(i, Next().Number());
       }
-      DCHECK_EQ(cursor_, token.data.container.end);
+      DCHECK_EQ(cursor_, NodeEnd(token));
     }
     return array;
   }
@@ -329,12 +355,23 @@ class JsonParseAsyncState final {
     // containers, retaining the existing depth and subtree-size limits.
     DCHECK(token.kind == Node::kObject || token.kind == Node::kArray);
     if (token.kind == Node::kArray) {
+      if (token.data.container.count == 0) {
+        DCHECK_EQ(cursor_, NodeEnd(token));
+        auto* factory = isolate_->factory();
+        // These arrays have no references to young objects. On large jobs
+        // their containing result survives multiple foreground slices.
+        const auto allocation = data_->total_nodes >= 2 * 1024 * 1024
+                                    ? AllocationType::kOld
+                                    : AllocationType::kYoung;
+        return factory->NewJSArrayWithElements(
+            factory->empty_fixed_array(), PACKED_SMI_ELEMENTS, 0, allocation);
+      }
       HandleScope scope(isolate_);
       if (token.flags & Node::kAllNumbers) {
         return scope.CloseAndEscape(BuildSmallNumericArray(token));
       }
       size_t start = parser->element_stack_.size();
-      while (cursor_ < token.data.container.end) {
+      while (cursor_ < NodeEnd(token)) {
         const Node& element = *next_;
         if (element.kind >= Node::kString) {
           parser->element_stack_.emplace_back(
@@ -359,7 +396,7 @@ class JsonParseAsyncState final {
     }
     size_t start = parser->property_stack_.size();
     Continuation cont(isolate_, Continuation::kObjectProperty, start);
-    while (cursor_ < token.data.container.end) {
+    while (cursor_ < NodeEnd(token)) {
       const Node& key_token = Next();
       auto key = key_token.AsString(offset, true);
       if (key.is_index()) {
@@ -458,6 +495,9 @@ class JsonParseAsyncState final {
     // Recreate the iterator after every prefix reclamation. Only this thread
     // consumes the completed tape; never reuse this iterator across slices.
     DCHECK_EQ(cursor_, data_->node_base);
+    if (cursor_ == 0 && !data_->part_boundaries.empty()) {
+      next_part_ = data_->part_boundaries.front();
+    }
     next_ = data_->nodes.cbegin();
     parser.property_stack_ = std::move(properties_);
     parser.element_stack_ = std::move(elements_);
@@ -471,8 +511,12 @@ class JsonParseAsyncState final {
     // avoids overslicing cheap scalar arrays. Check every 512 nodes, plus at
     // most one bounded 128-node recursive subtree. Flat records additionally
     // check the deadline after every record (at most 257 nodes).
-    constexpr int kMaximumSliceWork = 64 * 1024;
-    for (int work = 0; work < kMaximumSliceWork; ++work) {
+    // The deadline and stack checks still bound each slice. Parallel input
+    // produces an already validated tape, where the physical-node cap can
+    // otherwise force many sub-millisecond foreground tasks.
+    const int maximum_slice_work =
+        data_->part_boundaries.empty() ? 64 * 1024 : 256 * 1024;
+    for (int work = 0; work < maximum_slice_work; ++work) {
       if (work >= next_budget_check) {
         next_budget_check = work + 512;
         STACK_CHECK(isolate_, true);
@@ -488,11 +532,12 @@ class JsonParseAsyncState final {
         done = true;
         break;
       }
+      if (V8_UNLIKELY(cursor_ == next_part_)) SwitchArrayPart();
       const Node& token = *next_;
       if (!frames_.empty() && !frames_.back().direct_array.is_null() &&
           token.kind >= Node::kString) {
         work += FillPrimitiveArray(&parser, source_offset,
-                                   std::min(128, kMaximumSliceWork - work)) -
+                                   std::min(128, maximum_slice_work - work)) -
                 1;
         continue;
       }
@@ -504,12 +549,13 @@ class JsonParseAsyncState final {
           // Recursive subtrees keep their 128-node limit. A flat record has
           // no recursive children, so up to 128 fields can also use local
           // handles and the cached-key builder (at most 257 physical nodes).
-          size_t subtree_size = token.data.container.end - cursor_;
+          size_t subtree_size = NodeEnd(token) - cursor_;
           bool small = token.depth <= 16 && subtree_size <= 128;
           bool flat_record = !array && token.depth == 1 &&
                              token.data.container.count <= 128;
           if (!data_->track_source && (small || flat_record) &&
-              subtree_size <= static_cast<size_t>(kMaximumSliceWork - work) &&
+              (cursor_ != 0 || data_->part_boundaries.empty()) &&
+              subtree_size <= static_cast<size_t>(maximum_slice_work - work) &&
               GetCurrentStackPosition() >
                   isolate_->stack_guard()->real_climit() + 64 * KB) {
             auto feedback = ObjectFeedback(
@@ -523,7 +569,7 @@ class JsonParseAsyncState final {
             Emit(&parser, value, isolate_->factory()->undefined_value());
             continue;
           }
-          frames_.push_back({array, token.data.container.end,
+          frames_.push_back({array, NodeEnd(token),
                              array ? parser.element_stack_.size()
                                    : parser.property_stack_.size(),
                              live_roots_});
@@ -588,6 +634,9 @@ class JsonParseAsyncState final {
   std::vector<Handle<Object>> roots_;
   size_t live_roots_ = 0, cursor_ = 0;
   std::deque<BackgroundJsonNode>::const_iterator next_;
+  size_t next_part_ = std::numeric_limits<size_t>::max();
+  size_t part_boundary_index_ = 0;
+  uint32_t part_node_offset_ = 0;
   int64_t native_bytes_ = 0;
   std::array<Handle<String>, 64> short_strings_{};
   std::array<Handle<String>, 64> key_strings_{};
@@ -645,7 +694,7 @@ class JsonParseBackgroundTask final : public CancelableTask {
         runner_(std::move(runner)),
         completion_(std::move(completion)) {}
   void RunInternal() override {
-    ParseJsonInBackground(data_.get());
+    ParseJsonInBackground(data_.get(), V8::GetCurrentPlatform());
     // The tape stores offsets into the rooted original string. No foreground
     // code needs the worker's input copy after parsing has finished.
     data_->one_byte = base::OwnedVector<uint8_t>();
