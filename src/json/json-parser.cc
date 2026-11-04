@@ -4,6 +4,10 @@
 
 #include "src/json/json-parser.h"
 
+#if defined(__ARM_NEON)
+#include <arm_neon.h>
+#endif
+
 #include "src/base/strings.h"
 #include "src/builtins/builtins.h"
 #include "src/common/assert-scope.h"
@@ -1873,6 +1877,122 @@ V8_NOINLINE bool JsonParser<Char>::FinishJsonNumber(
 
 namespace {
 
+#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+// Escapes and the destination width have already been validated by the scanner.
+// Keep bulk copying separate from the existing scalar decoder: dense escapes
+// hand their remaining input back to it without changing its hot loop.
+template <typename Char, typename SinkChar, typename ScalarDecoder>
+V8_NOINLINE void DecodeLongJsonString(SinkChar* sink, const Char* cursor,
+                                     int length, ScalarDecoder scalar) {
+  SinkChar* sink_start = sink;
+  bool has_escape = false;
+  while (true) {
+    // The decoded characters remaining also bound a safe source prefix.
+    const Char* end = cursor + length - (sink - sink_start);
+    const Char* prefix_end = cursor + std::min<ptrdiff_t>(32, end - cursor);
+    cursor = std::find_if(cursor, prefix_end, [&sink](Char c) {
+      if (c == '\\') return true;
+      *sink++ = c;
+      return false;
+    });
+    // Allow one leading escape before a long payload. A subsequent nearby
+    // escape hands the rest to the scalar decoder once.
+    if (cursor != prefix_end && has_escape) {
+      return scalar(sink, cursor,
+                    static_cast<int>(length - (sink - sink_start)));
+    }
+    if (cursor == prefix_end) {
+      constexpr ptrdiff_t kVectorChars = 16 / sizeof(Char);
+      while (end - cursor >= kVectorChars) {
+        auto input = [&]() {
+          if constexpr (sizeof(Char) == 1) {
+            return vld1q_u8(cursor);
+          } else {
+            return vld1q_u16(cursor);
+          }
+        }();
+        uint8x16_t mask;
+        if constexpr (sizeof(Char) == 1) {
+          mask = vceqq_u8(input, vdupq_n_u8('\\'));
+        } else {
+          mask = vreinterpretq_u8_u16(vceqq_u16(input, vdupq_n_u16('\\')));
+        }
+        auto merged = vorr_u8(vget_low_u8(mask), vget_high_u8(mask));
+        if (vget_lane_u64(vreinterpret_u64_u8(merged), 0)) break;
+        if constexpr (sizeof(Char) == 1 && sizeof(SinkChar) == 1) {
+          vst1q_u8(sink, input);
+        } else if constexpr (sizeof(Char) == 2 && sizeof(SinkChar) == 2) {
+          vst1q_u16(sink, input);
+        } else if constexpr (sizeof(Char) == 1) {
+          vst1q_u16(sink, vmovl_u8(vget_low_u8(input)));
+          vst1q_u16(sink + 8, vmovl_u8(vget_high_u8(input)));
+        } else {
+          vst1_u8(sink, vmovn_u16(input));
+        }
+        cursor += kVectorChars;
+        sink += kVectorChars;
+      }
+    }
+    cursor = std::find_if(cursor, end, [&sink](Char c) {
+      if (c == '\\') return true;
+      *sink++ = c;
+      return false;
+    });
+
+    if (cursor == end) return;
+
+    cursor++;
+
+    switch (GetEscapeKind(character_json_scan_flags[*cursor])) {
+      case EscapeKind::kSelf:
+        *sink++ = *cursor;
+        break;
+
+      case EscapeKind::kBackspace:
+        *sink++ = '\x08';
+        break;
+
+      case EscapeKind::kTab:
+        *sink++ = '\x09';
+        break;
+
+      case EscapeKind::kNewLine:
+        *sink++ = '\x0A';
+        break;
+
+      case EscapeKind::kFormFeed:
+        *sink++ = '\x0C';
+        break;
+
+      case EscapeKind::kCarriageReturn:
+        *sink++ = '\x0D';
+        break;
+
+      case EscapeKind::kUnicode: {
+        base::uc32 value = 0;
+        for (int i = 0; i < 4; i++) {
+          value = value * 16 + base::HexValue(*++cursor);
+        }
+        if (value <=
+            static_cast<base::uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
+          *sink++ = value;
+        } else {
+          *sink++ = unibrow::Utf16::LeadSurrogate(value);
+          *sink++ = unibrow::Utf16::TrailSurrogate(value);
+        }
+        break;
+      }
+
+      case EscapeKind::kIllegal:
+        UNREACHABLE();
+    }
+    cursor++;
+    has_escape = true;
+  }
+}
+
+#endif
+
 template <typename Char>
 bool Matches(base::Vector<const Char> chars, Handle<String> string) {
   DCHECK(!string.is_null());
@@ -1895,7 +2015,19 @@ Handle<String> JsonParser<Char>::DecodeString(
       CopyChars(dest, chars_ + string.start(), string.length());
       return intermediate;
     }
+#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+    if (string.length() >= 128) {
+      DecodeLongJsonString(
+          dest, chars_ + string.start(), string.length(),
+          [this](SinkChar* sink, const Char* cursor, int remaining) {
+            DecodeString(sink, static_cast<int>(cursor - chars_), remaining);
+          });
+    } else {
+      DecodeString(dest, string.start(), string.length());
+    }
+#else
     DecodeString(dest, string.start(), string.length());
+#endif
 
     if (!string.internalize()) return intermediate;
 

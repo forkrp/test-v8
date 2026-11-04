@@ -196,6 +196,7 @@ JSON.parseAsync 2.4 MB: sync=42.649 ms call=0.887 ms worker_wait=9.360 ms foregr
 
 ### 后续优化记录
 
+- [长转义字符串解码与验收](json-parse-long-string-decoding.md)：独立 NEON 复制路径、复用原标量回退，以及相对 `69a49d116` 的完整配对验证。
 - [扫描前缀复用与数值预测](json-parse-scanner-optimization.md)：相对 `ed8d2e733` 的进一步优化，包含同步字符串扫描、后台数值转换、完整控制矩阵与未保留候选。
 - [第一轮优化与验收](json-parse-async-optimization.md)：紧凑记录、分块回收、批量材料化与短字符串复用。
 - [第二轮优化与验收](json-parse-async-optimization-round2.md)：后台状态与字符串扫描特化、原语免递归、前台顺序读取、数值热入口布局控制，以及相对 `bec433731` 的 Release 对照。
