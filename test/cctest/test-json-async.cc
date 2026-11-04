@@ -9,7 +9,9 @@
 #include <deque>
 #include <limits>
 
+#include "include/v8-json.h"
 #include "src/api/api-inl.h"
+#include "src/base/page-allocator.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
@@ -17,7 +19,9 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/incremental-marking.h"
 #include "src/init/v8.h"
+#include "src/json/json-number-parser.h"
 #include "src/json/json-parser-background.h"
+#include "src/json/json-scanner.h"
 #include "src/json/json-stringifier-async.h"
 #include "src/json/json-stringifier-escape.h"
 #include "src/json/json-stringifier.h"
@@ -942,6 +946,247 @@ TEST(JsonUpstreamEscapeScanner) {
                i::FindJsonEscape(narrow + 1, 64));
     }
   }
+}
+
+namespace {
+
+// Place the last input code unit immediately before an inaccessible page.
+// Ordinary vectors often leave readable allocator slack and miss overreads.
+class JsonGuardedBuffer {
+ public:
+  explicit JsonGuardedBuffer(size_t bytes) {
+    page_ = allocator_.AllocatePageSize();
+    usable_ = ((bytes + page_ - 1) / page_) * page_;
+    if (usable_ == 0) usable_ = page_;
+    mapping_ = static_cast<uint8_t*>(allocator_.AllocatePages(
+        nullptr, usable_ + 2 * page_, page_, v8::PageAllocator::kNoAccess));
+    CHECK_NOT_NULL(mapping_);
+    CHECK(allocator_.SetPermissions(mapping_ + page_, usable_,
+                                   v8::PageAllocator::kReadWrite));
+  }
+  ~JsonGuardedBuffer() {
+    CHECK(allocator_.FreePages(mapping_, usable_ + 2 * page_));
+  }
+  template <typename Char>
+  Char* Tail(size_t length) const {
+    CHECK_LE(length * sizeof(Char), usable_);
+    return reinterpret_cast<Char*>(mapping_ + page_ + usable_) - length;
+  }
+
+ private:
+  v8::base::PageAllocator allocator_;
+  uint8_t* mapping_;
+  size_t page_;
+  size_t usable_;
+};
+
+template <typename Char>
+void CheckJsonScannerSpan(const Char* chars, size_t length) {
+  size_t parse_stop = 0, escape_stop = 0;
+  bool wide = false;
+  for (; parse_stop < length; ++parse_stop) {
+    uint32_t c = chars[parse_stop];
+    if (c < 0x20 || c == '"' || c == '\\') break;
+    wide |= c > 255;
+  }
+  for (; escape_stop < length; ++escape_stop) {
+    uint32_t c = chars[escape_stop];
+    if (c < 0x20 || c == '"' || c == '\\' ||
+        (c >= 0xd800 && c <= 0xdfff)) break;
+  }
+  uint32_t bits = 0;
+  CHECK_EQ(chars + parse_stop,
+           i::ScanJsonStringCharactersLong(chars, chars + length, &bits));
+  CHECK_EQ(wide, bits > 255);
+  CHECK_EQ(escape_stop, i::FindJsonEscape(chars, length));
+}
+
+template <typename Char>
+void CheckJsonScannerGuardPages() {
+  JsonGuardedBuffer storage(1024 * sizeof(Char));
+  for (size_t length = 0; length <= 320; ++length) {
+    Char* chars = storage.Tail<Char>(length);
+    std::fill_n(chars, length, 'a');
+    CheckJsonScannerSpan(chars, length);
+    for (uint32_t c : {0u, 0x1fu, 0x20u, 0x22u, 0x5cu, 0x7fu, 0xffu,
+                       0x100u, 0x1234u, 0xd800u, 0xdc00u, 0xffffu}) {
+      if (c > std::numeric_limits<Char>::max()) continue;
+      for (size_t distance = 1; distance <= std::min<size_t>(length, 33);
+           ++distance) {
+        chars[length - distance] = static_cast<Char>(c);
+        CheckJsonScannerSpan(chars, length);
+        chars[length - distance] = 'a';
+      }
+    }
+  }
+  // Every code unit in every 16-byte lane, including wide characters after
+  // the first quote: suffix width must not widen a preceding narrow value.
+  Char* chars = storage.Tail<Char>(96);
+  std::fill_n(chars, 96, 'a');
+  for (uint32_t c = 0; c <= std::numeric_limits<Char>::max(); ++c) {
+    for (size_t at = 32; at < 48; ++at) {
+      chars[at] = static_cast<Char>(c);
+      CheckJsonScannerSpan(chars, 96);
+      chars[at] = 'a';
+    }
+  }
+  if constexpr (sizeof(Char) == 2) {
+    for (size_t at = 0; at < 95; ++at) {
+      chars[at] = '"';
+      chars[at + 1] = 0xffff;
+      CheckJsonScannerSpan(chars, 96);
+      chars[at] = chars[at + 1] = 'a';
+    }
+  }
+}
+
+template <typename Char>
+void CheckJsonNumberGuardPages() {
+  JsonGuardedBuffer storage(8192 * sizeof(Char));
+  for (const char* text : {"0", "-0", "1.25", "-1e-400", "1e400",
+                           "5e-324", "9007199254740993"}) {
+    size_t length = std::strlen(text);
+    Char* chars = storage.Tail<Char>(length);
+    for (size_t i = 0; i < length; ++i) chars[i] = text[i];
+    double value = 0;
+    CHECK_EQ(chars + length,
+             i::TryParseJsonNumber(chars, chars + length, &value));
+  }
+  for (size_t length : {15u, 16u, 17u, 127u, 128u, 129u, 768u, 4096u}) {
+    Char* chars = storage.Tail<Char>(length);
+    std::fill_n(chars, length, '9');
+    double value = 0;
+    CHECK_EQ(chars + length,
+             i::TryParseJsonNumber(chars, chars + length, &value));
+    chars[length - 1] = 'e';
+    CHECK_NULL(i::TryParseJsonNumber(chars, chars + length, &value));
+  }
+}
+
+template <typename Char>
+class JsonGuardedStringResource final
+    : public std::conditional_t<sizeof(Char) == 1,
+                                v8::String::ExternalOneByteStringResource,
+                                v8::String::ExternalStringResource> {
+ public:
+  using ViewChar = std::conditional_t<sizeof(Char) == 1, char, uint16_t>;
+  explicit JsonGuardedStringResource(const std::vector<Char>& chars)
+      : storage_(chars.size() * sizeof(Char)), length_(chars.size()) {
+    std::copy(chars.begin(), chars.end(), storage_.Tail<Char>(length_));
+  }
+  const ViewChar* data() const override {
+    return reinterpret_cast<const ViewChar*>(storage_.Tail<Char>(length_));
+  }
+  size_t length() const override { return length_; }
+
+ private:
+  JsonGuardedBuffer storage_;
+  size_t length_;
+};
+
+template <typename Char>
+void CheckJsonExternalGuardPages() {
+  auto* isolate = CcTest::isolate();
+  LocalContext context;
+  for (size_t length : {0u, 1u, 7u, 8u, 15u, 16u, 17u, 31u, 32u, 33u,
+                        63u, 64u, 65u, 127u, 128u, 129u, 255u, 256u,
+                        257u, 511u, 512u, 513u, 4095u, 4096u, 4097u}) {
+    for (int mode = 0; mode < 6; ++mode) {
+      v8::HandleScope scope(isolate);
+      Char fill = 'a';
+      if constexpr (sizeof(Char) == 2) {
+        if (mode % 2) fill = 0x1234;
+      }
+      std::vector<Char> text{'"'};
+      std::vector<uint16_t> expected;
+      auto append_escape = [&](const char* escape, uint16_t decoded) {
+        while (*escape) text.push_back(*escape++);
+        expected.push_back(decoded);
+      };
+      if (mode == 2) append_escape("\\n", '\n');
+      for (size_t i = 0; i < length; ++i) {
+        if (mode == 3) {
+          append_escape("\\t", '\t');
+        } else {
+          text.push_back(fill);
+          expected.push_back(fill);
+        }
+      }
+      if (mode == 1) append_escape("\\n", '\n');
+      if (mode == 4) append_escape("\\u1234", 0x1234);
+      if (mode == 5) append_escape("\\ud800", 0xd800);
+      text.push_back('"');
+      auto* resource = new JsonGuardedStringResource<Char>(text);
+      v8::Local<v8::String> input;
+      if constexpr (sizeof(Char) == 1) {
+        input = v8::String::NewExternalOneByte(isolate, resource)
+                    .ToLocalChecked();
+      } else {
+        input = v8::String::NewExternalTwoByte(isolate, resource)
+                    .ToLocalChecked();
+      }
+      auto value = v8::JSON::Parse(context.local(), input).ToLocalChecked();
+      CHECK(value->IsString());
+      v8::String::Value actual(isolate, value);
+      CHECK_EQ(expected.size(), static_cast<size_t>(actual.length()));
+      for (size_t i = 0; i < expected.size(); ++i) {
+        CHECK_EQ(expected[i], (*actual)[i]);
+      }
+
+      // The external source itself also reaches the stringifier without
+      // allocator padding. Parse the encoded string and check every code unit.
+      auto encoded =
+          v8::JSON::Stringify(context.local(), input).ToLocalChecked();
+      auto decoded = v8::JSON::Parse(context.local(), encoded).ToLocalChecked();
+      v8::String::Value roundtrip(isolate, decoded);
+      CHECK_EQ(text.size(), static_cast<size_t>(roundtrip.length()));
+      for (size_t i = 0; i < text.size(); ++i) {
+        CHECK_EQ(text[i], (*roundtrip)[i]);
+      }
+    }
+    i::heap::InvokeMajorGC(CcTest::heap());
+  }
+  std::vector<std::string> invalid = {
+      "\"", "\"\\", "\"\\u", "\"\\u000", "\"\\u00g0\"", "\"a\n\"",
+      "[1,", "{\"x\"", "1e", "1e+", "-", "00", "[true,]", "{}x"};
+  for (size_t length : {0u, 7u, 8u, 15u, 16u, 31u, 32u, 63u, 64u,
+                        127u, 128u, 4095u}) {
+    invalid.push_back("\"" + std::string(length, 'a'));
+    invalid.push_back("\"" + std::string(length, 'a') + "\\");
+  }
+  for (const auto& source : invalid) {
+    v8::HandleScope scope(isolate);
+    v8::TryCatch caught(isolate);
+    std::vector<Char> text(source.begin(), source.end());
+    auto* resource = new JsonGuardedStringResource<Char>(text);
+    v8::Local<v8::String> input;
+    if constexpr (sizeof(Char) == 1) {
+      input = v8::String::NewExternalOneByte(isolate, resource)
+                  .ToLocalChecked();
+    } else {
+      input = v8::String::NewExternalTwoByte(isolate, resource)
+                  .ToLocalChecked();
+    }
+    CHECK(v8::JSON::Parse(context.local(), input).IsEmpty());
+    CHECK(caught.HasCaught());
+  }
+}
+
+}  // namespace
+
+TEST(JsonScannerGuardPages) {
+  CheckJsonScannerGuardPages<uint8_t>();
+  CheckJsonScannerGuardPages<uint16_t>();
+}
+
+TEST(JsonNumberGuardPages) {
+  CheckJsonNumberGuardPages<uint8_t>();
+  CheckJsonNumberGuardPages<uint16_t>();
+}
+
+TEST(JsonExternalStringGuardPages) {
+  CheckJsonExternalGuardPages<uint8_t>();
+  CheckJsonExternalGuardPages<uint16_t>();
 }
 
 TEST(JsonUpstreamDescriptorMetadata) {

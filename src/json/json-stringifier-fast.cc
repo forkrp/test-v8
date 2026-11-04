@@ -1864,8 +1864,7 @@ bool FastJsonStringifier<Char, capture_mode>::AppendStringSIMD(
 
   bool needs_escaping = false;
   size_t uncopied_src_index = 0;  // Index of first char not copied yet.
-  const SrcChar* block = chars;
-  const SrcChar* end = chars + length;
+  size_t position = 0;
   hw::FixedTag<SrcChar, 16> tag;
   static const size_t stride = hw::Lanes(tag);
 
@@ -1873,7 +1872,8 @@ bool FastJsonStringifier<Char, capture_mode>::AppendStringSIMD(
   const auto mask_0x22 = hw::Set(tag, 0x22);
   const auto mask_0x5c = hw::Set(tag, 0x5c);
 
-  for (; block + (stride - 1) < end; block += stride) {
+  while (length - position >= stride) {
+    const SrcChar* block = chars + position;
     const auto input = hw::LoadU(tag, block);
     // TODO(floitsch): use operators for the comparisons when they are available
     // on RISC-V.
@@ -1883,27 +1883,28 @@ bool FastJsonStringifier<Char, capture_mode>::AppendStringSIMD(
     const auto result = hw::Or(hw::Or(has_lower_than_0x20, has_0x22), has_0x5c);
 
     // No character that needs escaping found in block.
-    if (V8_LIKELY(hw::AllFalse(tag, result))) continue;
+    if (V8_LIKELY(hw::AllFalse(tag, result))) {
+      position += stride;
+      continue;
+    }
 
     needs_escaping = true;
     size_t index = hw::FindKnownFirstTrue(tag, result);
     Char found_char = block[index];
-    const size_t char_index = block - chars + index;
+    const size_t char_index = position + index;
     const size_t copy_length = char_index - uncopied_src_index;
     buffer_.Append(chars + uncopied_src_index, copy_length);
     SBXCHECK_LT(found_char, 0x60);
     AppendCStringUnchecked(
         &JsonEscapeTable[found_char * kJsonEscapeTableEntrySize]);
     uncopied_src_index = char_index + 1;
-    // Advance to character after the one that was found to need escaping.
-    block += index + 1;
-    // Subtract stride as it will be added again at the beginning of the loop.
-    block -= stride;
+    // Indices keep the cursor in [0, length]. Subtracting a stride from a
+    // pointer here could form a pointer before chars after an early escape.
+    position = char_index + 1;
   }
 
   // Handle remaining characters.
-  const size_t start_index = block - chars;
-  return AppendStringSWAR(chars, length, start_index, uncopied_src_index,
+  return AppendStringSWAR(chars, length, position, uncopied_src_index,
                           no_gc) ||
          needs_escaping;
 }
