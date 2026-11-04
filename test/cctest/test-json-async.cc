@@ -16,6 +16,7 @@
 #include "src/base/platform/time.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/incremental-marking.h"
+#include "src/init/v8.h"
 #include "src/json/json-parser-background.h"
 #include "src/json/json-stringifier-async.h"
 #include "src/json/json-stringifier-escape.h"
@@ -220,6 +221,50 @@ TEST(JsonParseAsyncCompactRecords) {
   CHECK_EQ(10000u, data.NodeCount());
 }
 
+TEST(JsonParseAsyncLeadingWhitespaceParts) {
+  auto* platform = i::V8::GetCurrentPlatform();
+  // Padding crosses the parallel threshold without creating a large tape.
+  const std::string padding(600000, ' ');
+  for (const char* prefix : {"", " \t\r\n"}) {
+    std::string input = std::string(prefix) + "[";
+    for (int index = 0; index < 8; ++index) {
+      if (index != 0) input += ',';
+      input += std::to_string(index) + padding;
+    }
+    input += ']';
+    for (bool one_byte : {true, false}) {
+      i::BackgroundJsonData data(false);
+      data.is_one_byte = one_byte;
+      if (one_byte) {
+        data.one_byte = v8::base::OwnedVector<uint8_t>::Of(input);
+      } else {
+        data.two_byte = v8::base::OwnedVector<uint16_t>::Of(input);
+      }
+      i::ParseJsonInBackground(&data, platform);
+      CHECK(!data.failed);
+      CHECK_EQ(9u, data.NodeCount());
+      CHECK_EQ(i::BackgroundJsonNode::kArray, data.nodes.front().kind);
+      CHECK_EQ(8u, data.nodes.front().data.container.count);
+#if defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64) && defined(__ARM_NEON)
+      if (platform->NumberOfWorkerThreads() >= 2) {
+        CHECK(!data.part_boundaries.empty());
+      }
+#endif
+      int expected = 0;
+      auto check_numbers = [&](const auto& nodes) {
+        for (const auto& node : nodes) {
+          if (node.kind == i::BackgroundJsonNode::kNumber) {
+            CHECK_EQ(static_cast<double>(expected++), node.Number());
+          }
+        }
+      };
+      check_numbers(data.nodes);
+      for (const auto& part : data.remaining_parts) check_numbers(part);
+      CHECK_EQ(8, expected);
+    }
+  }
+}
+
 TEST(JsonParseAsyncSnapshotTableGrowth) {
   auto isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
@@ -366,6 +411,11 @@ TEST_WITH_PLATFORM(JsonParseAsyncPrimitiveArraysGC, JsonTestPlatform) {
   } cases[] = {{"'[' + '1.5,-0,'.repeat(100000) + '2]'",
                 "result.length === 200001 && result[0] === 1.5 && "
                 "Object.is(result[1], -0) && result[200000] === 2"},
+               {"'[' + '[1.5,-0],'.repeat(40000) + '[1e400,-1e400]]'",
+                "result.length === 40001 && result[0][0] === 1.5 && "
+                "Object.is(result[0][1], -0) && "
+                "result[40000][0] === Infinity && "
+                "result[40000][1] === -Infinity"},
                {"JSON.stringify(Array.from({length:100000}, (_, i) "
                 "=> 'long-string-value-' + i))",
                 "result.length === 100000 && "

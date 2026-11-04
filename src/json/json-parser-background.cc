@@ -143,8 +143,11 @@ class BackgroundJsonParser {
  public:
   BackgroundJsonParser(BackgroundJsonData* output,
                        base::Vector<const Char> input,
-                       const std::atomic<bool>& cancelled)
-      : output_(output), input_(input), cancelled_(cancelled) {}
+                       const std::atomic<bool>& cancelled, uint32_t start = 0)
+      : output_(output),
+        input_(input),
+        cancelled_(cancelled),
+        position_(start) {}
 
   void ParseArrayPart(size_t start) {
     position_ = static_cast<uint32_t>(start);
@@ -741,7 +744,7 @@ class BackgroundJsonParser {
   BackgroundJsonData* const output_;
   base::Vector<const Char> input_;
   const std::atomic<bool>& cancelled_;
-  uint32_t position_ = 0;
+  uint32_t position_;
   State state_ = State::kValue;
   // Parallel workers frequently update shallow container frames. Keep them on
   // each worker's stack: tiny heap buffers can share a cache line across jobs.
@@ -767,7 +770,7 @@ uint64_t StructureLanes(uint8x16_t mask) {
 }
 
 template <typename Char, typename Publish>
-size_t FindArrayCuts(base::Vector<const Char> input,
+size_t FindArrayCuts(base::Vector<const Char> input, size_t array_begin,
                      const std::atomic<bool>& cancelled, size_t part_limit,
                      Publish publish) {
   constexpr uint64_t kLane = 0x1111111111111111;
@@ -781,7 +784,7 @@ size_t FindArrayCuts(base::Vector<const Char> input,
     }
   }
   if (end == start || end[-1] != ']') return 0;
-  const Char* p = start + 1;
+  const Char* p = start + array_begin + 1;
   size_t next_cancel_check = 4096;
   size_t cuts_remaining = part_limit - 1;
   const size_t spacing = input.size() / part_limit;
@@ -920,14 +923,26 @@ class ParseArrayPartsJob final : public JobTask {
 
 template <typename Char>
 bool TryParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
-                             base::Vector<const Char> input) {
+                             base::Vector<const Char> input,
+                             uint32_t* parse_start) {
   if (data->track_source || input.size() < 4 * 1024 * 1024 ||
-      input[0] != '[' || platform->NumberOfWorkerThreads() < 2) {
+      platform->NumberOfWorkerThreads() < 2) {
     return false;
   }
+  // Retain offsets into the original input for strings and error reporting.
+  size_t array_begin = 0;
+  while (array_begin < input.size() && IsJsonSpace(input[array_begin])) {
+    ++array_begin;
+    if ((array_begin & 4095) == 0 &&
+        data->cancelled.load(std::memory_order_relaxed)) {
+      return false;
+    }
+  }
+  *parse_start = static_cast<uint32_t>(array_begin);
+  if (array_begin == input.size() || input[array_begin] != '[') return false;
   ArrayPartsWork work;
   std::unique_ptr<JobHandle> job;
-  size_t begin = 1;
+  size_t begin = array_begin + 1;
   auto publish = [&](size_t end) {
     work.Publish(begin, end);
     begin = end + 1;
@@ -942,7 +957,8 @@ bool TryParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
   // More ranges let workers start earlier and shorten the last range after
   // the scan. Reuse the same platform worker pool.
   size_t part_limit = input.size() >= 16 * 1024 * 1024 ? kMaxArrayParts : 4;
-  size_t end = FindArrayCuts(input, data->cancelled, part_limit, publish);
+  size_t end =
+      FindArrayCuts(input, array_begin, data->cancelled, part_limit, publish);
   if (end == 0 || !job) {
     if (job) job->Join();
     return false;
@@ -981,10 +997,12 @@ bool TryParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
 template <typename Char>
 void ParseBackgroundInput(BackgroundJsonData* data, Platform* platform,
                           base::Vector<const Char> input) {
+  uint32_t start = 0;
 #if defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64) && defined(__ARM_NEON)
-  if (TryParseArrayInParallel(data, platform, input)) return;
+  if (TryParseArrayInParallel(data, platform, input, &start)) return;
 #endif
-  BackgroundJsonParser<Char>(data, input, data->cancelled).Parse();
+  // The split probe has already validated this prefix as JSON whitespace.
+  BackgroundJsonParser<Char>(data, input, data->cancelled, start).Parse();
 }
 
 }  // namespace

@@ -81,6 +81,26 @@ async function main() {
       }
     }
   }
+  // Numeric subarrays straddle the 128-node small-subtree boundary and survive
+  // multiple foreground slices. Check exact bits in one- and two-byte input.
+  const special = ['1.25', '-0', '1e400', '-1e400', '5e-324',
+                   '1073741824', '0', '-1073741824'];
+  for (const length of [1, 2, 126, 127, 128]) {
+    const row = Array.from({length}, (_, i) => special[i % special.length]);
+    const numeric = '[' + row.join(',') + ']';
+    for (const tail of ['', ',"漢"']) {
+      const input = '[' + Array(1024).fill(numeric).join(',') + tail + ']';
+      const result = await JSON.parseAsync(input);
+      gc();
+      for (let i = 0; i < 1024; ++i) {
+        check(result[i].length === length, 'numeric subarray length');
+        for (let j = 0; j < length; ++j) {
+          check(Object.is(result[i][j], Number(row[j])), 'numeric subarray bits');
+        }
+      }
+      if (tail) check(result[1024] === '漢', 'two-byte numeric subarray tail');
+    }
+  }
   let errors = 0;
   for (const text of ['00', '-00', '01', '+1', '1.', '1.e2', '1e', '1e+',
                       '1e-', '1e1.2', '1.2.3', '1e2x', '1e2\u0000',

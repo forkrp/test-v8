@@ -310,16 +310,32 @@ async function main() {
     const payload = ('x'.repeat(65536) + marker + '"\\').repeat(10);
     const items = Array.from({length: 8}, (_, i) =>
       JSON.stringify([{['key' + i]: 'value' + i, payload}, ['Aa', 'BB']]));
-    const text = '[' + items.join(',') + ']';
-    equal(await JSON.parseAsync(text), JSON.parse(text));
-    const malformed = '[' + items.slice(0, -1).join(',') + ',{"x":1,}]';
-    let expected;
-    try { JSON.parse(malformed); } catch (error) { expected = error; }
-    let rejected;
-    try { await JSON.parseAsync(malformed); } catch (error) { rejected = error; }
-    check(rejected instanceof SyntaxError && rejected.message === expected.message,
-          'late array error position');
+    const body = '[' + items.join(',') + ']';
+    // Leading JSON whitespace must preserve absolute offsets when splitting.
+    for (const prefix of ['', ' \t\r\n', ' '.repeat(4097)]) {
+      const text = prefix + body;
+      equal(await JSON.parseAsync(text), JSON.parse(text));
+      const malformed = prefix + '[' + items.slice(0, -1).join(',') +
+          ',{"x":1,}]';
+      let expected;
+      try { JSON.parse(malformed); } catch (error) { expected = error; }
+      let rejected;
+      try { await JSON.parseAsync(malformed); } catch (error) { rejected = error; }
+      check(rejected instanceof SyntaxError &&
+            rejected.message === expected.message, 'late array error position');
+    }
+    for (const prefix of [' \u00a0', ' \uFEFF']) {
+      await rejects(JSON.parseAsync(prefix + body), SyntaxError);
+    }
   }
+
+  // Prefixes can exceed the split threshold even with no splittable array.
+  const longPrefix = ' '.repeat(4 * 1024 * 1024);
+  for (const suffix of ['[]', '[1,-0,1.25]', '1', '{"a":2}']) {
+    const text = longPrefix + suffix;
+    equal(await JSON.parseAsync(text), JSON.parse(text));
+  }
+  await rejects(JSON.parseAsync(longPrefix), SyntaxError);
 
   // The outer array representation must combine the flags of all parts.
   // Padding puts both inputs above the split threshold with few tape nodes.
