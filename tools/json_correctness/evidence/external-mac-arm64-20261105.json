@@ -1,0 +1,716 @@
+{
+  "date": "2026-11-05",
+  "runtime_baseline_commit": "215f79bf08e2466661ca13bff4b64553bb1d0bad",
+  "reference_commit": "cd985f42b1e54328dfa52a01149d9350701df5b8",
+  "all_passed": true,
+  "observed_engine_mismatches": 0,
+  "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+  "python": "3.13.7 (main, Aug 14 2025, 11:12:11) [Clang 17.0.0 (clang-1700.3.19.1)]",
+  "source_lock_sha256": "86e67f28af4d755c94499b80c8af4339fdf24b69c58daef6c4a8f27b48274941",
+  "sources": {
+    "test262": {
+      "repository": "tc39/test262",
+      "commit": "d11543772591a5c24b3229e6195a74c73e56032e"
+    },
+    "rapidjson": {
+      "repository": "Tencent/rapidjson",
+      "commit": "297637bc0a0f00dc504dbc1a47ebdaa577f8ae19"
+    },
+    "yyjson": {
+      "repository": "ibireme/yyjson",
+      "commit": "ebb8d7e5aaa51bea4edefb39ee73a235066b0023"
+    },
+    "simdjson": {
+      "repository": "simdjson/simdjson",
+      "commit": "37a1d727eaab785805c670a94a951a65fb7262e5"
+    },
+    "nlohmann_data": {
+      "repository": "nlohmann/json_test_data",
+      "commit": "a015e5be2d5dfffcf98d00d9df39c9285efc7887"
+    },
+    "simdjson_data": {
+      "repository": "simdjson/simdjson-data",
+      "commit": "351949906abde446f0314bf79606fb5d884f5be7"
+    }
+  },
+  "locked_files": 2205,
+  "fixture_manifest_sha256": "47a1f06e1672622d6c17fa32d1088696f22d42354df43865de97b0053e86193b",
+  "corpus_sha256": "9769eaaa271655364eb895de3ab046938bbbdc7d81abfc86d2938f1e1558b238",
+  "tool_sha256": {
+    "tools/json_correctness/external.py": "6b30a35adf0a63f4026963cfdaa9b93c26a26204f7c3640bb755889254f67baa",
+    "test/json/external-corpus.js": "58a30ca1a56eda74df2a1d35780b7de41433c9bc3c7d5c69ab0df05d469eaf86",
+    "tools/json_correctness/test_external.py": "c43586e557d0cf9adf0b9f8efb4918ced77d169385b10f13312b602ca2a438dd"
+  },
+  "runtime_source_sha256": {
+    "src/json/DIR_METADATA": "c5b1649a19fe28d66806a037d7d62b8790db93073bd5ef2bc701edab2fdc66d6",
+    "src/json/OWNERS": "f095445e985816c9eea54a55e04d47e7fd2535a8788a1c689bf390264c229730",
+    "src/json/json-clone.cc": "c0d7a0cc7838a72426b41e7c77dca87302ddd52a58effaa88031c5445102b5f7",
+    "src/json/json-clone.h": "722dd04246c2186c1dc7ae3f1e50d76b062548a888d94a123a935604cac04277",
+    "src/json/json-number-parser.cc": "754c1a61e526dcba39edb0c7e13cc3805798d4c7271c86335c3c223d2d129a6c",
+    "src/json/json-number-parser.h": "97bdc99ce241fc8b5cb965b7d8f14385db02676157de19be43c5d0b9224c35fe",
+    "src/json/json-parser-async.cc": "1d9824c811ba2362354f2551fa3cfbdfd1cdd95b8c09b8fc3dee47343220605c",
+    "src/json/json-parser-background.cc": "7d5c8fd7dcf2c8910f373bcdfa850d9fdd37d774105340724a90929f8641f57a",
+    "src/json/json-parser-background.h": "518eb44975e9003dcf45555c54ae5b1cda982aa66f7ef7f73458a72bfb7818dd",
+    "src/json/json-parser.cc": "066eb7d5d9d0df6eb9fe7cf9b2265a17773e81286c12bda12f9dcfc3e58bf7bf",
+    "src/json/json-parser.h": "e0de1eed083bd6925982b2a742c1fb05569c6974b9165b84d5ef58343460ca69",
+    "src/json/json-scanner.h": "cf6e113b233b6b282d8db25da94ebcf5b45ed04223a4af6d1364c8fe3f1caeb5",
+    "src/json/json-stringifier-async.cc": "b8f4f3b32829300bc7707c5163133068c3e5c88e22ca47e1f57778222de305b6",
+    "src/json/json-stringifier-async.h": "ada9c1d370f5245dddad259c70dbc7249c8c8e31a9f8438e6906b4a600d7d715",
+    "src/json/json-stringifier-background.cc": "81145f71bbeb77e7d7ac51e9d8500b663ee0d00d7d567fbc2040e264a045e185",
+    "src/json/json-stringifier-capture.h": "ad7729f1fb0d14bea3ce7596ac342e91769eeadcb97dc6beb19b1ca8f0ad6e8c",
+    "src/json/json-stringifier-escape.cc": "e22d50dbf05bf1a2790d1d06308de260e6c6ed639a5b17616a6b2018f475423a",
+    "src/json/json-stringifier-escape.h": "78bdb98dec6822a4289db59154ef0c5c0b3c3e2df8995083552fefd7861123b7",
+    "src/json/json-stringifier-fast.cc": "807115fa8db1f2d722cf29d855409920ea8cc27db2c538ef8fd1f32fcf7ef9cf",
+    "src/json/json-stringifier.cc": "dab2c3d57eadb58ebab2d3adcd1e11b7b83aee9ce8b27d7d29261e98860531ad",
+    "src/json/json-stringifier.h": "f78df895564c01d9b5a791d8deb5fac982c18c22f21c493e721ba33e25bed505",
+    "src/numbers/conversions.cc": "e79a2425477d4ea533cce566af739724be07b0d2868e63d8fa6e7c21c7fa9737",
+    "src/base/numbers/strtod.cc": "8f9f89b3a54057908b5f8df2037457533f5662cfe1b544a75dd933397f06e7bf",
+    "test/cctest/test-json-async.cc": "712beb12d5ed3073b32f36c3f7fb4064b8498a3992ce974402042cfc2fe212ec",
+    "test/json/correctness-differential.js": "2b2444b1d77c728dca93cd6811ba709e0c1251399e7093aa8cce1f4d87585dbf",
+    "tools/json_correctness/run.py": "371ae0ea14be08cf07584052a48e96d4757a65a577c886937db4beb3314849d7"
+  },
+  "prior_qualification_path": "tools/json_correctness/evidence/mac-arm64-20261105.json",
+  "prior_qualification_sha256": "6aab9b3d966018127904d1be8214887578ed33f41681510ee3d39c05e73b31ca",
+  "counts": {
+    "unique_cases": 36680,
+    "serialization_inputs": 33979,
+    "independent_syntax_errors": 2653,
+    "parse_differential_only": 48,
+    "excluded_encoding_files": 28,
+    "test262_files": 166,
+    "test262_per_configuration": 332,
+    "test262_total": 1992,
+    "candidate_configurations": 5,
+    "candidate_corpus_comparisons": 706590,
+    "reference_corpus_records": 70659,
+    "source_occurrences": {
+      "rapidjson": 205,
+      "yyjson": 30289,
+      "simdjson_data": 1855,
+      "derived": 5110,
+      "nlohmann_data": 562
+    },
+    "unique_inputs_by_source_overlapping": {
+      "simdjson_data": 1825,
+      "derived": 4705,
+      "yyjson": 29581,
+      "rapidjson": 197,
+      "nlohmann_data": 557
+    },
+    "large_cases": 6
+  },
+  "runs": [
+    {
+      "label": "reference-complete",
+      "all_passed": true,
+      "binary": "/Users/james/projects/v8/v8-standalone/out/json-correctness-20261105/reference-d8",
+      "binary_sha256": "edc49c58b1e3ae83e8d7518e973ae705a27f0cb8e37e367e8697c46f2b39c0b8",
+      "flags": [],
+      "test262_passed": 332,
+      "test262_failed": 0,
+      "corpus": [
+        {
+          "stdout_sha256": "2756cd0683d06c7dbb85ccc66331a8f9d6acdfef2c714824c8e303d8aa3a6f5a",
+          "api": "parse",
+          "rows": 36680,
+          "passed": true
+        },
+        {
+          "stdout_sha256": "ebce4e338e610d89dd427f319cd3c42719a82746a8864a60d8e271cf6d6ead97",
+          "api": "stringify",
+          "rows": 33979,
+          "passed": true
+        }
+      ],
+      "result_path": "out/json-external-20261105/reference-complete/results.json",
+      "result_sha256": "d002cad7f76624fefb15301ffb91ce7f3b6a2811896c98346fc57eb66d6b32d4",
+      "nonempty_stderr_files": 0
+    },
+    {
+      "label": "release-complete",
+      "all_passed": true,
+      "binary": "/Users/james/projects/v8/v8-standalone/out/json-correctness-20261105/candidate-d8",
+      "binary_sha256": "cd71c65ed97734a2062d1c702b673ec95973a483bedffa5c1b538df954bd9026",
+      "flags": [],
+      "test262_passed": 332,
+      "test262_failed": 0,
+      "corpus": [
+        {
+          "stdout_sha256": "2756cd0683d06c7dbb85ccc66331a8f9d6acdfef2c714824c8e303d8aa3a6f5a",
+          "api": "parse",
+          "rows": 36680,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "2756cd0683d06c7dbb85ccc66331a8f9d6acdfef2c714824c8e303d8aa3a6f5a",
+          "api": "parseAsync",
+          "rows": 36680,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "ebce4e338e610d89dd427f319cd3c42719a82746a8864a60d8e271cf6d6ead97",
+          "api": "stringify",
+          "rows": 33979,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "ebce4e338e610d89dd427f319cd3c42719a82746a8864a60d8e271cf6d6ead97",
+          "api": "stringifyAsync",
+          "rows": 33979,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        }
+      ],
+      "result_path": "out/json-external-20261105/release-complete/results.json",
+      "result_sha256": "92a63f3170f2f0d6dde867289481e2c4be4943bdfee7fb155870ff0a80a9837d",
+      "nonempty_stderr_files": 0
+    },
+    {
+      "label": "dcheck-complete",
+      "all_passed": true,
+      "binary": "/Users/james/projects/v8/v8-standalone/out/json-correctness-20261105/dcheck-d8",
+      "binary_sha256": "0274fcac30712040bbcf13150d869f177cad0cb4a08cbf1aade86b2ca0e5f87a",
+      "flags": [
+        "--stress-compaction",
+        "--verify-heap"
+      ],
+      "test262_passed": 332,
+      "test262_failed": 0,
+      "corpus": [
+        {
+          "stdout_sha256": "2756cd0683d06c7dbb85ccc66331a8f9d6acdfef2c714824c8e303d8aa3a6f5a",
+          "api": "parse",
+          "rows": 36680,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "2756cd0683d06c7dbb85ccc66331a8f9d6acdfef2c714824c8e303d8aa3a6f5a",
+          "api": "parseAsync",
+          "rows": 36680,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "ebce4e338e610d89dd427f319cd3c42719a82746a8864a60d8e271cf6d6ead97",
+          "api": "stringify",
+          "rows": 33979,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "ebce4e338e610d89dd427f319cd3c42719a82746a8864a60d8e271cf6d6ead97",
+          "api": "stringifyAsync",
+          "rows": 33979,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        }
+      ],
+      "result_path": "out/json-external-20261105/dcheck-complete/results.json",
+      "result_sha256": "5258f4aaa7787d477d6ae8725d0ba2d59978f32b044be8d328609afc0de3aa48",
+      "nonempty_stderr_files": 0
+    },
+    {
+      "label": "asan-complete",
+      "all_passed": true,
+      "binary": "/Users/james/projects/v8/v8-standalone/out/json-correctness-20261105/asan/d8",
+      "binary_sha256": "529555a02240c1e846cfe6f9f72b557fc7d58631b1c1fecb231b3a96bb360166",
+      "flags": [
+        "--stress-compaction"
+      ],
+      "test262_passed": 332,
+      "test262_failed": 0,
+      "corpus": [
+        {
+          "stdout_sha256": "2756cd0683d06c7dbb85ccc66331a8f9d6acdfef2c714824c8e303d8aa3a6f5a",
+          "api": "parse",
+          "rows": 36680,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "2756cd0683d06c7dbb85ccc66331a8f9d6acdfef2c714824c8e303d8aa3a6f5a",
+          "api": "parseAsync",
+          "rows": 36680,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "ebce4e338e610d89dd427f319cd3c42719a82746a8864a60d8e271cf6d6ead97",
+          "api": "stringify",
+          "rows": 33979,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "ebce4e338e610d89dd427f319cd3c42719a82746a8864a60d8e271cf6d6ead97",
+          "api": "stringifyAsync",
+          "rows": 33979,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        }
+      ],
+      "result_path": "out/json-external-20261105/asan-complete/results.json",
+      "result_sha256": "f1f2cfd566225804c947aab8aa7c518b49a1672722fc6d6754c396e8938c633d",
+      "nonempty_stderr_files": 0
+    },
+    {
+      "label": "portable-complete",
+      "all_passed": true,
+      "binary": "/Users/james/projects/v8/v8-standalone/out/json-correctness-20261105/host-portable/d8",
+      "binary_sha256": "197a3a1f9a5885a98f5648205a134ed2b32f5bc1006b71fca201a904b8b4d860",
+      "flags": [],
+      "test262_passed": 332,
+      "test262_failed": 0,
+      "corpus": [
+        {
+          "stdout_sha256": "2756cd0683d06c7dbb85ccc66331a8f9d6acdfef2c714824c8e303d8aa3a6f5a",
+          "api": "parse",
+          "rows": 36680,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "2756cd0683d06c7dbb85ccc66331a8f9d6acdfef2c714824c8e303d8aa3a6f5a",
+          "api": "parseAsync",
+          "rows": 36680,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "ebce4e338e610d89dd427f319cd3c42719a82746a8864a60d8e271cf6d6ead97",
+          "api": "stringify",
+          "rows": 33979,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "ebce4e338e610d89dd427f319cd3c42719a82746a8864a60d8e271cf6d6ead97",
+          "api": "stringifyAsync",
+          "rows": 33979,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        }
+      ],
+      "result_path": "out/json-external-20261105/portable-complete/results.json",
+      "result_sha256": "a3a0fc18b646249e04ad75027e16a914c1eab53e714f173e00f04d4173cbc4a3",
+      "nonempty_stderr_files": 0
+    },
+    {
+      "label": "fallback-complete",
+      "all_passed": true,
+      "binary": "/Users/james/projects/v8/v8-standalone/out/json-correctness-20261105/candidate-d8",
+      "binary_sha256": "cd71c65ed97734a2062d1c702b673ec95973a483bedffa5c1b538df954bd9026",
+      "flags": [
+        "--no-json-stringify-fast-path"
+      ],
+      "test262_passed": 332,
+      "test262_failed": 0,
+      "corpus": [
+        {
+          "stdout_sha256": "2756cd0683d06c7dbb85ccc66331a8f9d6acdfef2c714824c8e303d8aa3a6f5a",
+          "api": "parse",
+          "rows": 36680,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "2756cd0683d06c7dbb85ccc66331a8f9d6acdfef2c714824c8e303d8aa3a6f5a",
+          "api": "parseAsync",
+          "rows": 36680,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "ebce4e338e610d89dd427f319cd3c42719a82746a8864a60d8e271cf6d6ead97",
+          "api": "stringify",
+          "rows": 33979,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        },
+        {
+          "stdout_sha256": "ebce4e338e610d89dd427f319cd3c42719a82746a8864a60d8e271cf6d6ead97",
+          "api": "stringifyAsync",
+          "rows": 33979,
+          "passed": true,
+          "comparison": {
+            "equal": true
+          }
+        }
+      ],
+      "result_path": "out/json-external-20261105/fallback-complete/results.json",
+      "result_sha256": "0e9c3ef9ee657f71048627f90246cff0e9b5692cc1e35ebeed75470172cbb2bc",
+      "nonempty_stderr_files": 0
+    }
+  ],
+  "excluded_encoding": [
+    {
+      "origin": "simdjson_data/jsonchecker/fail34.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/fail35.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/fail71.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/i_string_UTF-16LE_with_BOM.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/i_string_UTF-8_invalid_sequence.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/i_string_UTF8_surrogate_U+D800.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/i_string_invalid_utf-8.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/i_string_iso_latin_1.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/i_string_lone_utf8_continuation_byte.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/i_string_not_in_unicode_range.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/i_string_overlong_sequence_2_bytes.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/i_string_overlong_sequence_6_bytes.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/i_string_overlong_sequence_6_bytes_null.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/i_string_truncated-utf-8.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/i_string_utf16BE_no_BOM.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/i_string_utf16LE_no_BOM.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/n_array_a_invalid_utf8.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/n_array_invalid_utf8.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/n_number_invalid-utf-8-in-bigger-int.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/n_number_invalid-utf-8-in-exponent.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/n_number_invalid-utf-8-in-int.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/n_number_real_with_invalid_utf8_after_e.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/n_object_lone_continuation_byte_in_key_and_trailing_comma.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/n_string_invalid-utf-8-in-escape.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/n_string_invalid_utf8_after_escape.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/n_structure_incomplete_UTF8_BOM.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/n_structure_lone-invalid-utf-8.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/n_structure_single_eacute.json",
+      "reason": "Invalid UTF-8 bytes; JSON APIs take UTF-16 strings"
+    }
+  ],
+  "differential_only": [
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/1043.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/105.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/108.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/1106.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/1196.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/12.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/1242.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/1299.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/131.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/1326.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/1348.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/16.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/167.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/2.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/214.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/225.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/252.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/265.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/304.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/380.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/41.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/411.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/413.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/442.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/459.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/569.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/570.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/575.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/584.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/588.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/61.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/682.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/683.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/707.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/729.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/731.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/742.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/79.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/80.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/813.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/867.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/92.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/921.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/941.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/adversarial/issue150/967.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/i_structure_500_nested_arrays.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/n_structure_100000_opening_arrays.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    },
+    {
+      "origin": "simdjson_data/jsonchecker/minefield/n_structure_open_array_object.json",
+      "reason": "Python oracle recursion limit; compare parse APIs with original V8"
+    }
+  ],
+  "adaptation_count": 2455,
+  "selftests": {
+    "tests": 11,
+    "result": "OK",
+    "log": "out/json-external-20261105/tool-selftests.log",
+    "log_sha256": "15897ccc0b6359cf3f64103bfe0c82cb9248473c0c2c26f85808e32fa934d87e"
+  },
+  "diagnostics": {
+    "initial_reference_run": "out/json-external-20261105/reference/results.json",
+    "description": "Initial Test262 host adapter used Realm.create and caused four no-access failures. Replaced by Realm.createAllowCrossRealmAccess. Final reference and candidates pass all 332 runs. Earlier passing partial scopes are not counted."
+  },
+  "limits": [
+    "Only pinned Test262 JSON subset, not complete Test262",
+    "Imported C/C++ inputs, not execution of full RapidJSON/yyjson/simdjson libraries",
+    "48 deep inputs use original-V8 parse differential only and are not serializer inputs",
+    "28 invalid UTF-8 files excluded; no replacement decoding",
+    "CPython syntax/binary64 oracle plus upstream literal checks is not a formal correctness proof",
+    "Only macOS ARM64 host execution; portable path is not ARM32 non-NEON hardware validation",
+    "No new performance measurements; no runtime source changes"
+  ],
+  "archive": "out/json-external-20261105"
+}
