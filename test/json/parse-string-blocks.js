@@ -32,6 +32,21 @@ function record(text) {
       await valid(JSON.stringify({[value]: value}), {[value]: value});
     }
   }
+  // Fallback must retain both the accepted prefix and its character width.
+  // An escape on either side of the short probe also exercises the switch
+  // between sparse vector scanning and the dense scalar escape decoder.
+  for (const length of [0, 1, 7, 31, 32, 33, 63, 64, 65]) {
+    for (const unit of ['a', '\u6f22']) {
+      const prefix = unit.repeat(length);
+      for (const [escape, decoded] of [['\\n', '\n'], ['\\u1234', '\u1234'],
+                                       ['\\"', '"'], ['\\\\', '\\']]) {
+        const text = '"' + prefix + escape + 'z'.repeat(500) + '"';
+        const value = prefix + decoded + 'z'.repeat(500);
+        await valid(text, value);
+        await valid('[' + text + ',"\u6f22"]', [value, '\u6f22']);
+      }
+    }
+  }
   for (let offset = 0; offset < 160; ++offset) {
     const prefix = 'a'.repeat(32 + offset);
     // Wide characters must be accounted for even when their entire block is

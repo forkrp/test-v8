@@ -292,7 +292,12 @@ class BackgroundJsonParser {
               double number;
               if (!ReadNumber(&number)) return;
               node.SetNumber(number);
-              if (IsSmiDouble(number)) node.flags |= Node::kSmi;
+              if (IsSmiDouble(number)) {
+                node.flags |= Node::kSmi;
+                consecutive_doubles_ = 0;
+              } else if (consecutive_doubles_ < 2) {
+                ++consecutive_doubles_;
+              }
           }
           Append(node, start);
           CompleteValue(node.kind == Node::kNumber, node.flags & Node::kSmi);
@@ -402,7 +407,25 @@ class BackgroundJsonParser {
     return true;
   }
 
+  bool TryReadDirectNumber(uint32_t start, double* number) {
+    // Keep long literals on the scanner's cancellation checks. A prefix at
+    // the window boundary is only complete at the actual end of the input.
+    constexpr size_t kNumberWindow = 128;
+    const Char* first = input_.begin() + start;
+    const Char* limit = first + std::min(kNumberWindow, input_.size() - start);
+    const Char* end = TryParseJsonNumber(first, limit, number);
+    if (end == nullptr || (end == limit && limit != input_.end())) return false;
+    position_ = static_cast<uint32_t>(end - input_.begin());
+    return true;
+  }
+
   bool ReadNumber(double* number) {
+    // Two successive non-Smis predict a run of doubles without penalizing
+    // alternating Smi/double input with a conversion attempt on every Smi.
+    // Failed conversions leave the cursor unchanged for the regular scanner.
+    if (consecutive_doubles_ >= 2 && TryReadDirectNumber(position_, number)) {
+      return true;
+    }
     uint32_t start = position_;
     bool negative = Current() == '-';
     if (negative) ++position_;
@@ -428,18 +451,7 @@ class BackgroundJsonParser {
     }
     if (digits > 15 || Current() == '.' || Current() == 'e' ||
         Current() == 'E') {
-      // Keep the conversion bounded so long literals still use the scanner's
-      // cancellation checks. A prefix ending at the window boundary can be
-      // incomplete, so only accept it there at the actual end of the input.
-      constexpr size_t kNumberWindow = 128;
-      const Char* first = input_.begin() + start;
-      const Char* limit =
-          first + std::min(kNumberWindow, input_.size() - start);
-      const Char* end = TryParseJsonNumber(first, limit, number);
-      if (end != nullptr && (end != limit || limit == input_.end())) {
-        position_ = static_cast<uint32_t>(end - input_.begin());
-        return true;
-      }
+      if (TryReadDirectNumber(start, number)) return true;
     }
     bool fast_decimal = digits <= 15;
     int exponent = 0;
@@ -746,6 +758,7 @@ class BackgroundJsonParser {
   const std::atomic<bool>& cancelled_;
   uint32_t position_;
   State state_ = State::kValue;
+  uint8_t consecutive_doubles_ = 0;
   // Parallel workers frequently update shallow container frames. Keep them on
   // each worker's stack: tiny heap buffers can share a cache line across jobs.
   base::SmallVector<Frame, 16> stack_;

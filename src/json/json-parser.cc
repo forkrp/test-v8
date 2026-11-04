@@ -2002,12 +2002,16 @@ void JsonParser<Char>::DecodeString(SinkChar* sink, int start, int length) {
 }
 
 template <typename Char>
+#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+// Keep the prefix probe and its fallback state out of recursive parse loops.
+V8_NOINLINE
+#endif
 JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
   int start = position();
 #if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+  base::uc32 bits = 0;
   {
     DisallowGarbageCollection no_gc;
-    base::uc32 bits = 0;
     const Char* prefix_end = cursor_ + std::min<ptrdiff_t>(32, end_ - cursor_);
     const Char* stop;
     if constexpr (sizeof(Char) == 1) {
@@ -2021,7 +2025,7 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
     }
     if (stop != end_ && *stop == '"') {
       // Ordinary short values need neither the long scanner's state nor its
-      // escape decoder. Failed probes leave the cursor unchanged for fallback.
+      // escape decoder.
       int length = static_cast<int>(stop - cursor_);
       cursor_ = stop + 1;
       bool convert = sizeof(Char) == 1 ? bits > unibrow::Latin1::kMaxChar
@@ -2030,9 +2034,11 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
           needs_internalization || (sizeof(Char) == 1 && length < 10);
       return JsonString(start, length, convert, internalize, false);
     }
+    // The fallback can reuse the validated prefix and its character width.
+    cursor_ = stop;
   }
   return ScanJsonStringImpl<true>(needs_internalization, start, start, false,
-                                  0);
+                                  bits);
 #else
   return ScanJsonStringImpl<false>(needs_internalization, start, start, false,
                                    0);
@@ -2057,7 +2063,9 @@ JsonString JsonParser<Char>::ScanJsonStringImpl(bool needs_internalization,
       }
       // Hand dense escapes to an outlined scalar specialization once, so
       // subsequent escapes do not pay for vector probes or a mode branch.
-      if (cursor_ != end_ && *cursor_ == '\\' && cursor_ - begin < 32) {
+      // For the first escape, count the prefix accepted by ScanJsonString too.
+      if (cursor_ != end_ && *cursor_ == '\\' && cursor_ - begin < 32 &&
+          (has_escape || position() - start < 32)) {
         return ScanJsonStringImpl<false>(needs_internalization, start, offset,
                                          has_escape, bits);
       }

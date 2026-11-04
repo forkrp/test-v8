@@ -103,6 +103,41 @@ async function main() {
       }
     }
   }
+  // Exercise the worker's numeric prediction before and after its two-double
+  // threshold, including a reset to the Smi path and the bounded converter's
+  // 128-character boundary. Number() remains the independent value oracle.
+  const prefixes = ['', '1.25,', '1.25,2.5,', '1.25,2.5,0,',
+                    '1.25,2.5,1.0,', '1.25,2.5,null,"x",'];
+  const boundaryNumbers = ['0', '-0', '1.0', '1e0', '1073741824',
+                           '9007199254740993', '1e400', '5e-324'];
+  for (const length of [125, 126, 127, 128, 129]) {
+    boundaryNumbers.push('1.' + '0'.repeat(length), '9'.repeat(length),
+                         '0.' + '0'.repeat(length) + '1',
+                         '1e' + '0'.repeat(length) + '1');
+  }
+  for (const prefix of prefixes) {
+    for (const wide of [false, true]) {
+      const begin = '[' + (wide ? '"漢",' : '') + prefix;
+      for (const number of boundaryNumbers) {
+        const text = begin + number + ']';
+        for (const value of [JSON.parse(text), await JSON.parseAsync(text)]) {
+          verify(value[value.length - 1], Number(number), text);
+        }
+      }
+      for (const number of ['00', '-01', '-', '1.', '1e', '1e+', '1e-',
+                            '1e2x', '1.' + '0'.repeat(126) + 'e-',
+                            '9'.repeat(129) + '.']) {
+        const text = begin + number + ']';
+        let expected;
+        try { JSON.parse(text); } catch (error) { expected = error; }
+        check(expected instanceof SyntaxError, 'sync accepted ' + text);
+        let actual;
+        try { await JSON.parseAsync(text); } catch (error) { actual = error; }
+        check(actual instanceof SyntaxError &&
+              actual.message === expected.message, 'async error: ' + text);
+      }
+    }
+  }
   gc();
   print('number backend cases=' + cases.length + ' exact=' + exactChecks +
         ' checks=' + checks + ' bits=' + hash.toString(16));
