@@ -1,0 +1,449 @@
+{
+  "schema": 1,
+  "source_commit": "f52ceb328b6d0d2d34f60a0584b158919b964ec1",
+  "source_branch": "12.6-jsonparse-async",
+  "started_local": "2026-11-05T23:50:03.773989+08:00",
+  "finished_local": "2026-11-06T00:00:32.046448+08:00",
+  "controller_seconds": 628.2724590301514,
+  "device": {
+    "ro.product.model": "ONEPLUS A6003",
+    "ro.product.device": "OnePlus6",
+    "ro.build.version.release": "15",
+    "ro.build.version.sdk": "35",
+    "ro.product.cpu.abilist": "arm64-v8a,armeabi-v7a,armeabi",
+    "ro.product.cpu.abilist32": "armeabi-v7a,armeabi",
+    "ro.soc.model": "SDM845",
+    "ro.board.platform": "sdm845",
+    "ro.build.fingerprint": "OnePlus/OnePlus6/OnePlus6:11/RKQ1.201217.002/2111252325:user/release-keys",
+    "ro.build.version.security_patch": "2026-01-01"
+  },
+  "serial": "885841c1",
+  "execution_context": {
+    "id": "uid=0(root) gid=0(root) groups=0(root),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs) context=u:r:su:s0",
+    "getenforce": "Enforcing"
+  },
+  "remote": "/data/local/tmp/v8-json-arm32-f52ceb328-20261105",
+  "evidence_directory": "out/json-arm32-device-20261105-f52ceb328",
+  "all_passed": true,
+  "payload_files": 341,
+  "remote_hashes_match_before_and_after": true,
+  "foreign_job_observations": [],
+  "owned_runtime_processes_after": [],
+  "elf_identities": [
+    {
+      "name": "cctest-json",
+      "elf_class": 1,
+      "endianness": 1,
+      "machine": 40
+    },
+    {
+      "name": "d8",
+      "elf_class": 1,
+      "endianness": 1,
+      "machine": 40
+    },
+    {
+      "name": "libv8-json-smoke.so",
+      "elf_class": 1,
+      "endianness": 1,
+      "machine": 40
+    },
+    {
+      "name": "load-smoke",
+      "elf_class": 1,
+      "endianness": 1,
+      "machine": 40
+    }
+  ],
+  "binary_sha256": {
+    "bin/d8": "d071a873bc759a4fd2d563b32233333a70cea18d38865df42706f8af01c3db2f",
+    "bin/cctest-json": "558fa99eeed150de55e970523137020b80e7357479486215f3d340b8e908d2e1",
+    "bin/libv8-json-smoke.so": "c23f268943f910a262687200ca478520e25d1be67dbfa8cd68dc459b9ae8a4bf",
+    "bin/load-smoke": "2260c756d908798ef2e39089dd10fa5e8ec94b7bcb484bfbe1a56099d6c3f8d3"
+  },
+  "modes": {
+    "neon": {
+      "flags": [],
+      "dispatch_probe": "JSON SIMD selected=neon hardware_neon=1\nMaglev enabled=1",
+      "native": {
+        "total": 48,
+        "json_tests": 35,
+        "passed": 48
+      },
+      "tiers": {
+        "passed": true,
+        "output": "ARM32_TIERS_OK maglev=true turbofan=true"
+      },
+      "shared_library": {
+        "passed": true,
+        "output": "JSON embedder smoke status=0"
+      },
+      "wrapper_sha256": {
+        "d8": "ac60dec065692d05b12cde477116c11af72aadf053a04d1e022ec52bf87de9ce",
+        "cctest-json": "83f38b57570a19eaa8e16d7dcc6b62965775913151d63510762e492405e5e56a"
+      },
+      "external": {
+        "test262": 332,
+        "test262_passed": 332,
+        "corpus": [
+          {
+            "api": "parse",
+            "cases": 36680,
+            "equal": true
+          },
+          {
+            "api": "parseAsync",
+            "cases": 36680,
+            "equal": true
+          },
+          {
+            "api": "stringify",
+            "cases": 33979,
+            "equal": true
+          },
+          {
+            "api": "stringifyAsync",
+            "cases": 33979,
+            "equal": true
+          }
+        ],
+        "passed": true
+      },
+      "differential": {
+        "corpus": [
+          {
+            "api": "parse",
+            "cases": 7970,
+            "equal": true
+          },
+          {
+            "api": "parseAsync",
+            "cases": 7970,
+            "equal": true
+          },
+          {
+            "api": "stringify",
+            "cases": 9344,
+            "equal": true
+          },
+          {
+            "api": "stringifyAsync",
+            "cases": 9344,
+            "equal": true
+          }
+        ],
+        "passed": true
+      },
+      "large": {
+        "corpus": [
+          {
+            "api": "parse",
+            "cases": 53,
+            "equal": true
+          },
+          {
+            "api": "parseAsync",
+            "cases": 53,
+            "equal": true
+          },
+          {
+            "api": "stringify",
+            "cases": 3,
+            "equal": true
+          },
+          {
+            "api": "stringifyAsync",
+            "cases": 3,
+            "equal": true
+          }
+        ],
+        "passed": true
+      }
+    },
+    "scalar": {
+      "flags": [
+        "--no-json-simd"
+      ],
+      "dispatch_probe": "JSON SIMD selected=scalar hardware_neon=1\nMaglev enabled=1",
+      "native": {
+        "total": 48,
+        "json_tests": 35,
+        "passed": 48
+      },
+      "tiers": {
+        "passed": true,
+        "output": "ARM32_TIERS_OK maglev=true turbofan=true"
+      },
+      "shared_library": {
+        "passed": true,
+        "output": "JSON embedder smoke status=0"
+      },
+      "wrapper_sha256": {
+        "d8": "6f662d831afd1e334f0c9833ead352627fb645972bf2320dc5934508024327b5",
+        "cctest-json": "35be401062d7f3b53274417dd403c2b484eccb1965f7dddfafa2c72e93d2c95b"
+      },
+      "external": {
+        "test262": 332,
+        "test262_passed": 332,
+        "corpus": [
+          {
+            "api": "parse",
+            "cases": 36680,
+            "equal": true
+          },
+          {
+            "api": "parseAsync",
+            "cases": 36680,
+            "equal": true
+          },
+          {
+            "api": "stringify",
+            "cases": 33979,
+            "equal": true
+          },
+          {
+            "api": "stringifyAsync",
+            "cases": 33979,
+            "equal": true
+          }
+        ],
+        "passed": true
+      },
+      "differential": {
+        "corpus": [
+          {
+            "api": "parse",
+            "cases": 7970,
+            "equal": true
+          },
+          {
+            "api": "parseAsync",
+            "cases": 7970,
+            "equal": true
+          },
+          {
+            "api": "stringify",
+            "cases": 9344,
+            "equal": true
+          },
+          {
+            "api": "stringifyAsync",
+            "cases": 9344,
+            "equal": true
+          }
+        ],
+        "passed": true
+      },
+      "large": {
+        "corpus": [
+          {
+            "api": "parse",
+            "cases": 53,
+            "equal": true
+          },
+          {
+            "api": "parseAsync",
+            "cases": 53,
+            "equal": true
+          },
+          {
+            "api": "stringify",
+            "cases": 3,
+            "equal": true
+          },
+          {
+            "api": "stringifyAsync",
+            "cases": 3,
+            "equal": true
+          }
+        ],
+        "passed": true
+      }
+    },
+    "restricted": {
+      "flags": [
+        "--arm-arch=armv6"
+      ],
+      "dispatch_probe": "JSON SIMD selected=scalar hardware_neon=1\nMaglev enabled=0",
+      "native": {
+        "total": 48,
+        "json_tests": 35,
+        "passed": 48
+      },
+      "tiers": {
+        "passed": true,
+        "output": "ARM32_TIERS_OK maglev=false turbofan=true"
+      },
+      "shared_library": {
+        "passed": true,
+        "output": "JSON embedder smoke status=0"
+      },
+      "wrapper_sha256": {
+        "d8": "6c5c55fa4e79e0f6f4d0c807551d1dddd96031fdcce4a9ff389f8590a66d4670",
+        "cctest-json": "17383f4b77527c1be22ffc11c9d9b81d6f5aa533a593e2e49c48db325ee4677e"
+      },
+      "external": {
+        "test262": 332,
+        "test262_passed": 332,
+        "corpus": [
+          {
+            "api": "parse",
+            "cases": 36680,
+            "equal": true
+          },
+          {
+            "api": "parseAsync",
+            "cases": 36680,
+            "equal": true
+          },
+          {
+            "api": "stringify",
+            "cases": 33979,
+            "equal": true
+          },
+          {
+            "api": "stringifyAsync",
+            "cases": 33979,
+            "equal": true
+          }
+        ],
+        "passed": true
+      },
+      "differential": {
+        "corpus": [
+          {
+            "api": "parse",
+            "cases": 7970,
+            "equal": true
+          },
+          {
+            "api": "parseAsync",
+            "cases": 7970,
+            "equal": true
+          },
+          {
+            "api": "stringify",
+            "cases": 9344,
+            "equal": true
+          },
+          {
+            "api": "stringifyAsync",
+            "cases": 9344,
+            "equal": true
+          }
+        ],
+        "passed": true
+      },
+      "large": {
+        "corpus": [
+          {
+            "api": "parse",
+            "cases": 53,
+            "equal": true
+          },
+          {
+            "api": "parseAsync",
+            "cases": 53,
+            "equal": true
+          },
+          {
+            "api": "stringify",
+            "cases": 3,
+            "equal": true
+          },
+          {
+            "api": "stringifyAsync",
+            "cases": 3,
+            "equal": true
+          }
+        ],
+        "passed": true
+      }
+    }
+  },
+  "limits": [
+    "NEON-capable ARMv8 device running the ARM32 binaries; no physical non-NEON or D16-only device was tested",
+    "restricted mode masks V8 permitted CPU features with --arm-arch=armv6; it does not remove hardware NEON or validate ARMv6 hardware support",
+    "Existing root ADB context with SELinux Enforcing; no privilege or SELinux configuration was changed",
+    "Native shell tests and a dlopen shared-library smoke; no production APK/JNI or other app SDK integration qualification",
+    "Correctness and compatibility validation; these controller timings are not performance benchmark results"
+  ],
+  "reference_binary_sha256": "edc49c58b1e3ae83e8d7518e973ae705a27f0cb8e37e367e8697c46f2b39c0b8",
+  "fixture_manifest_sha256": "47a1f06e1672622d6c17fa32d1088696f22d42354df43865de97b0053e86193b",
+  "changed_source_sha256": {
+    "BUILD.gn": "1d65bea29124d455b53d30dda133ad25f8a84fe765ff935a8c3c60da85ff3c73",
+    "build-android.sh": "4602f28e3cbf0ebe5e2149a1976b643e04c2cf31112bcbaf7d809d95d1c9377f",
+    "build/config/c++/BUILD.gn": "9b48e86dbb303baf1d67d014cebc2eeea7d474407dae7bae07102fba190ce14d",
+    "build/config/c++/c++.gni": "8c828a2ab39215f117d131105c5f27d17899eb5da2204e980c2dec16508f19e5",
+    "buildtools/third_party/libc++/BUILD.gn": "8dfa6ac4ba36d9e682a28dd638f0164c2c07c5dc306a0f5b5eb022bdee9cc67a",
+    "buildtools/third_party/libc++/__config_site": "a5b0cb6fcb99a19a4d682d982315edaf7228e16bc1233f1a36f074e57f8b43b4",
+    "src/codegen/compiler.h": "ee97debe9122906a3cb6ca777a7c0af010ab05691fc068a7a3128234e182bfaa",
+    "src/flags/flag-definitions.h": "77ba76ac30f7de198a3e63bd54a890db784bf79014ecd69f275ef919da56ba00",
+    "src/init/v8.cc": "0ae4c53257d5333626e284fc4dab8bb15eb5dc0f7a1c7eccc53c581eef959a4b",
+    "src/json/json-parser-background.cc": "39b06a16cd43884ee03b2633b16744869fb90081bc23c6110fd40459a2af9ce6",
+    "src/json/json-parser.cc": "b19b43566345c2b7ed59c8b64368f05cf59fc6f141b64dd10076c991311884c0",
+    "src/json/json-simd-neon.cc": "12018dc4698fb3aab3e89dba8f69512488084e70147380675a330453f1815242",
+    "src/json/json-simd.cc": "1e13a88a2214fc9278b459563b0497adb3f81a24ea6252cf68c3427c153a3360",
+    "src/json/json-simd.h": "e3bf8454a39767e0fa0a959feaf56f4e51adf818efb540208031053112401d6a",
+    "src/json/json-stringifier-escape.cc": "d202aa8b8e2c46915829e44ca184a715cee578be395aa20e34682148445b0139",
+    "src/json/json-stringifier-fast.cc": "00a6f5f2acce7473945f926ec736e32fd0503d5e5f4268f7f5a115823ef5b9a5",
+    "test/cctest/BUILD.gn": "49288ac0a4316cb13b6152854ec3ec340fc11824627e17b4106b9820361d1ec5",
+    "test/cctest/test-json-async.cc": "bd3f313504b28d176e01700776248214f1a56ec9b31d13ae9c03c55f10c6b1dd",
+    "test/json/arm32-runtime-tiers.js": "3a0cb336ee3adccf529cf7b4824fdc06f3ae24e0f0550edb2b2fc57594382deb",
+    "tools/json_arm32/builtins-sources.json": "87b8a9a603b7b0ac07fb53984508fea7056f970e6212e26836f7982e681c4130",
+    "tools/json_arm32/crt-sources.json": "04c5401b54401b458472c55f448dada65d9d41e24c3cae5791279d712421c851",
+    "tools/json_arm32/embedder-smoke.cc": "02894fc2fbc5392cf7e3e13b579a43a8fd3157179ae7ef09d4e4d68b323b7b0e",
+    "tools/json_arm32/load-smoke.c": "f70c1892c212d43ef716e683db69033734acb53ed6d59cf900fc52620a4b124b",
+    "tools/json_arm32/prepare_builtins.py": "87e1bac075112c7f467a45ed30c195ed841df2bff60d64177fdd3362c2d69a08",
+    "tools/json_arm32/prepare_crt.py": "2ef27fe75d9bfe58bd9b270fd991ad573ca96cb7c20cf48a2c0ead4a8510171a"
+  },
+  "totals": {
+    "native": 144,
+    "test262": 996,
+    "upstream_json_api_comparisons": 423954,
+    "differential_json_api_comparisons": 103884,
+    "large_json_api_comparisons": 336,
+    "tiering": 3,
+    "shared_library": 3,
+    "json_api_comparisons": 528174
+  },
+  "supporting_files_sha256": {
+    "out/json-arm32-device-20261105-f52ceb328/device-results.json": "b740e63baf6100c7064171dd6ecbd56a8a64a5d7b499976f063031f287d8d4d8",
+    "out/json-arm32-device-20261105-f52ceb328/payload-manifest.json": "68601a246923b3a1f26149d85d155b0d99a0037df147fa7d54622e14085004ef",
+    "out/json-arm32-device-20261105-f52ceb328/validate-device.py": "83fc2b0bf0fbe5a0be15192b39b9533f8b0cacfc37d114f9ac19b00f815f4848",
+    "out/json-arm32-device-20261105-f52ceb328/controller.log": "779928d5a028f63c72677c65a89f2e300ceae0f6d6cb4de98376adcdbd6a5ffb",
+    "out/json-arm32-device-20261105-f52ceb328/execution-context.json": "d2c86befcaae0bd3cd34ba7bb5cff7f409cbd44703e2c4bc8036ce90ee2b44d3",
+    "out/json-arm32-device-20261105-f52ceb328/elf-identities.json": "db55452f56ccc314d6911ed7ec828eb919c967e0f749f6ff43bea6c764caee60",
+    "out/json-arm32-device-20261105-f52ceb328/cpuinfo.txt": "07b673c8fcb032e425d6d1f242009aa0b1fde0a27c21ce4c4ca74a8b8d6c6daa",
+    "out/json-arm32-device-20261105-f52ceb328/owned-processes-after.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "out/json-arm32-device-20261105-f52ceb328/external-neon/results.json": "a08ff5d8b8858a05bd83afbb1cb90f77be05745a64e04e3994ff3a7017fce4f1",
+    "out/json-arm32-device-20261105-f52ceb328/differential-neon/results.json": "cf1e11039013f3c431fadc878b6e970e93003bb1a75da16c8cf918ecd74c7bef",
+    "out/json-arm32-device-20261105-f52ceb328/large-neon/results.json": "8d2cc1ea742d4bf533f6b305ac42ae50bb3fdcc208cc6037eb3d79e7bbe27105",
+    "out/json-arm32-device-20261105-f52ceb328/run-neon-d8": "ac60dec065692d05b12cde477116c11af72aadf053a04d1e022ec52bf87de9ce",
+    "out/json-arm32-device-20261105-f52ceb328/run-neon-cctest-json": "83f38b57570a19eaa8e16d7dcc6b62965775913151d63510762e492405e5e56a",
+    "out/json-arm32-device-20261105-f52ceb328/tiers-neon.log": "5fc646706f1ef048c243aef4eca483767f7344a3a3a779029d5fffd23b995af4",
+    "out/json-arm32-device-20261105-f52ceb328/shared-neon.log": "dddfd9e77a583adf45defb6f70dc2bd5fd9a28a5e230f0bd832f8d93e6e4825f",
+    "out/json-arm32-device-20261105-f52ceb328/external-scalar/results.json": "2c5631baf938830d07a0cd09ebe9811bf873b8b9b7ac02f3f744ae597d078ea0",
+    "out/json-arm32-device-20261105-f52ceb328/differential-scalar/results.json": "b1b4334786a09eb8f69c56023ef9ff1805434870e0f84faf9cc57004edc3efc0",
+    "out/json-arm32-device-20261105-f52ceb328/large-scalar/results.json": "45e78abdbd32150298d04b476b1265696f3d7d87a3b36e3d479cd6b5f0aaa778",
+    "out/json-arm32-device-20261105-f52ceb328/run-scalar-d8": "6f662d831afd1e334f0c9833ead352627fb645972bf2320dc5934508024327b5",
+    "out/json-arm32-device-20261105-f52ceb328/run-scalar-cctest-json": "35be401062d7f3b53274417dd403c2b484eccb1965f7dddfafa2c72e93d2c95b",
+    "out/json-arm32-device-20261105-f52ceb328/tiers-scalar.log": "5fc646706f1ef048c243aef4eca483767f7344a3a3a779029d5fffd23b995af4",
+    "out/json-arm32-device-20261105-f52ceb328/shared-scalar.log": "dddfd9e77a583adf45defb6f70dc2bd5fd9a28a5e230f0bd832f8d93e6e4825f",
+    "out/json-arm32-device-20261105-f52ceb328/external-restricted/results.json": "d6db94175158dd51bc73e706e0a7efdca67ae08a0f333a54edcd9a7476e56462",
+    "out/json-arm32-device-20261105-f52ceb328/differential-restricted/results.json": "01cc9c65934c23752ee5bc57e875f776039bc3a3b062ec73db4aa7447e357851",
+    "out/json-arm32-device-20261105-f52ceb328/large-restricted/results.json": "6fe1053e91554877996b3f09ead5385db1807a6c171980aff6f5c0ee82e2723e",
+    "out/json-arm32-device-20261105-f52ceb328/run-restricted-d8": "6c5c55fa4e79e0f6f4d0c807551d1dddd96031fdcce4a9ff389f8590a66d4670",
+    "out/json-arm32-device-20261105-f52ceb328/run-restricted-cctest-json": "17383f4b77527c1be22ffc11c9d9b81d6f5aa533a593e2e49c48db325ee4677e",
+    "out/json-arm32-device-20261105-f52ceb328/tiers-restricted.log": "75c2e443551eb78caf09cbf3cb6f56aee38e81b1df2b92490e964f8e47d27416",
+    "out/json-arm32-device-20261105-f52ceb328/shared-restricted.log": "dddfd9e77a583adf45defb6f70dc2bd5fd9a28a5e230f0bd832f8d93e6e4825f",
+    "tools/binary_serialization/device_guard.py": "64c1cc239434e3e0d6afb0467ff28533e4fd64ce07a08403f12e6d77b621e123",
+    "tools/json_correctness/run.py": "371ae0ea14be08cf07584052a48e96d4757a65a577c886937db4beb3314849d7",
+    "tools/json_correctness/external.py": "6b30a35adf0a63f4026963cfdaa9b93c26a26204f7c3640bb755889254f67baa",
+    "tools/json_correctness/external-sources.json": "86e67f28af4d755c94499b80c8af4339fdf24b69c58daef6c4a8f27b48274941",
+    "test/json/arm32-runtime-tiers.js": "3a0cb336ee3adccf529cf7b4824fdc06f3ae24e0f0550edb2b2fc57594382deb",
+    "test/json/correctness-differential.js": "2b2444b1d77c728dca93cd6811ba709e0c1251399e7093aa8cce1f4d87585dbf",
+    "test/json/external-corpus.js": "58a30ca1a56eda74df2a1d35780b7de41433c9bc3c7d5c69ab0df05d469eaf86"
+  },
+  "report_sha256": "12a2e652c42f43117cabde81777577d536bbbdd63cb3d44f4ab5b61816c96569"
+}
