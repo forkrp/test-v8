@@ -53,8 +53,11 @@ target(_libcxx_target_type, "libc++") {
   # need to explicitly depend on libc++.
   visibility = [
     "//build/config:common_deps",
-    "//third_party/catapult/devil:devil",
+    "//third_party/catapult/devil",
   ]
+  if (is_android && current_cpu == "arm" && libcxx_use_ndk_abi) {
+    visibility += [ "//:v8_monolith" ]
+  }
   if (is_linux) {
     # This target packages libc++.so, so must have an explicit dependency on
     # libc++.

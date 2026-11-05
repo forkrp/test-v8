@@ -1,0 +1,54 @@
+{
+  "sources": {
+    "bionic": {
+      "repository": "platform/bionic",
+      "commit": "a8b8cd7be9ddb06a90cc30dadfc9f6100e614201"
+    },
+    "ndk": {
+      "repository": "platform/ndk",
+      "commit": "99de7583356a3ae1af2686e0659b646bdacb88c7"
+    }
+  },
+  "files": [
+    {
+      "source": "bionic",
+      "path": "libc/arch-common/bionic/crtbegin.c",
+      "sha256": "25e4e95c97e263fb402ee73774598a0f9886babe4f5cbbb0530aa7d888fd5d2d"
+    },
+    {
+      "source": "bionic",
+      "path": "libc/arch-common/bionic/crtbegin_so.c",
+      "sha256": "7339e128550f8f90a254fef776c8a23b96a13190e93981cb20a588a2e6342bf3"
+    },
+    {
+      "source": "bionic",
+      "path": "libc/arch-common/bionic/__dso_handle.h",
+      "sha256": "49f6a8f679e039430a39e0339ba385e9c04104fd2fd77343dbfc8beb1b387bc0"
+    },
+    {
+      "source": "bionic",
+      "path": "libc/arch-common/bionic/atexit.h",
+      "sha256": "8671df24f92b375fe8ff233e88d5b55f01e91c608ee838045431444101bf70af"
+    },
+    {
+      "source": "bionic",
+      "path": "libc/arch-common/bionic/pthread_atfork.h",
+      "sha256": "bdc11ac701a0847a51a7e93760bb0fe12389b8d25b36080f1e0d1fb7ba07e2b1"
+    },
+    {
+      "source": "bionic",
+      "path": "libc/bionic/libc_init_common.h",
+      "sha256": "e5096526d3440cc191d78afdc3598072fdbd26d9e249f522f294359157559c12"
+    },
+    {
+      "source": "ndk",
+      "path": "sources/crt/crtbrand.S",
+      "sha256": "52d324a83471f32f40c58d29d428b9255a33fac5320b5886f129f797795915f3"
+    },
+    {
+      "source": "bionic",
+      "path": "libc/arch-common/bionic/__dso_handle_so.h",
+      "sha256": "50b6bbb9aaa1692175e45839c0b90810a962449d0b9842960caf8119595bdc32"
+    }
+  ]
+}

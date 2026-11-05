@@ -1,0 +1,687 @@
+{
+  "branch": "12.6-jsonparse-async",
+  "base_commit": "7ad236771bf1f6706e8b2c46a403193d8a92e681",
+  "binary_sha256": {
+    "out/android-arm32-json-dispatch/d8": "d071a873bc759a4fd2d563b32233333a70cea18d38865df42706f8af01c3db2f",
+    "out/android-arm32-json-dispatch/cctest-json": "558fa99eeed150de55e970523137020b80e7357479486215f3d340b8e908d2e1",
+    "out/android-arm32-json-dispatch/obj/libv8_monolith.a": "68858ee0ae67807528d4b7d4cf847bf5ca6b295a46679d60f1bfd49893edec6f",
+    "out/json-arm32-dispatch-20261105/libv8-json-smoke.so": "c23f268943f910a262687200ca478520e25d1be67dbfa8cd68dc459b9ae8a4bf"
+  },
+  "modes": {
+    "neon": {
+      "native": {
+        "total": 48,
+        "json_tests": 35,
+        "passed": 48,
+        "all_passed": true
+      },
+      "external": {
+        "test262": 332,
+        "test262_passed": 332,
+        "corpus": [
+          {
+            "api": "parse",
+            "rows": 36680,
+            "passed": true,
+            "equal": true
+          },
+          {
+            "api": "parseAsync",
+            "rows": 36680,
+            "passed": true,
+            "equal": true
+          },
+          {
+            "api": "stringify",
+            "rows": 33979,
+            "passed": true,
+            "equal": true
+          },
+          {
+            "api": "stringifyAsync",
+            "rows": 33979,
+            "passed": true,
+            "equal": true
+          }
+        ],
+        "all_passed": true
+      },
+      "differential": {
+        "runs": [
+          {
+            "api": "parse",
+            "rows": 7971,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          },
+          {
+            "api": "parseAsync",
+            "rows": 7971,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          },
+          {
+            "api": "stringify",
+            "rows": 9345,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          },
+          {
+            "api": "stringifyAsync",
+            "rows": 9345,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          }
+        ],
+        "all_passed": true
+      },
+      "results_sha256": {
+        "out/json-arm32-dispatch-20261105/native-neon/results.json": "b44d8a553da7384ef578fd73c02489f807f801cbce9682d3f26c85be3ee48943",
+        "out/json-arm32-dispatch-20261105/external-neon/results.json": "b598f7976b192f852a3047f4210137b7aa2b9c09410d1121804ec5d8da9bc7af",
+        "out/json-arm32-dispatch-20261105/differential-neon/results.json": "9bff190704a7bad2139bcb5e36663f0c7e289cf7aa9e820a367a1a8694863a88"
+      },
+      "dispatch_probe": "JSON SIMD selected=neon hardware_neon=1\nMaglev enabled=1"
+    },
+    "scalar": {
+      "native": {
+        "total": 48,
+        "json_tests": 35,
+        "passed": 48,
+        "all_passed": true
+      },
+      "external": {
+        "test262": 332,
+        "test262_passed": 332,
+        "corpus": [
+          {
+            "api": "parse",
+            "rows": 36680,
+            "passed": true,
+            "equal": true
+          },
+          {
+            "api": "parseAsync",
+            "rows": 36680,
+            "passed": true,
+            "equal": true
+          },
+          {
+            "api": "stringify",
+            "rows": 33979,
+            "passed": true,
+            "equal": true
+          },
+          {
+            "api": "stringifyAsync",
+            "rows": 33979,
+            "passed": true,
+            "equal": true
+          }
+        ],
+        "all_passed": true
+      },
+      "differential": {
+        "runs": [
+          {
+            "api": "parse",
+            "rows": 7971,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          },
+          {
+            "api": "parseAsync",
+            "rows": 7971,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          },
+          {
+            "api": "stringify",
+            "rows": 9345,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          },
+          {
+            "api": "stringifyAsync",
+            "rows": 9345,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          }
+        ],
+        "all_passed": true
+      },
+      "results_sha256": {
+        "out/json-arm32-dispatch-20261105/native-scalar/results.json": "cb986f2a6d58b4ab823bd3eb7885455570fa9fd138bda9460c1dbd11b993ccf8",
+        "out/json-arm32-dispatch-20261105/external-scalar/results.json": "62891129ebd71a37a7cc4a7d662a4dd03101b22fd172472ddbab1507852b886e",
+        "out/json-arm32-dispatch-20261105/differential-scalar/results.json": "b3fc4f148e02e9336c27fb29c0229a993da95f5ba531a9e27eb7893de94b3e41"
+      },
+      "dispatch_probe": "JSON SIMD selected=scalar hardware_neon=1\nMaglev enabled=1"
+    },
+    "no-neon": {
+      "native": {
+        "total": 48,
+        "json_tests": 35,
+        "passed": 48,
+        "all_passed": true
+      },
+      "external": {
+        "test262": 332,
+        "test262_passed": 332,
+        "corpus": [
+          {
+            "api": "parse",
+            "rows": 36680,
+            "passed": true,
+            "equal": true
+          },
+          {
+            "api": "parseAsync",
+            "rows": 36680,
+            "passed": true,
+            "equal": true
+          },
+          {
+            "api": "stringify",
+            "rows": 33979,
+            "passed": true,
+            "equal": true
+          },
+          {
+            "api": "stringifyAsync",
+            "rows": 33979,
+            "passed": true,
+            "equal": true
+          }
+        ],
+        "all_passed": true
+      },
+      "differential": {
+        "runs": [
+          {
+            "api": "parse",
+            "rows": 7971,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          },
+          {
+            "api": "parseAsync",
+            "rows": 7971,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          },
+          {
+            "api": "stringify",
+            "rows": 9345,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          },
+          {
+            "api": "stringifyAsync",
+            "rows": 9345,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          }
+        ],
+        "all_passed": true
+      },
+      "results_sha256": {
+        "out/json-arm32-dispatch-20261105/native-no-neon/results.json": "d77f732f56b8f1e5b07183979959aca30c65923de58e7659aff60505511db935",
+        "out/json-arm32-dispatch-20261105/external-no-neon/results.json": "22936e87329f9dd00b962c582462583a4327c59dfaf6fbb045ff40cfd3a8c7b3",
+        "out/json-arm32-dispatch-20261105/differential-no-neon/results.json": "20c8ce95501ac32dda10e0116cc3eda8c17d84c48deea985d6d11dcab274c3b4"
+      },
+      "dispatch_probe": "JSON SIMD selected=scalar hardware_neon=0\nMaglev enabled=0"
+    },
+    "d16": {
+      "native": {
+        "total": 48,
+        "json_tests": 35,
+        "passed": 48,
+        "all_passed": true
+      },
+      "external": {
+        "test262": 332,
+        "test262_passed": 332,
+        "corpus": [
+          {
+            "api": "parse",
+            "rows": 36680,
+            "passed": true,
+            "equal": true
+          },
+          {
+            "api": "parseAsync",
+            "rows": 36680,
+            "passed": true,
+            "equal": true
+          },
+          {
+            "api": "stringify",
+            "rows": 33979,
+            "passed": true,
+            "equal": true
+          },
+          {
+            "api": "stringifyAsync",
+            "rows": 33979,
+            "passed": true,
+            "equal": true
+          }
+        ],
+        "all_passed": true
+      },
+      "differential": {
+        "runs": [
+          {
+            "api": "parse",
+            "rows": 7971,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          },
+          {
+            "api": "parseAsync",
+            "rows": 7971,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          },
+          {
+            "api": "stringify",
+            "rows": 9345,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          },
+          {
+            "api": "stringifyAsync",
+            "rows": 9345,
+            "equal": true,
+            "completed": true,
+            "returncode": 0
+          }
+        ],
+        "all_passed": true
+      },
+      "results_sha256": {
+        "out/json-arm32-dispatch-20261105/native-d16/results.json": "56b107f9f3697b00bb809f954ab30a6a106b2d957c8d7a31c3f64f2cc77599b2",
+        "out/json-arm32-dispatch-20261105/external-d16/results.json": "21beffd4dedff15243c3ebc7ff6c3bca60b26e5b9764d43c055d563db417cfc3",
+        "out/json-arm32-dispatch-20261105/differential-d16/results.json": "c5035a98c62cf9613e8a0beb76fbad5ca69edb95a7175afe64681e208dabbb36"
+      },
+      "dispatch_probe": "JSON SIMD selected=scalar hardware_neon=0\nMaglev enabled=0"
+    }
+  },
+  "environment": {
+    "host": "macOS ARM64",
+    "execution": "Android ARM32 ELF under QEMU user 7.2.22",
+    "ndk": "27.3.13750724",
+    "android_system_image": {
+      "url": "https://dl.google.com/android/repository/sys-img/android/armeabi-v7a-21_r04.zip",
+      "sha1": "8c606f81306564b65e41303d2603e4c42ded0d10",
+      "system_image": "armeabi-v7a/system.img"
+    },
+    "physical_android_device": false
+  },
+  "evidence_directory": "out/json-arm32-dispatch-20261105",
+  "limitations": [
+    "No physical Android device qualification or performance claim",
+    "Linux build-android.sh entrypoint not executed on a Linux build host; matching target GN configuration built using archived macOS host adaptation",
+    "ThinLTO boundary checked at compiler driver/object level; acceptance binary uses use_thin_lto=false",
+    "Other app native dependencies and final APK integration require compatible CPU and C++ runtime settings"
+  ],
+  "shared_library_smoke": {
+    "shared_library_sha256": "c23f268943f910a262687200ca478520e25d1be67dbfa8cd68dc459b9ae8a4bf",
+    "runs": [
+      {
+        "mode": "neon",
+        "cpu": "cortex-a9",
+        "flags": "",
+        "command": [
+          "docker",
+          "exec",
+          "-w",
+          "/workspace",
+          "v8-arm32-json-validation",
+          "qemu-arm",
+          "-cpu",
+          "cortex-a9",
+          "-L",
+          "/workspace/out/json-arm32-dispatch-20261105/sysroot",
+          "-E",
+          "LD_LIBRARY_PATH=/workspace/out/json-arm32-dispatch-20261105/sysroot/system/lib",
+          "/workspace/out/json-arm32-dispatch-20261105/load-smoke",
+          "/workspace/out/json-arm32-dispatch-20261105/libv8-json-smoke.so",
+          ""
+        ],
+        "returncode": 0,
+        "output": "JSON embedder smoke status=0\n",
+        "seconds": 0.7314410409890115
+      },
+      {
+        "mode": "scalar",
+        "cpu": "cortex-a9",
+        "flags": "--no-json-simd",
+        "command": [
+          "docker",
+          "exec",
+          "-w",
+          "/workspace",
+          "v8-arm32-json-validation",
+          "qemu-arm",
+          "-cpu",
+          "cortex-a9",
+          "-L",
+          "/workspace/out/json-arm32-dispatch-20261105/sysroot",
+          "-E",
+          "LD_LIBRARY_PATH=/workspace/out/json-arm32-dispatch-20261105/sysroot/system/lib",
+          "/workspace/out/json-arm32-dispatch-20261105/load-smoke",
+          "/workspace/out/json-arm32-dispatch-20261105/libv8-json-smoke.so",
+          "--no-json-simd"
+        ],
+        "returncode": 0,
+        "output": "JSON embedder smoke status=0\n",
+        "seconds": 0.7273722080281004
+      },
+      {
+        "mode": "no-neon",
+        "cpu": "cortex-a9,neon=off",
+        "flags": "",
+        "command": [
+          "docker",
+          "exec",
+          "-w",
+          "/workspace",
+          "v8-arm32-json-validation",
+          "qemu-arm",
+          "-cpu",
+          "cortex-a9,neon=off",
+          "-L",
+          "/workspace/out/json-arm32-dispatch-20261105/sysroot",
+          "-E",
+          "LD_LIBRARY_PATH=/workspace/out/json-arm32-dispatch-20261105/sysroot/system/lib",
+          "/workspace/out/json-arm32-dispatch-20261105/load-smoke",
+          "/workspace/out/json-arm32-dispatch-20261105/libv8-json-smoke.so",
+          ""
+        ],
+        "returncode": 0,
+        "output": "JSON embedder smoke status=0\n",
+        "seconds": 0.7879776250338182
+      },
+      {
+        "mode": "d16",
+        "cpu": "cortex-r5f",
+        "flags": "",
+        "command": [
+          "docker",
+          "exec",
+          "-w",
+          "/workspace",
+          "v8-arm32-json-validation",
+          "qemu-arm",
+          "-cpu",
+          "cortex-r5f",
+          "-L",
+          "/workspace/out/json-arm32-dispatch-20261105/sysroot",
+          "-E",
+          "LD_LIBRARY_PATH=/workspace/out/json-arm32-dispatch-20261105/sysroot/system/lib",
+          "/workspace/out/json-arm32-dispatch-20261105/load-smoke",
+          "/workspace/out/json-arm32-dispatch-20261105/libv8-json-smoke.so",
+          ""
+        ],
+        "returncode": 0,
+        "output": "JSON embedder smoke status=0\n",
+        "seconds": 0.6657879579579458
+      }
+    ],
+    "all_passed": true
+  },
+  "compile_audit": {
+    "target_translation_units": 1689,
+    "nonbaseline": [
+      {
+        "source": "../../src/json/json-simd-neon.cc",
+        "fpu": [
+          "-mfpu=neon"
+        ],
+        "neon_define": false,
+        "lto": [
+          "-fno-lto"
+        ],
+        "abi_ndk": true
+      }
+    ],
+    "builtins": {
+      "compiled": 207,
+      "archive_members": 205,
+      "all_d16": true
+    }
+  },
+  "no_json_generator": [
+    {
+      "mode": "neon",
+      "flags": [],
+      "returncode": 0,
+      "sha256": "37aa7e3f578eacf768d78866a04910879663cf7287e528ec26405736d854c283",
+      "output": "out/json-arm32-dispatch-20261105/neon-default-prng.stdout"
+    },
+    {
+      "mode": "no-neon",
+      "flags": [],
+      "returncode": 0,
+      "sha256": "37aa7e3f578eacf768d78866a04910879663cf7287e528ec26405736d854c283",
+      "output": "out/json-arm32-dispatch-20261105/no-neon-default-prng.stdout"
+    },
+    {
+      "mode": "d16",
+      "flags": [],
+      "returncode": 0,
+      "sha256": "37aa7e3f578eacf768d78866a04910879663cf7287e528ec26405736d854c283",
+      "output": "out/json-arm32-dispatch-20261105/d16-default-prng.stdout"
+    },
+    {
+      "mode": "no-neon",
+      "flags": [
+        "--no-opt"
+      ],
+      "returncode": 0,
+      "sha256": "37aa7e3f578eacf768d78866a04910879663cf7287e528ec26405736d854c283",
+      "output": "out/json-arm32-dispatch-20261105/no-neon--no-opt-prng.stdout"
+    },
+    {
+      "mode": "d16",
+      "flags": [
+        "--no-opt"
+      ],
+      "returncode": 0,
+      "sha256": "37aa7e3f578eacf768d78866a04910879663cf7287e528ec26405736d854c283",
+      "output": "out/json-arm32-dispatch-20261105/d16--no-opt-prng.stdout"
+    },
+    {
+      "mode": "no-neon",
+      "flags": [
+        "--jitless"
+      ],
+      "returncode": 0,
+      "sha256": "37aa7e3f578eacf768d78866a04910879663cf7287e528ec26405736d854c283",
+      "output": "out/json-arm32-dispatch-20261105/no-neon--jitless-prng.stdout"
+    }
+  ],
+  "runtime_tiers": [
+    {
+      "mode": "neon",
+      "command": [
+        "/Users/james/projects/v8/v8-standalone/out/json-arm32-dispatch-20261105/run-neon-d8",
+        "--allow-natives-syntax",
+        "--no-concurrent-recompilation",
+        "/Users/james/projects/v8/v8-standalone/test/json/arm32-runtime-tiers.js",
+        "--",
+        "neon"
+      ],
+      "returncode": 0,
+      "stdout": "ARM32_TIERS_OK maglev=true turbofan=true\n",
+      "stderr": ""
+    },
+    {
+      "mode": "scalar",
+      "command": [
+        "/Users/james/projects/v8/v8-standalone/out/json-arm32-dispatch-20261105/run-scalar-d8",
+        "--allow-natives-syntax",
+        "--no-concurrent-recompilation",
+        "/Users/james/projects/v8/v8-standalone/test/json/arm32-runtime-tiers.js",
+        "--",
+        "neon"
+      ],
+      "returncode": 0,
+      "stdout": "ARM32_TIERS_OK maglev=true turbofan=true\n",
+      "stderr": ""
+    },
+    {
+      "mode": "no-neon",
+      "command": [
+        "/Users/james/projects/v8/v8-standalone/out/json-arm32-dispatch-20261105/run-no-neon-d8",
+        "--allow-natives-syntax",
+        "--no-concurrent-recompilation",
+        "/Users/james/projects/v8/v8-standalone/test/json/arm32-runtime-tiers.js",
+        "--",
+        "scalar"
+      ],
+      "returncode": 0,
+      "stdout": "ARM32_TIERS_OK maglev=false turbofan=true\n",
+      "stderr": ""
+    },
+    {
+      "mode": "d16",
+      "command": [
+        "/Users/james/projects/v8/v8-standalone/out/json-arm32-dispatch-20261105/run-d16-d8",
+        "--allow-natives-syntax",
+        "--no-concurrent-recompilation",
+        "/Users/james/projects/v8/v8-standalone/test/json/arm32-runtime-tiers.js",
+        "--",
+        "scalar"
+      ],
+      "returncode": 0,
+      "stdout": "ARM32_TIERS_OK maglev=false turbofan=true\n",
+      "stderr": ""
+    }
+  ],
+  "all_passed": true,
+  "frozen_artifacts": [
+    {
+      "source": "out/android-arm32-json-dispatch/d8",
+      "frozen": "out/json-arm32-dispatch-20261105/frozen/d8",
+      "sha256": "d071a873bc759a4fd2d563b32233333a70cea18d38865df42706f8af01c3db2f",
+      "bytes": 13622060
+    },
+    {
+      "source": "out/android-arm32-json-dispatch/cctest-json",
+      "frozen": "out/json-arm32-dispatch-20261105/frozen/cctest-json",
+      "sha256": "558fa99eeed150de55e970523137020b80e7357479486215f3d340b8e908d2e1",
+      "bytes": 12986724
+    },
+    {
+      "source": "out/android-arm32-json-dispatch/mksnapshot",
+      "frozen": "out/json-arm32-dispatch-20261105/frozen/mksnapshot",
+      "sha256": "0eb52e0e0213280b7a955d57d47db8e2f82662dd0ccc3022930d9cacf21bfc88",
+      "bytes": 17774972
+    },
+    {
+      "source": "out/android-arm32-json-dispatch/obj/libv8_monolith.a",
+      "frozen": "out/json-arm32-dispatch-20261105/frozen/libv8_monolith.a",
+      "sha256": "68858ee0ae67807528d4b7d4cf847bf5ca6b295a46679d60f1bfd49893edec6f",
+      "bytes": 71749910
+    },
+    {
+      "source": "out/json-arm32-dispatch-20261105/libv8-json-smoke.so",
+      "frozen": "out/json-arm32-dispatch-20261105/frozen/libv8-json-smoke.so",
+      "sha256": "c23f268943f910a262687200ca478520e25d1be67dbfa8cd68dc459b9ae8a4bf",
+      "bytes": 25648496
+    },
+    {
+      "source": "out/json-arm32-dispatch-20261105/load-smoke",
+      "frozen": "out/json-arm32-dispatch-20261105/frozen/load-smoke",
+      "sha256": "2260c756d908798ef2e39089dd10fa5e8ec94b7bcb484bfbe1a56099d6c3f8d3",
+      "bytes": 4816
+    },
+    {
+      "source": "out/json-arm32-dispatch-20261105/crt-compatible/crtbegin_dynamic.o",
+      "frozen": "out/json-arm32-dispatch-20261105/frozen/runtime/crtbegin_dynamic.o",
+      "sha256": "0396c2436e7273e105a2217724fbb6787bf0063dcbddb06bbd9ce57a6fcfcca7",
+      "bytes": 2416
+    },
+    {
+      "source": "out/json-arm32-dispatch-20261105/crt-compatible/crtbegin_so.o",
+      "frozen": "out/json-arm32-dispatch-20261105/frozen/runtime/crtbegin_so.o",
+      "sha256": "77179784294769bd203d5789c0b792833bd417568972d071f928d90400e0398a",
+      "bytes": 2300
+    },
+    {
+      "source": "out/json-arm32-dispatch-20261105/crt-compatible/clang-resource/lib/linux/libclang_rt.builtins-arm-android.a",
+      "frozen": "out/json-arm32-dispatch-20261105/frozen/runtime/clang-resource/lib/linux/libclang_rt.builtins-arm-android.a",
+      "sha256": "0d89dd909a782716d679259dc6903a8bd78c0d5cc7a9b2ba005807981c1087dc",
+      "bytes": 212230
+    },
+    {
+      "source": "out/json-arm32-dispatch-20261105/crt-compatible/manifest.json",
+      "frozen": "out/json-arm32-dispatch-20261105/frozen/runtime/manifest.json",
+      "sha256": "2ad69fea8abec45fe4e159da7790dedfc827ff56d1712e6e8bfa445dc9e7a1c5",
+      "bytes": 4475
+    }
+  ],
+  "supporting_files_sha256": {
+    "out/json-arm32-dispatch-20261105/gn-check-final.log": "758efd67ba4374faadfea3be2227cf65809c7c37f9e1e304dda137f152db50ed",
+    "out/json-arm32-dispatch-20261105/build-final-abi.log": "65cf112910a4cd2b7cc17414b88c9fb8f3d67c56fd7cd9066c8c353420626f35",
+    "out/json-arm32-dispatch-20261105/build-final-maglev.log": "9fec2c29fc9c211d7849ccb653487c91c6eb6ce417ea2fe9da1e91cb120a3ad6",
+    "out/json-arm32-dispatch-20261105/prng-without-json-results.json": "2d751aff5e917ae230a3e9e85fbeef0fcdb4e59bfccaa2f0824c4eb1bd398c2d",
+    "out/json-arm32-dispatch-20261105/no-work-final.log": "12d2d9a13e56568ecdfffd9a980d40bddcdda692f7b3b3a58d9409717260556c",
+    "out/json-arm32-dispatch-20261105/runtime-tiers-final.json": "d88acfa9d86eaa2da2fe59ad1b9c5184cc060777547128ba3c18ad76229325cf",
+    "out/json-arm32-dispatch-20261105/neon-thinlto-driver.txt": "09465271cff0aa20ebf259946bd09b06ac78da1d3a904b9ac964b04e3cd4fae0",
+    "out/json-arm32-dispatch-20261105/runtime-input-checks.json": "9cf900a11ba6b5e97aec8c8bc3220896ae1b53d98cc2953d2ceaeb4b2a92dff3",
+    "out/json-arm32-dispatch-20261105/crt-compatible/manifest.json": "2ad69fea8abec45fe4e159da7790dedfc827ff56d1712e6e8bfa445dc9e7a1c5",
+    "out/json-arm32-dispatch-20261105/final-compile-audit.json": "7e9ace979b0b77f864a2881b0ffeb14116cbd35091e82e90cafdbbee1b1ca992",
+    "out/json-arm32-dispatch-20261105/final-link-commands.json": "eeaef1e5cbdcaa3a6f343bf6043bf659979a7f3781ca5ddc2ef5532410cc44a7",
+    "out/json-arm32-dispatch-20261105/d8-elf.txt": "436b47f30fb064125b07aaa55e5ecfad268e8346738fca4fbbb4e1be5b6cf377",
+    "out/json-arm32-dispatch-20261105/shared-elf.txt": "06b504c412426f8cd9baed4457a98179d7d3d0ca04968d8d8e1237bae1ecc12c",
+    "out/json-arm32-dispatch-20261105/neon-object-elf.txt": "3af312605c7c71fc53dc48c3115d91522e1a1780e3aaa573668a16bd60ba1018"
+  },
+  "changed_source_sha256": {
+    "BUILD.gn": "1d65bea29124d455b53d30dda133ad25f8a84fe765ff935a8c3c60da85ff3c73",
+    "build-android.sh": "4602f28e3cbf0ebe5e2149a1976b643e04c2cf31112bcbaf7d809d95d1c9377f",
+    "build/config/c++/BUILD.gn": "9b48e86dbb303baf1d67d014cebc2eeea7d474407dae7bae07102fba190ce14d",
+    "build/config/c++/c++.gni": "8c828a2ab39215f117d131105c5f27d17899eb5da2204e980c2dec16508f19e5",
+    "buildtools/third_party/libc++/BUILD.gn": "8dfa6ac4ba36d9e682a28dd638f0164c2c07c5dc306a0f5b5eb022bdee9cc67a",
+    "buildtools/third_party/libc++/__config_site": "a5b0cb6fcb99a19a4d682d982315edaf7228e16bc1233f1a36f074e57f8b43b4",
+    "src/codegen/compiler.h": "ee97debe9122906a3cb6ca777a7c0af010ab05691fc068a7a3128234e182bfaa",
+    "src/flags/flag-definitions.h": "77ba76ac30f7de198a3e63bd54a890db784bf79014ecd69f275ef919da56ba00",
+    "src/init/v8.cc": "0ae4c53257d5333626e284fc4dab8bb15eb5dc0f7a1c7eccc53c581eef959a4b",
+    "src/json/json-parser-background.cc": "39b06a16cd43884ee03b2633b16744869fb90081bc23c6110fd40459a2af9ce6",
+    "src/json/json-parser.cc": "b19b43566345c2b7ed59c8b64368f05cf59fc6f141b64dd10076c991311884c0",
+    "src/json/json-simd-neon.cc": "12018dc4698fb3aab3e89dba8f69512488084e70147380675a330453f1815242",
+    "src/json/json-simd.cc": "1e13a88a2214fc9278b459563b0497adb3f81a24ea6252cf68c3427c153a3360",
+    "src/json/json-simd.h": "e3bf8454a39767e0fa0a959feaf56f4e51adf818efb540208031053112401d6a",
+    "src/json/json-stringifier-escape.cc": "d202aa8b8e2c46915829e44ca184a715cee578be395aa20e34682148445b0139",
+    "src/json/json-stringifier-fast.cc": "00a6f5f2acce7473945f926ec736e32fd0503d5e5f4268f7f5a115823ef5b9a5",
+    "test/cctest/BUILD.gn": "49288ac0a4316cb13b6152854ec3ec340fc11824627e17b4106b9820361d1ec5",
+    "test/cctest/test-json-async.cc": "bd3f313504b28d176e01700776248214f1a56ec9b31d13ae9c03c55f10c6b1dd",
+    "test/json/arm32-runtime-tiers.js": "3a0cb336ee3adccf529cf7b4824fdc06f3ae24e0f0550edb2b2fc57594382deb",
+    "tools/json_arm32/builtins-sources.json": "87b8a9a603b7b0ac07fb53984508fea7056f970e6212e26836f7982e681c4130",
+    "tools/json_arm32/crt-sources.json": "04c5401b54401b458472c55f448dada65d9d41e24c3cae5791279d712421c851",
+    "tools/json_arm32/embedder-smoke.cc": "02894fc2fbc5392cf7e3e13b579a43a8fd3157179ae7ef09d4e4d68b323b7b0e",
+    "tools/json_arm32/load-smoke.c": "f70c1892c212d43ef716e683db69033734acb53ed6d59cf900fc52620a4b124b",
+    "tools/json_arm32/prepare_builtins.py": "87e1bac075112c7f467a45ed30c195ed841df2bff60d64177fdd3362c2d69a08",
+    "tools/json_arm32/prepare_crt.py": "2ef27fe75d9bfe58bd9b270fd991ad573ca96cb7c20cf48a2c0ead4a8510171a"
+  },
+  "reference_binary_sha256": "edc49c58b1e3ae83e8d7518e973ae705a27f0cb8e37e367e8697c46f2b39c0b8",
+  "report_sha256": "fc26a1c6e77319a211014f99046d75e23f329f2121e34c1c93dbc664a1e0075b",
+  "upstream_comparisons_total": 565272,
+  "additional_differential_comparisons_total": 138512
+}

@@ -20,6 +20,7 @@
 #include "src/execution/isolate.h"
 #include "src/execution/simulator.h"
 #include "src/init/bootstrapper.h"
+#include "src/json/json-simd.h"
 #include "src/libsampler/sampler.h"
 #include "src/objects/elements.h"
 #include "src/objects/objects-inl.h"
@@ -286,6 +287,9 @@ void V8::Initialize() {
   Simulator::InitializeOncePerProcess();
 #endif
   CpuFeatures::Probe(false);
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
+  InitializeJsonSimd();
+#endif
   ElementsAccessor::InitializeOncePerProcess();
   Bootstrapper::InitializeOncePerProcess();
   CallDescriptors::InitializeOncePerProcess();

@@ -23,6 +23,10 @@ declare_args() {
   # use_custom_libcxx_for_host=true in the passed in buildargs.
   use_custom_libcxx_for_host = false
 
+  # Standalone Android embedders use NDK headers. Keep their stable namespace
+  # and layout when rebuilding libc++ for an older CPU instruction baseline.
+  libcxx_use_ndk_abi = false
+
   # Builds libcxx Natvis into the symbols for type visualization.
   # Set to false to workaround http://crbug.com/966676 and
   # http://crbug.com/966687.

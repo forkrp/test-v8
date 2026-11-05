@@ -4,6 +4,7 @@
 
 import("//build/config/android/config.gni")
 import("//build/config/arm.gni")
+import("//build/config/c++/c++.gni")
 import("//build/config/coverage/coverage.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/host_byteorder.gni")
@@ -25,6 +26,14 @@ target_is_simulator = (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
 emit_builtins_as_inline_asm = is_win && is_clang
 
 declare_args() {
+  # Keep the Android ARM32 baseline usable without NEON. Optional integer NEON
+  # kernels are isolated in their own object and selected after CPU probing.
+  v8_enable_json_arm32_runtime_dispatch = is_android && current_cpu == "arm"
+
+  # Rebuilt non-NEON startup objects and compiler builtins for Android links.
+  # prepare_crt.py writes the runtime overlay without modifying the NDK.
+  v8_android_arm32_crt_dir = ""
+
   # Print to stdout on Android.
   v8_android_log_stdout = false
 
@@ -743,7 +752,28 @@ v8_toolset_for_shell = "host"
 # Configurations
 #
 
+v8_json_arm32_dispatch = v8_enable_json_arm32_runtime_dispatch &&
+                         current_cpu == "arm" && v8_current_cpu == "arm"
+
 config("internal_config_base") {
+  defines = []
+  if (v8_json_arm32_dispatch) {
+    assert(current_cpu == "arm" && v8_current_cpu == "arm",
+           "JSON ARM32 dispatch requires a native ARM32 target")
+    assert(
+        !arm_use_neon && arm_fpu == "vfpv3-d16",
+        "Use arm_use_neon=false arm_fpu=\"vfpv3-d16\" for ARM32 JSON dispatch")
+    defines += [ "V8_JSON_ARM32_RUNTIME_DISPATCH" ]
+    if (v8_android_arm32_crt_dir != "") {
+      ldflags = [
+        "-B" + rebase_path(v8_android_arm32_crt_dir, root_build_dir),
+        "-resource-dir=" +
+            rebase_path("$v8_android_arm32_crt_dir/clang-resource",
+                        root_build_dir),
+      ]
+    }
+  }
+
   # Only targets in this file and its subdirs can depend on this.
   visibility = [ "./*" ]
 
@@ -3762,12 +3792,13 @@ v8_header_set("v8_internal_headers") {
     "src/interpreter/interpreter.h",
     "src/json/json-clone.h",
     "src/json/json-number-parser.h",
-    "src/json/json-parser.h",
     "src/json/json-parser-background.h",
+    "src/json/json-parser.h",
+    "src/json/json-scanner.h",
+    "src/json/json-simd.h",
     "src/json/json-stringifier-async.h",
     "src/json/json-stringifier-capture.h",
     "src/json/json-stringifier-escape.h",
-    "src/json/json-scanner.h",
     "src/json/json-stringifier.h",
     "src/libsampler/sampler.h",
     "src/logging/code-events.h",
@@ -3856,7 +3887,6 @@ v8_header_set("v8_internal_headers") {
     "src/objects/js-array-buffer-inl.h",
     "src/objects/js-array-buffer.h",
     "src/objects/js-array-inl.h",
-    "src/objects/js-data-object-builder.h",
     "src/objects/js-array.h",
     "src/objects/js-atomics-synchronization-inl.h",
     "src/objects/js-atomics-synchronization.h",
@@ -3864,6 +3894,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/js-collection-iterator-inl.h",
     "src/objects/js-collection-iterator.h",
     "src/objects/js-collection.h",
+    "src/objects/js-data-object-builder.h",
     "src/objects/js-disposable-stack-inl.h",
     "src/objects/js-disposable-stack.h",
     "src/objects/js-function-inl.h",
@@ -4151,8 +4182,8 @@ v8_header_set("v8_internal_headers") {
     "src/third_party/siphash/halfsiphash.h",
     "src/third_party/utf8-decoder/utf8-decoder.h",
     "src/torque/runtime-macro-shims.h",
-    "src/tracing/trace-event.h",
     "src/tracing/trace-event-no-perfetto.h",
+    "src/tracing/trace-event.h",
     "src/tracing/traced-value.h",
     "src/tracing/tracing-category-observer.h",
     "src/utils/address-map.h",
@@ -5219,18 +5250,19 @@ group("v8_tracing") {
 
 v8_source_set("v8_msgpack") {
   sources = [
-    "src/msgpack/messagepack.cc",
     "src/msgpack/messagepack-async.cc",
     "src/msgpack/messagepack-async.h",
     "src/msgpack/messagepack-background.cc",
-    "src/msgpack/messagepack.h",
     "src/msgpack/messagepack-decoder.h",
     "src/msgpack/messagepack-resource-background.h",
-    "src/msgpack/messagepack-resource-format.h",
-    "src/msgpack/messagepack-resource-encoder.h",
     "src/msgpack/messagepack-resource-decoder.h",
+    "src/msgpack/messagepack-resource-encoder.h",
+    "src/msgpack/messagepack-resource-format.h",
     "src/msgpack/messagepack-string.h",
+    "src/msgpack/messagepack.cc",
+    "src/msgpack/messagepack.h",
   ]
+
   # msgpack-c exceptions are contained by the codec boundary. Keep all other
   # V8 translation units under their normal exception configuration.
   configs = [ ":internal_config" ]
@@ -5247,9 +5279,25 @@ v8_source_set("v8_msgpack") {
     ":v8_internal_headers",
     ":v8_libbase",
     ":v8_shared_internal_headers",
-    "//third_party/msgpack",
     "//third_party/mpack",
+    "//third_party/msgpack",
   ]
+}
+
+if (v8_json_arm32_dispatch) {
+  v8_source_set("v8_json_neon") {
+    sources = [ "src/json/json-simd-neon.cc" ]
+    configs = [ ":internal_config" ]
+    remove_configs = [ "//build/config/compiler:compiler_arm_fpu" ]
+
+    # Preserve the object boundary even if the embedder enables ThinLTO.
+    cflags = [ "-mfpu=neon" ]
+    cflags_cc = [ "-fno-lto" ]
+    deps = [
+      ":v8_internal_headers",
+      ":v8_libbase",
+    ]
+  }
 }
 
 v8_source_set("v8_base_without_compiler") {
@@ -5508,13 +5556,14 @@ v8_source_set("v8_base_without_compiler") {
     "src/interpreter/interpreter.cc",
     "src/json/json-clone.cc",
     "src/json/json-number-parser.cc",
-    "src/json/json-parser.cc",
     "src/json/json-parser-async.cc",
     "src/json/json-parser-background.cc",
+    "src/json/json-parser.cc",
+    "src/json/json-simd.cc",
     "src/json/json-stringifier-async.cc",
     "src/json/json-stringifier-background.cc",
-    "src/json/json-stringifier-fast.cc",
     "src/json/json-stringifier-escape.cc",
+    "src/json/json-stringifier-fast.cc",
     "src/json/json-stringifier.cc",
     "src/libsampler/sampler.cc",
     "src/logging/counters.cc",
@@ -6168,11 +6217,11 @@ v8_source_set("v8_base_without_compiler") {
     ":v8_headers",
     ":v8_heap_base",
     ":v8_libbase",
+    ":v8_msgpack",
     ":v8_shared_internal_headers",
     ":v8_tracing",
     ":v8_version",
-    "src/inspector:inspector",
-    ":v8_msgpack",
+    "src/inspector",
     "//third_party/dragonbox",
     "//third_party/fast_float",
     "//third_party/highway:libhwy",
@@ -6187,6 +6236,10 @@ v8_source_set("v8_base_without_compiler") {
     ":v8_internal_headers",
     ":v8_maybe_icu",
   ]
+
+  if (v8_json_arm32_dispatch) {
+    deps += [ ":v8_json_neon" ]
+  }
 
   if (v8_fuzzilli) {
     sources += [
@@ -7108,7 +7161,7 @@ if (v8_check_header_includes) {
       ":v8_maybe_icu",
       ":v8_version",
       ":wee8",
-      "src/inspector:inspector",
+      "src/inspector",
       "src/inspector:inspector_string_conversions",
     ]
   }
@@ -7133,12 +7186,21 @@ if (v8_monolithic) {
       "//build/win:default_exe_manifest",
     ]
 
+    if (v8_json_arm32_dispatch && use_custom_libcxx && libcxx_use_ndk_abi) {
+      # Make the non-NEON runtime available to standalone NDK-header embedders
+      # linking this archive with -nostdlib++, rather than an NDK shared runtime.
+      deps += [ "//buildtools/third_party/libc++" ]
+    }
+
     configs = [ ":internal_config" ]
   }
   v8_executable("msgpack_js_benchmark") {
     sources = [ "tools/binary_serialization/js_benchmark.cc" ]
     deps = [ ":v8_monolith" ]
-    configs = [ ":internal_config", "//build/config/compiler:exceptions" ]
+    configs = [
+      ":internal_config",
+      "//build/config/compiler:exceptions",
+    ]
     remove_configs = [ "//build/config/compiler:no_exceptions" ]
   }
   v8_executable("msgpack_resource") {
@@ -7149,10 +7211,13 @@ if (v8_monolithic) {
       ":v8_internal_headers",
       ":v8_libbase",
       ":v8_libplatform",
-      ":v8_msgpack",
       ":v8_monolith",
+      ":v8_msgpack",
     ]
-    configs = [ ":internal_config", "//build/config/compiler:exceptions" ]
+    configs = [
+      ":internal_config",
+      "//build/config/compiler:exceptions",
+    ]
     remove_configs = [ "//build/config/compiler:no_exceptions" ]
   }
 }
@@ -7448,7 +7513,7 @@ group("v8_archive") {
 
   if (!is_win) {
     # On windows, cctest doesn't link with v8_static_library.
-    deps += [ "test/cctest:cctest" ]
+    deps += [ "test/cctest" ]
   }
 }
 

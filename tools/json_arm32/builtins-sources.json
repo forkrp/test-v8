@@ -1,0 +1,51 @@
+{
+  "ndk_revision": "27.3.13750724",
+  "llvm_revision": "3c92011b600bdf70424e2547594dd461fe411a41",
+  "archives": [
+    {
+      "url": "https://android.googlesource.com/toolchain/llvm-project/+archive/3c92011b600bdf70424e2547594dd461fe411a41/compiler-rt/lib/builtins.tar.gz",
+      "path": "compiler-rt/lib/builtins",
+      "tree_sha256": "8e88bbb54fe4d2289362039ca7dbfa0d5976596624bec0f364a7c8fead2399c4",
+      "observed_archive_sha256": "3a926907a689562529a8dfa413994a4b60a1bf898506df065725f9e03aae7b83"
+    },
+    {
+      "path": "compiler-rt/cmake",
+      "url": "https://android.googlesource.com/toolchain/llvm-project/+archive/3c92011b600bdf70424e2547594dd461fe411a41/compiler-rt/cmake.tar.gz",
+      "tree_sha256": "b31c3d8f8cde24efa425a380e11d98e207ce9bc2b2cc2f0e64525516d3125bac",
+      "observed_archive_sha256": "748aa9a013c33babc0aba8e077bc0834425dd7aa57865f577efcba7953f00019"
+    },
+    {
+      "path": "cmake",
+      "url": "https://android.googlesource.com/toolchain/llvm-project/+archive/3c92011b600bdf70424e2547594dd461fe411a41/cmake.tar.gz",
+      "tree_sha256": "eb757a96b3798ebe7631f93a69b1ce131ff9ae4e4735abf3e10c1cd93bd41f7f",
+      "observed_archive_sha256": "11f4b13d79758447522ee353ae2fb4d8d226834eb22b8b78a30eb333ce6df920"
+    },
+    {
+      "path": "llvm/cmake",
+      "url": "https://android.googlesource.com/toolchain/llvm-project/+archive/3c92011b600bdf70424e2547594dd461fe411a41/llvm/cmake.tar.gz",
+      "tree_sha256": "e5a80584a968f50e8aec78d7f3679d72f862cbe0ebec2e78154a10299fa1fe49",
+      "observed_archive_sha256": "b59bea6ebcc303bff1f9739958c12a6dd604d9aa9b43b9186e97ae1af66e84c3"
+    }
+  ],
+  "patch_archive": {
+    "url": "https://android.googlesource.com/toolchain/llvm_android/+archive/3503453cd6ccac933b4a1ec5255b7fc29851ea6b/patches.tar.gz",
+    "tree_sha256": "ab9aad9288d063248e0cc608be66f983eb328a0859e5c97e697622a7484eb984",
+    "observed_archive_sha256": "eca1f83611b5f24911675f90ba349e86345dc057f1011fefdd0a5309656f36a8"
+  },
+  "patches": [
+    {
+      "name": "cherry/ec516ff3e6122069b36f32a6db8bb3dc672133fc.patch",
+      "sha256": "5cddb2be6d78db60acb8c04405df535cc13dcf801e9250b6a842154ff1b0fe54",
+      "filtered_sha256": "14b8a44ad05cc4b795c1d67838707c39d96eaf2924a4996bd961387ec159d66a"
+    },
+    {
+      "name": "cherry/179ba129f50aefe6e670800aec7091d958aa6f90.patch",
+      "sha256": "7e7865989d89adbe02bd031c2407e7d3b8dd79c2861efb6c20fbc0f57d273d91",
+      "filtered_sha256": "b349047991291e1e846173506d9cbd5d90f88a29a3b0bce657697003fcff036c"
+    }
+  ],
+  "license": {
+    "url": "https://android.googlesource.com/toolchain/llvm-project/+/3c92011b600bdf70424e2547594dd461fe411a41/compiler-rt/LICENSE.TXT?format=TEXT",
+    "sha256": "1a8f1058753f1ba890de984e48f0242a3a5c29a6a8f2ed9fd813f36985387e8d"
+  }
+}

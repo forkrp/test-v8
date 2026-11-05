@@ -13,6 +13,7 @@
 #include "src/base/small-vector.h"
 #include "src/codegen/background-merge-task.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/codegen/cpu-features.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
@@ -48,7 +49,17 @@ struct ScriptStreamingData;
 namespace maglev {
 class MaglevCompilationJob;
 
-static inline bool IsMaglevEnabled() { return v8_flags.maglev; }
+static inline bool IsMaglevEnabled() {
+#if V8_TARGET_ARCH_ARM
+  // The ARM Maglev backend uses a fixed D32 register set. Its generated code
+  // is not compatible with V8's non-NEON/D16 feature configuration. Keep the
+  // other execution tiers available on those CPUs.
+  return v8_flags.maglev && CpuFeatures::IsSupported(NEON) &&
+         CpuFeatures::IsSupported(VFP32DREGS);
+#else
+  return v8_flags.maglev;
+#endif
+}
 
 static inline bool IsMaglevOsrEnabled() {
   return IsMaglevEnabled() && v8_flags.maglev_osr;

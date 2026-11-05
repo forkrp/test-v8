@@ -18,12 +18,13 @@
 #include "src/heap/factory.h"
 #include "src/json/json-number-parser.h"
 #include "src/json/json-scanner.h"
+#include "src/json/json-simd.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/elements-kind.h"
-#include "src/objects/js-data-object-builder.h"
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-data-object-builder.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
@@ -1877,7 +1878,9 @@ V8_NOINLINE bool JsonParser<Char>::FinishJsonNumber(
 
 namespace {
 
-#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH) ||            \
+    (defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && \
+     !defined(__AARCH64EB__))
 // Escapes and the destination width have already been validated by the scanner.
 // Keep bulk copying separate from the existing scalar decoder: dense escapes
 // hand their remaining input back to it without changing its hot loop.
@@ -1902,6 +1905,12 @@ V8_NOINLINE void DecodeLongJsonString(SinkChar* sink, const Char* cursor,
                     static_cast<int>(length - (sink - sink_start)));
     }
     if (cursor == prefix_end) {
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
+      const size_t copied =
+          CopyJsonStringDispatched(sink, cursor, end - cursor);
+      cursor += copied;
+      sink += copied;
+#else
       constexpr ptrdiff_t kVectorChars = 16 / sizeof(Char);
       while (end - cursor >= kVectorChars) {
         auto input = [&]() {
@@ -1932,6 +1941,7 @@ V8_NOINLINE void DecodeLongJsonString(SinkChar* sink, const Char* cursor,
         cursor += kVectorChars;
         sink += kVectorChars;
       }
+#endif
     }
     cursor = std::find_if(cursor, end, [&sink](Char c) {
       if (c == '\\') return true;
@@ -2015,7 +2025,9 @@ Handle<String> JsonParser<Char>::DecodeString(
       CopyChars(dest, chars_ + string.start(), string.length());
       return intermediate;
     }
-#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH) ||            \
+    (defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && \
+     !defined(__AARCH64EB__))
     if (string.length() >= 128) {
       DecodeLongJsonString(
           dest, chars_ + string.start(), string.length(),
@@ -2134,13 +2146,17 @@ void JsonParser<Char>::DecodeString(SinkChar* sink, int start, int length) {
 }
 
 template <typename Char>
-#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH) ||            \
+    (defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && \
+     !defined(__AARCH64EB__))
 // Keep the prefix probe and its fallback state out of recursive parse loops.
 V8_NOINLINE
 #endif
-JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
+    JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
   int start = position();
-#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH) ||            \
+    (defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && \
+     !defined(__AARCH64EB__))
   base::uc32 bits = 0;
   {
     DisallowGarbageCollection no_gc;
@@ -2185,7 +2201,9 @@ JsonString JsonParser<Char>::ScanJsonStringImpl(bool needs_internalization,
                                                 base::uc32 bits) {
   DisallowGarbageCollection no_gc;
   while (true) {
-#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH) ||            \
+    (defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && \
+     !defined(__AARCH64EB__))
     if constexpr (use_vectors) {
       const Char* begin = cursor_;
       const Char* prefix_end = begin + std::min<ptrdiff_t>(32, end_ - begin);

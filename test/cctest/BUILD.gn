@@ -76,6 +76,40 @@ config("cctest_sources_config") {
   }
 }
 
+# Keep the JSON boundary/lifecycle checks runnable in native cross builds
+# without the debugger-helper's separate host-engine dependency.
+v8_executable("cctest_json") {
+  testonly = true
+  output_name = "cctest-json"
+  sources = [
+    "cctest.cc",
+    "heap/heap-utils.cc",
+    "heap/heap-utils.h",
+    "print-extension.cc",
+    "print-extension.h",
+    "profiler-extension.cc",
+    "profiler-extension.h",
+    "test-json-async.cc",
+    "trace-extension.cc",
+    "trace-extension.h",
+  ]
+  configs = [
+    "../..:cppgc_base_config",
+    "../..:external_config",
+    "../..:internal_config_base",
+    "../..:v8_tracing_config",
+    ":cctest_sources_config",
+  ]
+  deps = [
+    ":cctest_headers",
+    "..:common_test_headers",
+    "../..:v8_for_testing",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "../..:v8_msgpack",
+  ]
+}
+
 v8_source_set("cctest_sources") {
   testonly = true
 

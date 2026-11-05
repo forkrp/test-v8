@@ -22,6 +22,25 @@ echo "Valid architecture: ${ARCH}"
 
 echo "NDK_ROOT=${NDK_ROOT}"
 
+ARM32_ARGS=""
+CUSTOM_LIBCXX=false
+CUSTOM_LIBUNWIND=false
+NDK_VERSION=r23c
+if [ "${ARCH}" = "arm" ]; then
+    python3 tools/json_arm32/prepare_crt.py --ndk "${NDK_ROOT}" \
+        --api 21 --out out/android-arm32-crt
+    ARM32_ARGS='arm_use_neon=false
+arm_fpu="vfpv3-d16"
+v8_enable_json_arm32_runtime_dispatch=true
+libcxx_use_ndk_abi=true
+v8_android_arm32_crt_dir="//out/android-arm32-crt"'
+    # Build the C++ runtime with the same baseline; an NDK shared libc++ may
+    # itself have been compiled with NEON enabled.
+    CUSTOM_LIBCXX=true
+    CUSTOM_LIBUNWIND=true
+    NDK_VERSION=r27d
+fi
+
 ARGS="target_os=\"android\"
 target_cpu=\"${ARCH}\"
 v8_target_cpu=\"${ARCH}\"
@@ -31,7 +50,7 @@ clang_use_chrome_plugins=false
 chrome_pgo_phase=0
 is_component_build=false
 v8_monolithic=true
-use_custom_libcxx=false
+use_custom_libcxx=${CUSTOM_LIBCXX}
 is_debug=false
 v8_use_external_startup_data=false
 is_official_build=true
@@ -42,13 +61,14 @@ v8_enable_webassembly=true
 v8_enable_sandbox=false
 android_ndk_root=\"${NDK_ROOT}\"
 clang_base_path=\"${NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64\"
-android_ndk_version=\"r23c\"
+android_ndk_version=\"${NDK_VERSION}\"
 android_ndk_major_version=21
 android32_ndk_api_level=21
 android64_ndk_api_level=21
-use_custom_libunwind=false
+use_custom_libunwind=${CUSTOM_LIBUNWIND}
 use_ml_inliner=false
 llvm_android_mainline=true
+${ARM32_ARGS}
 "
 
 

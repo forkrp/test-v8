@@ -11,17 +11,21 @@
 
 #include "include/v8-json.h"
 #include "src/api/api-inl.h"
+#include "src/base/cpu.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/platform/time.h"
+#include "src/codegen/compiler.h"
+#include "src/codegen/cpu-features.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/incremental-marking.h"
 #include "src/init/v8.h"
 #include "src/json/json-number-parser.h"
 #include "src/json/json-parser-background.h"
 #include "src/json/json-scanner.h"
+#include "src/json/json-simd.h"
 #include "src/json/json-stringifier-async.h"
 #include "src/json/json-stringifier-escape.h"
 #include "src/json/json-stringifier.h"
@@ -1175,6 +1179,9 @@ void CheckJsonExternalGuardPages() {
 }  // namespace
 
 TEST(JsonScannerGuardPages) {
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
+  CcTest::InitializeVM();
+#endif
   CheckJsonScannerGuardPages<uint8_t>();
   CheckJsonScannerGuardPages<uint16_t>();
 }
@@ -1188,6 +1195,59 @@ TEST(JsonExternalStringGuardPages) {
   CheckJsonExternalGuardPages<uint8_t>();
   CheckJsonExternalGuardPages<uint16_t>();
 }
+
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
+namespace {
+
+template <typename SinkChar, typename Char>
+void CheckJsonCopyGuardPages() {
+  JsonGuardedBuffer source_storage(1024), sink_storage(1024);
+  for (size_t length = 0; length <= 192; ++length) {
+    auto* source = source_storage.Tail<Char>(length);
+    auto* sink = sink_storage.Tail<SinkChar>(length);
+    for (size_t escape : {0u, 1u, 7u, 8u, 15u, 16u, 31u, 32u, 191u, 192u}) {
+      for (size_t i = 0; i < length; ++i) {
+        source[i] = static_cast<Char>(
+            sizeof(SinkChar) == 2 && sizeof(Char) == 2 ? 0x1234 : 0xe9);
+        sink[i] = 0x7f;
+      }
+      if (escape < length) source[escape] = '\\';
+      const size_t copied = i::CopyJsonStringDispatched(sink, source, length);
+      CHECK_LE(copied, std::min(length, escape));
+      for (size_t i = 0; i < copied; ++i) CHECK_EQ(sink[i], source[i]);
+      for (size_t i = copied; i < length; ++i) CHECK_EQ(sink[i], 0x7f);
+      // Finish exactly as the decoder does after the optional bulk prefix.
+      size_t end = copied;
+      while (end < length && source[end] != '\\') {
+        sink[end] = static_cast<SinkChar>(source[end]);
+        ++end;
+      }
+      CHECK_EQ(end, std::min(length, escape));
+      for (size_t i = 0; i < end; ++i) CHECK_EQ(sink[i], source[i]);
+    }
+  }
+}
+
+}  // namespace
+
+TEST(JsonSimdRuntimeDispatch) {
+  CcTest::InitializeVM();
+  const bool expected = i::v8_flags.json_simd &&
+                        i::CpuFeatures::IsSupported(i::NEON) &&
+                        v8::base::CPU().has_neon();
+  CHECK_EQ(i::GetJsonSimdFunctions().uses_neon, expected);
+  printf("JSON SIMD selected=%s hardware_neon=%d\n",
+         expected ? "neon" : "scalar", v8::base::CPU().has_neon());
+  CHECK_IMPLIES(!i::CpuFeatures::IsSupported(i::NEON) ||
+                    !i::CpuFeatures::IsSupported(i::VFP32DREGS),
+                !i::maglev::IsMaglevEnabled());
+  printf("Maglev enabled=%d\n", i::maglev::IsMaglevEnabled());
+  CheckJsonCopyGuardPages<uint8_t, uint8_t>();
+  CheckJsonCopyGuardPages<uint8_t, uint16_t>();
+  CheckJsonCopyGuardPages<uint16_t, uint8_t>();
+  CheckJsonCopyGuardPages<uint16_t, uint16_t>();
+}
+#endif  // V8_JSON_ARM32_RUNTIME_DISPATCH
 
 TEST(JsonUpstreamDescriptorMetadata) {
   auto isolate = CcTest::isolate();

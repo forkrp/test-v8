@@ -5,6 +5,7 @@
 #include "src/json/json-stringifier-escape.h"
 
 #include "hwy/highway.h"
+#include "src/json/json-simd.h"
 #if defined(__ARM_NEON) && !defined(__aarch64__)
 #include <arm_neon.h>
 #endif
@@ -75,11 +76,19 @@ size_t FindEscape(const Char* chars, size_t length) {
 }  // namespace
 
 size_t FindJsonEscape(const uint8_t* chars, size_t length) {
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
+  return GetJsonSimdFunctions().escape8(chars, length);
+#else
   return FindEscape(chars, length);
+#endif
 }
 
 size_t FindJsonEscape(const uint16_t* chars, size_t length) {
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
+  return GetJsonSimdFunctions().escape16(chars, length);
+#else
   return FindEscape(chars, length);
+#endif
 }
 
 }  // namespace internal

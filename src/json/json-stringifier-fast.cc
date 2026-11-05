@@ -16,6 +16,7 @@
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/execution/protectors-inl.h"
+#include "src/json/json-simd.h"
 #include "src/json/json-stringifier-capture.h"
 #include "src/json/json-stringifier-escape.h"
 #include "src/json/json-stringifier.h"
@@ -1860,6 +1861,24 @@ template <typename SrcChar>
 bool FastJsonStringifier<Char, capture_mode>::AppendStringSIMD(
     const SrcChar* chars, size_t length,
     const DisallowGarbageCollection& no_gc) {
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
+  size_t position = 0;
+  size_t uncopied = 0;
+  bool escaped = false;
+  while (length - position >= 16) {
+    const size_t prefix = FindJsonEscape(chars + position, length - position);
+    position += prefix;
+    if (position == length) break;
+    buffer_.Append(chars + uncopied, position - uncopied);
+    const SrcChar c = chars[position++];
+    SBXCHECK_LT(c, 0x60);
+    AppendCStringUnchecked(&JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
+    escaped = true;
+    uncopied = position;
+    if (prefix < 8) break;  // Dense escapes use the existing scalar tail.
+  }
+  return AppendStringSWAR(chars, length, position, uncopied, no_gc) || escaped;
+#else
   namespace hw = hwy::HWY_NAMESPACE;
 
   bool needs_escaping = false;
@@ -1907,6 +1926,7 @@ bool FastJsonStringifier<Char, capture_mode>::AppendStringSIMD(
   return AppendStringSWAR(chars, length, position, uncopied_src_index,
                           no_gc) ||
          needs_escaping;
+#endif
 }
 
 template <typename Char, bool capture_mode>
@@ -1915,6 +1935,26 @@ template <typename SrcChar>
 bool FastJsonStringifier<Char, capture_mode>::AppendString(
     const SrcChar* chars, size_t length,
     const DisallowGarbageCollection& no_gc) {
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
+  size_t position = 0;
+  bool escaped = false;
+  while (length - position >= 8) {
+    const size_t prefix = FindJsonEscape(chars + position, length - position);
+    if (prefix == length - position) {
+      buffer_.Append(chars + position, prefix);
+      return escaped;
+    }
+    const size_t index = position + prefix;
+    if (prefix < 4 || chars[index] >= 0xd800) break;
+    buffer_.Append(chars + position, prefix);
+    buffer_.AppendEscaped(base::Vector<const SrcChar>(chars + index, 1));
+    escaped = true;
+    position = index + 1;
+  }
+  return buffer_.AppendEscaped(base::Vector<const SrcChar>(
+             chars + position, length - position)) ||
+         escaped;
+#else
   namespace hw = hwy::HWY_NAMESPACE;
   hw::FixedTag<SrcChar, 8> tag;
   const size_t stride = hw::Lanes(tag);
@@ -1953,6 +1993,7 @@ bool FastJsonStringifier<Char, capture_mode>::AppendString(
   return buffer_.AppendEscaped(base::Vector<const SrcChar>(
              chars + position, length - position)) ||
          escaped;
+#endif
 }
 
 namespace {

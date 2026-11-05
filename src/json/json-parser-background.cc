@@ -19,6 +19,7 @@
 #include "src/base/strings.h"
 #include "src/json/json-number-parser.h"
 #include "src/json/json-scanner.h"
+#include "src/json/json-simd.h"
 #include "src/numbers/conversions-inl.h"
 
 namespace v8 {
@@ -28,6 +29,9 @@ namespace {
 template <typename Char>
 V8_NOINLINE const Char* ScanBackgroundString(const Char* begin, const Char* end,
                                             uint32_t* bits) {
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
+  return ScanJsonStringDispatched(begin, end, bits);
+#else
 #if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
   using Word = uintptr_t;
   constexpr size_t kWordChars = sizeof(Word) / sizeof(Char);
@@ -85,6 +89,7 @@ V8_NOINLINE const Char* ScanBackgroundString(const Char* begin, const Char* end,
   }
 #endif
   return ScanJsonStringCharacters(begin, end, bits);
+#endif
 }
 
 // The synchronous frontend has already scanned its short-string prefix.
@@ -93,6 +98,9 @@ V8_NOINLINE const Char* ScanBackgroundString(const Char* begin, const Char* end,
 template <typename Char>
 V8_NOINLINE const Char* ScanLongJsonString(const Char* begin, const Char* end,
                                            uint32_t* bits) {
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
+  return ScanJsonStringDispatched(begin, end, bits, true);
+#else
 #if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
   constexpr size_t kVectorChars = 16 / sizeof(Char);
   auto load = [](const Char* p) {
@@ -136,6 +144,7 @@ V8_NOINLINE const Char* ScanLongJsonString(const Char* begin, const Char* end,
   }
 #endif
   return ScanBackgroundString(begin, end, bits);
+#endif
 }
 
 template <typename Char>
@@ -584,7 +593,9 @@ class BackgroundJsonParser {
       const Char* end =
           input_.begin() + std::min<size_t>(position_ + 4096, input_.size());
       const Char* stop;
-#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH) ||            \
+    (defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && \
+     !defined(__AARCH64EB__))
       if constexpr (use_vectors) {
         const Char* prefix_end = begin + std::min<ptrdiff_t>(32, end - begin);
         stop = ScanJsonStringCharacters(begin, prefix_end, &bits);
@@ -681,7 +692,9 @@ class BackgroundJsonParser {
             Fail(MessageTemplate::kJsonParseBadEscapedCharacter);
             return false;
         }
-#if defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH) ||            \
+    (defined(__ARM_NEON) && !defined(__ARM_BIG_ENDIAN) && \
+     !defined(__AARCH64EB__))
         if constexpr (use_vectors) {
           if (count < 32) {
             // A dense escape run switches once to a separately compiled scalar

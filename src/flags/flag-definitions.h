@@ -1766,6 +1766,8 @@ DEFINE_BOOL(json_clone_fast_path, true,
             "use direct copying for JSON.clone of plain data")
 DEFINE_BOOL(json_stringify_fast_path, true,
             "use the side-effect-free JSON stringify fast path")
+DEFINE_BOOL(json_simd, true,
+            "allow runtime-selected ARM32 JSON NEON kernels")
 
 DEFINE_BOOL(trace_gc, false,
             "print one trace line following each garbage collection")
