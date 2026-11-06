@@ -306,26 +306,29 @@ async function main() {
 
   // Distinct segments reuse cache slots for different property names.
   // Include quotes, escapes and UTF-16 code units with ASCII low bytes.
-  for (const marker of ['a', 'śŝĢŜ']) {
-    const payload = ('x'.repeat(65536) + marker + '"\\').repeat(10);
-    const items = Array.from({length: 8}, (_, i) =>
-      JSON.stringify([{['key' + i]: 'value' + i, payload}, ['Aa', 'BB']]));
-    const body = '[' + items.join(',') + ']';
-    // Leading JSON whitespace must preserve absolute offsets when splitting.
-    for (const prefix of ['', ' \t\r\n', ' '.repeat(4097)]) {
-      const text = prefix + body;
-      equal(await JSON.parseAsync(text), JSON.parse(text));
-      const malformed = prefix + '[' + items.slice(0, -1).join(',') +
-          ',{"x":1,}]';
-      let expected;
-      try { JSON.parse(malformed); } catch (error) { expected = error; }
-      let rejected;
-      try { await JSON.parseAsync(malformed); } catch (error) { rejected = error; }
-      check(rejected instanceof SyntaxError &&
-            rejected.message === expected.message, 'late array error position');
-    }
-    for (const prefix of [' \u00a0', ' \uFEFF']) {
-      await rejects(JSON.parseAsync(prefix + body), SyntaxError);
+  for (const repetitions of [10, 34]) {
+    for (const marker of ['a', 'śŝĢŜ']) {
+      const payload = ('x'.repeat(65536) + marker + '"\\').repeat(repetitions);
+      const items = Array.from({length: 8}, (_, i) =>
+        JSON.stringify([{['key' + i]: 'value' + i,
+          header: Array.from({length: 40}, (_, k) => k), payload}, ['Aa', 'BB']]));
+      const body = '[' + items.join(',') + ']';
+      // Leading JSON whitespace must preserve absolute offsets when splitting.
+      for (const prefix of ['', ' \t\r\n', ' '.repeat(4097)]) {
+        const text = prefix + body;
+        equal(await JSON.parseAsync(text), JSON.parse(text));
+        const malformed = prefix + '[' + items.slice(0, -1).join(',') +
+            ',{"x":1,}]';
+        let expected;
+        try { JSON.parse(malformed); } catch (error) { expected = error; }
+        let rejected;
+        try { await JSON.parseAsync(malformed); } catch (error) { rejected = error; }
+        check(rejected instanceof SyntaxError &&
+              rejected.message === expected.message, 'late array error position');
+      }
+      for (const prefix of [' \u00a0', ' \uFEFF']) {
+        await rejects(JSON.parseAsync(prefix + body), SyntaxError);
+      }
     }
   }
 
@@ -338,15 +341,29 @@ async function main() {
   await rejects(JSON.parseAsync(longPrefix), SyntaxError);
 
   // The outer array representation must combine the flags of all parts.
-  // Padding puts both inputs above the split threshold with few tape nodes.
+  // A dense prefix passes admission; padding crosses the split threshold.
+  // Await each input so every case can use the first in-flight split path.
   const padding = ' '.repeat(600000);
-  const smis = '[' + Array(8).fill('1' + padding).join(',') + ']';
-  const doubles = '[' + Array(7).fill('1' + padding).join(',') +
-      ',-0' + padding + ']';
-  const [smiArray, doubleArray] =
-      await Promise.all([JSON.parseAsync(smis), JSON.parseAsync(doubles)]);
-  equal(smiArray, JSON.parse(smis));
-  equal(doubleArray, JSON.parse(doubles));
+  const densePrefix = Array.from({length: 40}, (_, i) => i).join(',') + ',';
+  const paddedArray = tail => '[' + densePrefix +
+      Array(7).fill('1' + padding).join(',') + ',' + tail + padding + ']';
+  for (const tail of ['1', '-0', '1.5', '1e400', '-1e-400',
+                      'null', 'true', '"śŝĢŜ"', '[]', '{"x":1}']) {
+    const text = paddedArray(tail);
+    equal(await JSON.parseAsync(text), JSON.parse(text));
+  }
+  const doubles = paddedArray('-0');
+
+  // A source-tracking reviver keeps the serial grammar path even when the
+  // document would otherwise split. Compare callbacks and original lexemes.
+  const traces = [[], []];
+  const reviverFor = index => function(key, value, context) {
+    traces[index].push([key, context.source, Array.isArray(this)]);
+    return key === '3' ? undefined : value;
+  };
+  equal(await JSON.parseAsync(doubles, reviverFor(1)),
+        JSON.parse(doubles, reviverFor(0)));
+  equal(traces[1], traces[0]);
 
   // Large source-tracked arrays cross multiple slices too.
   const numbers = '[' + '1,'.repeat(10000) + '2]';

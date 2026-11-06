@@ -12,6 +12,7 @@
 #include "src/base/cpu.h"
 #include "src/codegen/cpu-features.h"
 #include "src/flags/flags.h"
+#include "src/json/json-array-scanner.h"
 #include "src/json/json-scanner.h"
 #include "src/json/json-stringifier-escape.h"
 
@@ -52,6 +53,8 @@ const JsonSimdFunctions kJsonScalarFunctions = {
     CopyStringScalar<uint8_t, uint16_t>,
     CopyStringScalar<uint16_t, uint8_t>,
     CopyStringScalar<uint16_t, uint16_t>,
+    FindJsonArrayCuts<uint8_t>,
+    FindJsonArrayCuts<uint16_t>,
     false};
 
 void InitializeJsonSimd() {

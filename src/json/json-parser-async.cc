@@ -72,7 +72,13 @@ class JsonParseAsyncState final {
         runner_(std::move(runner)) {
     auto* jobs = GetJsonParseJobs();
     base::MutexGuard lock(&jobs->mutex);
-    jobs->jobs[isolate_].insert(this);
+    auto& active = jobs->jobs[isolate_];
+    active.insert(this);
+#if defined(V8_OS_ANDROID)
+    // Concurrent documents already occupy the worker pool. Only the first
+    // in-flight document may additionally split its own tape into jobs.
+    data_->allow_parallel = active.size() == 1;
+#endif
   }
   ~JsonParseAsyncState() { ReleaseRoots(); }
   void Cancel() { data_->cancelled.store(true, std::memory_order_relaxed); }
@@ -368,9 +374,21 @@ class JsonParseAsyncState final {
         auto* factory = isolate_->factory();
         // These arrays have no references to young objects. On large jobs
         // their containing result survives multiple foreground slices.
-        const auto allocation = data_->total_nodes >= 2 * 1024 * 1024
-                                    ? AllocationType::kOld
-                                    : AllocationType::kYoung;
+#if defined(V8_OS_ANDROID)
+        // Medium-sized Android jobs need a higher threshold to avoid
+        // increasing old-space growth when several results are retained.
+        constexpr size_t kOldEmptyArrayMinimumNodes = 4 * 1024 * 1024;
+#else
+        constexpr size_t kOldEmptyArrayMinimumNodes = 2 * 1024 * 1024;
+#endif
+        bool pretenure = data_->NodeCount() >= kOldEmptyArrayMinimumNodes;
+#if defined(V8_OS_ANDROID)
+        // Keep empty arrays from parallel tapes young to limit old-space
+        // retention. Large serial tapes still benefit from pretenuring.
+        pretenure = pretenure && data_->part_boundaries.empty();
+#endif
+        const auto allocation =
+            pretenure ? AllocationType::kOld : AllocationType::kYoung;
         return factory->NewJSArrayWithElements(
             factory->empty_fixed_array(), PACKED_SMI_ELEMENTS, 0, allocation);
       }

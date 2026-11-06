@@ -19,6 +19,7 @@
 #include <arm_neon.h>
 #endif
 #include "src/base/strings.h"
+#include "src/json/json-array-scanner.h"
 #include "src/json/json-number-parser.h"
 #include "src/json/json-scanner.h"
 #include "src/json/json-simd.h"
@@ -787,117 +788,10 @@ class BackgroundJsonParser {
   std::array<BackgroundJsonNode, 64> key_strings_{};
 };
 
-#if defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64) && defined(__ARM_NEON)
-bool IsJsonSpace(uint32_t c) {
-  return c == ' ' || c == '\t' || c == '\n' || c == '\r';
-}
-
-// This scan only finds cut positions. Each part still undergoes the full
-// grammar check, and any failure goes through the serial error reporter.
-uint64_t StructureLanes(uint8x16_t mask) {
-  constexpr uint64_t kLane = 0x1111111111111111;
-  return vget_lane_u64(
-             vreinterpret_u64_u8(vshrn_n_u16(vreinterpretq_u16_u8(mask), 4)), 0) &
-         kLane;
-}
-
-template <typename Char, typename Publish>
-size_t FindArrayCuts(base::Vector<const Char> input, size_t array_begin,
-                     const std::atomic<bool>& cancelled, size_t part_limit,
-                     Publish publish) {
-  constexpr uint64_t kLane = 0x1111111111111111;
-  const Char* start = input.begin();
-  const Char* end = input.end();
-  while (end != start && IsJsonSpace(end[-1])) {
-    --end;
-    if ((end - start) % 4096 == 0 &&
-        cancelled.load(std::memory_order_relaxed)) {
-      return 0;
-    }
-  }
-  if (end == start || end[-1] != ']') return 0;
-  const Char* p = start + array_begin + 1;
-  size_t next_cancel_check = 4096;
-  size_t cuts_remaining = part_limit - 1;
-  const size_t spacing = input.size() / part_limit;
-  size_t target = spacing;
-  int depth = 1;
-  bool in_string = false;
-  bool escaped = false;
-  while (p != end) {
-    if (static_cast<size_t>(p - start) >= next_cancel_check) {
-      if (cancelled.load(std::memory_order_relaxed)) return 0;
-      next_cancel_check = p - start + 4096;
-    }
-    const Char* limit = p + std::min<ptrdiff_t>(16, end - p);
-    if (limit - p == 16 && !escaped) {
-      uint8x16_t block;
-      if constexpr (sizeof(Char) == 1) {
-        block = vld1q_u8(p);
-      } else {
-        // Saturation keeps non-ASCII code units from becoming syntax bytes.
-        block = vcombine_u8(vqmovn_u16(vld1q_u16(p)),
-                            vqmovn_u16(vld1q_u16(p + 8)));
-      }
-      if (!StructureLanes(vceqq_u8(block, vdupq_n_u8('\\')))) {
-        uint64_t strings = StructureLanes(vceqq_u8(block, vdupq_n_u8('"')));
-        strings ^= strings << 4;
-        strings ^= strings << 8;
-        strings ^= strings << 16;
-        strings ^= strings << 32;
-        if (in_string) strings ^= kLane;
-        const auto outside = ~strings;
-        const auto braces = vorrq_u8(block, vdupq_n_u8(0x20));
-        const auto close = vceqq_u8(braces, vdupq_n_u8('}'));
-        const int closes = __builtin_popcountll(StructureLanes(close) & outside);
-        const bool look_for_cut =
-            static_cast<size_t>(limit - start) > target;
-        if (depth > closes && (!look_for_cut || depth > closes + 1)) {
-          const auto open = vceqq_u8(braces, vdupq_n_u8('{'));
-          depth += __builtin_popcountll(StructureLanes(open) & outside) - closes;
-          in_string = ((strings >> 60) & 1) != 0;
-          p = limit;
-          continue;
-        }
-      }
-    }
-    for (; p != limit; ++p) {
-      const auto c = *p;
-      if (in_string) {
-        if (escaped) {
-          escaped = false;
-        } else if (c == '\\') {
-          escaped = true;
-        } else if (c == '"') {
-          in_string = false;
-        }
-        continue;
-      }
-      switch (c) {
-        case '"': in_string = true; break;
-        case '[': case '{': ++depth; break;
-        case ']': case '}':
-          if (--depth == 0) {
-            return p == end - 1 ? p - start : 0;
-          }
-          break;
-        case ',':
-          if (depth == 1 && static_cast<size_t>(p - start) >= target) {
-            publish(p - start);
-            if (--cuts_remaining == 0) {
-              // The part parser validates the final interval through its end.
-              // No further cuts are needed in the last part.
-              return end - start - 1;
-            }
-            target += spacing;
-          }
-          break;
-      }
-    }
-  }
-  return 0;
-}
-
+#if (defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64) && \
+     defined(__ARM_NEON)) ||                              \
+    (defined(V8_OS_ANDROID) &&                            \
+     (defined(V8_HOST_ARCH_ARM) || defined(V8_HOST_ARCH_ARM64)))
 struct ArrayPart {
   size_t begin = 0;
   size_t end = 0;
@@ -957,13 +851,19 @@ template <typename Char>
 bool TryParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
                              base::Vector<const Char> input,
                              uint32_t* parse_start) {
-  if (data->track_source || input.size() < 4 * 1024 * 1024 ||
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
+  // Large two-byte copies and parallel tapes exceeded the ARM32 peak-memory
+  // budget on device. Keep these inputs on the serial path.
+  if constexpr (sizeof(Char) == 2) return false;
+#endif
+  if (data->track_source || !data->allow_parallel ||
+      input.size() < 4 * 1024 * 1024 ||
       platform->NumberOfWorkerThreads() < 2) {
     return false;
   }
   // Retain offsets into the original input for strings and error reporting.
   size_t array_begin = 0;
-  while (array_begin < input.size() && IsJsonSpace(input[array_begin])) {
+  while (array_begin < input.size() && IsJsonArraySpace(input[array_begin])) {
     ++array_begin;
     if ((array_begin & 4095) == 0 &&
         data->cancelled.load(std::memory_order_relaxed)) {
@@ -972,6 +872,19 @@ bool TryParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
   }
   *parse_start = static_cast<uint32_t>(array_begin);
   if (array_begin == input.size() || input[array_begin] != '[') return false;
+#if defined(V8_OS_ANDROID)
+  {
+    // Sparse arrays, such as one large string or payload object, can spend
+    // more time finding cuts than parsing. Reuse the native grammar for a
+    // bounded density probe; its partial result is never materialized.
+    BackgroundJsonData probe(false);
+    const size_t probe_end = std::min(input.size(), array_begin + 4096);
+    BackgroundJsonParser<Char>(&probe, input.SubVector(0, probe_end),
+                               data->cancelled, *parse_start)
+        .Parse();
+    if (probe.NodeCount() < 32) return false;
+  }
+#endif
   ArrayPartsWork work;
   std::unique_ptr<JobHandle> job;
   size_t begin = array_begin + 1;
@@ -989,8 +902,22 @@ bool TryParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
   // More ranges let workers start earlier and shorten the last range after
   // the scan. Reuse the same platform worker pool.
   size_t part_limit = input.size() >= 16 * 1024 * 1024 ? kMaxArrayParts : 4;
-  size_t end =
-      FindArrayCuts(input, array_begin, data->cancelled, part_limit, publish);
+  auto publish_cut = [](void* context, size_t end) {
+    (*static_cast<decltype(publish)*>(context))(end);
+  };
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
+  auto scan = [] {
+    if constexpr (sizeof(Char) == 1) {
+      return GetJsonSimdFunctions().array_cuts8;
+    } else {
+      return GetJsonSimdFunctions().array_cuts16;
+    }
+  }();
+#else
+  auto scan = FindJsonArrayCuts<Char>;
+#endif
+  size_t end = scan(input.begin(), input.size(), array_begin, data->cancelled,
+                    part_limit, &publish, publish_cut);
   if (end == 0 || !job) {
     if (job) job->Join();
     return false;
@@ -1024,13 +951,16 @@ bool TryParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
   data->total_nodes = total_nodes;
   return true;
 }
-#endif  // V8_OS_MACOS && V8_HOST_ARCH_ARM64 && __ARM_NEON
+#endif  // Supported parallel-array platforms
 
 template <typename Char>
 void ParseBackgroundInput(BackgroundJsonData* data, Platform* platform,
                           base::Vector<const Char> input) {
   uint32_t start = 0;
-#if defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64) && defined(__ARM_NEON)
+#if (defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64) && \
+     defined(__ARM_NEON)) ||                              \
+    (defined(V8_OS_ANDROID) &&                            \
+     (defined(V8_HOST_ARCH_ARM) || defined(V8_HOST_ARCH_ARM64)))
   if (TryParseArrayInParallel(data, platform, input, &start)) return;
 #endif
   // The split probe has already validated this prefix as JSON whitespace.

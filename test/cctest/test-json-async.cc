@@ -22,6 +22,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/incremental-marking.h"
 #include "src/init/v8.h"
+#include "src/json/json-array-scanner.h"
 #include "src/json/json-number-parser.h"
 #include "src/json/json-parser-background.h"
 #include "src/json/json-scanner.h"
@@ -139,8 +140,21 @@ class GatedJsonWorker final : public v8::Task {
 class JsonTestPlatform final : public TestPlatform {
  public:
   bool worker_threads_supported = true;
+  int worker_thread_limit = std::numeric_limits<int>::max();
+  std::atomic<bool>* cancel_on_job = nullptr;
+  std::unique_ptr<v8::JobHandle> CreateJobImpl(
+      v8::TaskPriority priority, std::unique_ptr<v8::JobTask> task,
+      const v8::SourceLocation& location) override {
+    if (cancel_on_job) {
+      cancel_on_job->store(true, std::memory_order_relaxed);
+    }
+    return TestPlatform::CreateJobImpl(priority, std::move(task), location);
+  }
   int NumberOfWorkerThreads() override {
-    return worker_threads_supported ? TestPlatform::NumberOfWorkerThreads() : 0;
+    return worker_threads_supported
+               ? std::min(worker_thread_limit,
+                          TestPlatform::NumberOfWorkerThreads())
+               : 0;
   }
   void SetWorkerGate(std::shared_ptr<JsonWorkerGate> gate) {
     v8::base::MutexGuard lock(&gate_mutex_);
@@ -249,48 +263,137 @@ TEST(JsonParseAsyncTapeDiscard) {
   CHECK_EQ(0u, data.MemoryUsage());
 }
 
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
+TEST(JsonParseAsyncTapeMoveReclaims) {
+  i::BackgroundJsonData destination(false), source(false);
+  for (int index = 0; index < 20000; ++index) {
+    i::BackgroundJsonNode node;
+    node.kind = i::BackgroundJsonNode::kNumber;
+    node.SetNumber(index);
+    destination.nodes.push_back(node);
+    if (index < 5000) source.nodes.push_back(node);
+  }
+  destination.DiscardBefore(18000);
+  const size_t incoming_bytes = source.MemoryUsage();
+  const auto* incoming = &source.nodes.front();
+  // A part switch can occur inside a slice. The consumed tail of the old
+  // part must be freed instead of being parked in the moved-from part slot.
+  destination.nodes = std::move(source.nodes);
+  printf("JSON tape moved-from nodes=%zu bytes=%zu\n", source.nodes.size(),
+         source.MemoryUsage());
+  fflush(stdout);
+  CHECK(source.nodes.empty());
+  CHECK_EQ(0u, source.MemoryUsage());
+  CHECK_EQ(incoming_bytes, destination.MemoryUsage());
+  CHECK_EQ(incoming, &destination.nodes.front());
+  i::BackgroundJsonTape moved(std::move(destination.nodes));
+  CHECK(destination.nodes.empty());
+  CHECK_EQ(0u, destination.MemoryUsage());
+  CHECK_EQ(incoming_bytes, moved.AllocatedBytes());
+  int index = 0;
+  for (const auto& node : moved) {
+    CHECK_EQ(static_cast<double>(index++), node.Number());
+  }
+  CHECK_EQ(5000, index);
+}
+#endif
+
 TEST(JsonParseAsyncLeadingWhitespaceParts) {
   auto* platform = i::V8::GetCurrentPlatform();
-  // Padding crosses the parallel threshold without creating a large tape.
+  // A dense prefix passes Android's admission probe. Padding crosses the
+  // parallel threshold without creating a large tape.
   const std::string padding(600000, ' ');
   for (const char* prefix : {"", " \t\r\n"}) {
     std::string input = std::string(prefix) + "[";
-    for (int index = 0; index < 8; ++index) {
+    for (int index = 0; index < 40; ++index) {
       if (index != 0) input += ',';
-      input += std::to_string(index) + padding;
+      input += std::to_string(index);
+      if (index >= 32) input += padding;
     }
     input += ']';
-    for (bool one_byte : {true, false}) {
-      i::BackgroundJsonData data(false);
-      data.is_one_byte = one_byte;
-      if (one_byte) {
-        data.one_byte = v8::base::OwnedVector<uint8_t>::Of(input);
-      } else {
-        data.two_byte = v8::base::OwnedVector<uint16_t>::Of(input);
-      }
-      i::ParseJsonInBackground(&data, platform);
-      CHECK(!data.failed);
-      CHECK_EQ(9u, data.NodeCount());
-      CHECK_EQ(i::BackgroundJsonNode::kArray, data.nodes.front().kind);
-      CHECK_EQ(8u, data.nodes.front().data.container.count);
-#if defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64) && defined(__ARM_NEON)
-      if (platform->NumberOfWorkerThreads() >= 2) {
-        CHECK(!data.part_boundaries.empty());
-      }
-#endif
-      int expected = 0;
-      auto check_numbers = [&](const auto& nodes) {
-        for (const auto& node : nodes) {
-          if (node.kind == i::BackgroundJsonNode::kNumber) {
-            CHECK_EQ(static_cast<double>(expected++), node.Number());
-          }
+    for (bool allow_parallel : {false, true}) {
+      for (bool one_byte : {true, false}) {
+        i::BackgroundJsonData data(false);
+        data.is_one_byte = one_byte;
+        data.allow_parallel = allow_parallel;
+        if (one_byte) {
+          data.one_byte = v8::base::OwnedVector<uint8_t>::Of(input);
+        } else {
+          data.two_byte = v8::base::OwnedVector<uint16_t>::Of(input);
         }
-      };
-      check_numbers(data.nodes);
-      for (const auto& part : data.remaining_parts) check_numbers(part);
-      CHECK_EQ(8, expected);
+        i::ParseJsonInBackground(&data, platform);
+        CHECK(!data.failed);
+        CHECK_EQ(41u, data.NodeCount());
+        CHECK_EQ(i::BackgroundJsonNode::kArray, data.nodes.front().kind);
+        CHECK_EQ(40u, data.nodes.front().data.container.count);
+#if (defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64) && \
+       defined(__ARM_NEON)) ||                              \
+      (defined(V8_OS_ANDROID) &&                            \
+       (defined(V8_HOST_ARCH_ARM) || defined(V8_HOST_ARCH_ARM64)))
+        if (platform->NumberOfWorkerThreads() >= 2) {
+          bool expect_parts = allow_parallel;
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
+          expect_parts = expect_parts && one_byte;
+#endif
+          CHECK_EQ(expect_parts, !data.part_boundaries.empty());
+        }
+#endif
+        int expected = 0;
+        auto check_numbers = [&](const auto& nodes) {
+          for (const auto& node : nodes) {
+            if (node.kind == i::BackgroundJsonNode::kNumber) {
+              CHECK_EQ(static_cast<double>(expected++), node.Number());
+            }
+          }
+        };
+        check_numbers(data.nodes);
+        for (const auto& part : data.remaining_parts) check_numbers(part);
+        CHECK_EQ(40, expected);
+      }
     }
   }
+}
+
+TEST_WITH_PLATFORM(JsonParseAsyncParallelCancellation, JsonTestPlatform) {
+#if (defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64) && \
+     defined(__ARM_NEON)) ||                              \
+    (defined(V8_OS_ANDROID) &&                            \
+     (defined(V8_HOST_ARCH_ARM) || defined(V8_HOST_ARCH_ARM64)))
+  if (platform.NumberOfWorkerThreads() < 2) return;
+  const std::string element = "0" + std::string(600000, ' ');
+  std::string input = "[";
+  for (int i = 0; i < 40; ++i) {
+    if (i) input += ',';
+    input += i < 32 ? "0" : element;
+  }
+  input += ']';
+  for (bool one_byte : {true, false}) {
+    i::BackgroundJsonData data(false);
+    data.is_one_byte = one_byte;
+    if (one_byte) {
+      data.one_byte = v8::base::OwnedVector<uint8_t>::Of(input);
+    } else {
+      data.two_byte = v8::base::OwnedVector<uint16_t>::Of(input);
+    }
+    // Cancel after a first part has been published. The split job must join
+    // before its local part descriptors and input can be destroyed.
+    platform.cancel_on_job = &data.cancelled;
+    i::ParseJsonInBackground(&data, &platform);
+    platform.cancel_on_job = nullptr;
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
+    if (!one_byte) {
+      CHECK(!data.cancelled.load(std::memory_order_relaxed));
+      CHECK(!data.failed);
+      CHECK_EQ(41u, data.NodeCount());
+      CHECK(data.part_boundaries.empty());
+      continue;
+    }
+#endif
+    CHECK(data.cancelled.load(std::memory_order_relaxed));
+    CHECK(data.nodes.empty());
+    CHECK(data.remaining_parts.empty());
+  }
+#endif
 }
 
 TEST(JsonParseAsyncSnapshotTableGrowth) {
@@ -467,6 +570,51 @@ TEST_WITH_PLATFORM(JsonParseAsyncPrimitiveArraysGC, JsonTestPlatform) {
               ->Set(context.local(), v8_str("result"), promise->Result())
               .FromJust());
     CHECK(CompileRun(test.check)->IsTrue());
+  }
+}
+
+TEST_WITH_PLATFORM(JsonParseAsyncLargeEmptyArraysGC, JsonTestPlatform) {
+  // Android pretenures only serial tapes. Force that path while retaining
+  // the real platform worker and foreground/GC scheduling.
+  platform.worker_thread_limit = 1;
+  auto isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  // Cross the large-tape allocation thresholds with empty arrays before and
+  // after reclaimed prefixes. Each array must retain its own mutable identity.
+  for (int count : {2 * 1024 * 1024 - 8, 2 * 1024 * 1024 + 8,
+                    4 * 1024 * 1024 - 8, 4 * 1024 * 1024 + 8}) {
+    std::string script =
+        "var count = " + std::to_string(count) + ";"
+        "JSON.parseAsync('[[],[],' + '0,'.repeat(count) + '[]]')";
+    auto promise = CompileRun(script.c_str()).As<v8::Promise>();
+    runner->WaitForTasks(1);
+    if (i::v8_flags.incremental_marking) {
+      i::heap::SimulateIncrementalMarking(CcTest::heap(), false);
+    }
+    CHECK(runner->RunOne(isolate));
+    CHECK_EQ(v8::Promise::kPending, promise->State());
+    isolate->LowMemoryNotification();
+    CHECK(runner->RunOne(isolate));
+    isolate->LowMemoryNotification();
+    while (runner->RunOne(isolate)) {
+    }
+    CHECK_EQ(v8::Promise::kFulfilled, promise->State());
+    CHECK(context->Global()
+              ->Set(context.local(), v8_str("result"), promise->Result())
+              .FromJust());
+    CHECK(CompileRun(
+        "result.length === count + 3 && result[2] === 0 && "
+        "result[count + 1] === 0 && result[0].length === 0 && "
+        "result[1].length === 0 && result[count + 2].length === 0 && "
+        "result[0] !== result[1] && result[1] !== result[count + 2]")
+              ->IsTrue());
+    CompileRun("result[0].push({value: 17}); result[count + 2].push('tail')");
+    isolate->LowMemoryNotification();
+    CHECK(CompileRun(
+        "result[0][0].value === 17 && result[1].length === 0 && "
+        "result[count + 2][0] === 'tail'")->IsTrue());
   }
 }
 
@@ -1065,6 +1213,60 @@ void CheckJsonScannerGuardPages() {
 }
 
 template <typename Char>
+void CheckJsonArrayScannerGuardPages() {
+  JsonGuardedBuffer storage(8192 * sizeof(Char));
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
+  auto scan = [] {
+    if constexpr (sizeof(Char) == 1) {
+      return i::GetJsonSimdFunctions().array_cuts8;
+    } else {
+      return i::GetJsonSimdFunctions().array_cuts16;
+    }
+  }();
+#else
+  auto scan = i::FindJsonArrayCuts<Char>;
+#endif
+  auto publish = [](void* context, size_t position) {
+    static_cast<std::vector<size_t>*>(context)->push_back(position);
+  };
+  std::atomic<bool> cancelled{false};
+  for (size_t padding = 0; padding <= 65; ++padding) {
+    std::vector<Char> text{'['};
+    std::vector<size_t> separators;
+    for (int item = 0; item < 8; ++item) {
+      if (item) {
+        separators.push_back(text.size());
+        text.push_back(',');
+      }
+      text.push_back('"');
+      text.insert(text.end(), padding,
+                  static_cast<Char>(sizeof(Char) == 1 ? 'x' : 0x015b));
+      for (char c : std::string("\\\"[,]{}\\\\")) text.push_back(c);
+      text.push_back('"');
+    }
+    text.push_back(']');
+    const size_t close = text.size() - 1;
+    for (size_t trailing = 0; trailing <= 17; ++trailing) {
+      if (trailing) text.push_back(' ');
+      Char* chars = storage.Tail<Char>(text.size());
+      std::copy(text.begin(), text.end(), chars);
+      for (size_t parts : {4u, 8u}) {
+        std::vector<size_t> cuts;
+        CHECK_EQ(close, scan(chars, text.size(), 0, cancelled, parts, &cuts,
+                             publish));
+        CHECK(!cuts.empty());
+        CHECK_LT(cuts.size(), parts);
+        for (size_t index = 0; index < cuts.size(); ++index) {
+          CHECK(std::find(separators.begin(), separators.end(), cuts[index]) !=
+                separators.end());
+          if (index) CHECK_LT(cuts[index - 1], cuts[index]);
+        }
+      }
+    }
+  }
+}
+
+template <typename Char>
 void CheckJsonNumberGuardPages() {
   JsonGuardedBuffer storage(8192 * sizeof(Char));
   for (const char* text : {"0", "-0", "1.25", "-1e-400", "1e400",
@@ -1206,6 +1408,14 @@ TEST(JsonScannerGuardPages) {
   CheckJsonScannerGuardPages<uint16_t>();
 }
 
+TEST(JsonArrayScannerGuardPages) {
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
+  CcTest::InitializeVM();
+#endif
+  CheckJsonArrayScannerGuardPages<uint8_t>();
+  CheckJsonArrayScannerGuardPages<uint16_t>();
+}
+
 TEST(JsonNumberGuardPages) {
   CheckJsonNumberGuardPages<uint8_t>();
   CheckJsonNumberGuardPages<uint16_t>();
@@ -1256,6 +1466,10 @@ TEST(JsonSimdRuntimeDispatch) {
                         i::CpuFeatures::IsSupported(i::NEON) &&
                         v8::base::CPU().has_neon();
   CHECK_EQ(i::GetJsonSimdFunctions().uses_neon, expected);
+  CHECK_NE(i::kJsonScalarFunctions.array_cuts8,
+           i::kJsonNeonFunctions.array_cuts8);
+  CHECK_NE(i::kJsonScalarFunctions.array_cuts16,
+           i::kJsonNeonFunctions.array_cuts16);
   printf("JSON SIMD selected=%s hardware_neon=%d\n",
          expected ? "neon" : "scalar", v8::base::CPU().has_neon());
   CHECK_IMPLIES(!i::CpuFeatures::IsSupported(i::NEON) ||

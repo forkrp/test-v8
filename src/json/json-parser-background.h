@@ -162,14 +162,19 @@ class BackgroundJsonTape {
 
   BackgroundJsonTape() = default;
   BackgroundJsonTape(BackgroundJsonTape&& other) noexcept {
-    *this = std::move(other);
+    swap(other);
   }
   BackgroundJsonTape& operator=(BackgroundJsonTape&& other) noexcept {
+    // Release the replaced tape now; a moved-from part can outlive a slice.
+    BackgroundJsonTape incoming(std::move(other));
+    swap(incoming);
+    return *this;
+  }
+  void swap(BackgroundJsonTape& other) noexcept {
     blocks_.swap(other.blocks_);
     std::swap(front_offset_, other.front_offset_);
     std::swap(size_, other.size_);
     std::swap(allocated_bytes_, other.allocated_bytes_);
-    return *this;
   }
 
   size_t size() const { return size_; }
@@ -204,6 +209,8 @@ class BackgroundJsonTape {
     ++size_;
   }
 
+  void pop_front() { DiscardPrefix(1); }
+
   void DiscardPrefix(size_t count) {
     DCHECK_LE(count, size_);
     size_ -= count;
@@ -232,6 +239,7 @@ struct BackgroundJsonData {
   base::OwnedVector<uint8_t> one_byte;
   base::OwnedVector<uint16_t> two_byte;
   bool is_one_byte = true;
+  bool allow_parallel = true;
   BackgroundJsonTape nodes;
   size_t node_base = 0;
   // The foreground owns the tapes once the background job has joined.

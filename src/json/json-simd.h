@@ -8,6 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <atomic>
+
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -28,6 +30,12 @@ struct JsonSimdFunctions {
   size_t (*copy8_16)(uint8_t*, const uint16_t*, size_t);
   size_t (*copy16_8)(uint16_t*, const uint8_t*, size_t);
   size_t (*copy16_16)(uint16_t*, const uint16_t*, size_t);
+  size_t (*array_cuts8)(const uint8_t*, size_t, size_t,
+                       const std::atomic<bool>&, size_t, void*,
+                       void (*)(void*, size_t));
+  size_t (*array_cuts16)(const uint16_t*, size_t, size_t,
+                        const std::atomic<bool>&, size_t, void*,
+                        void (*)(void*, size_t));
   bool uses_neon;
 };
 

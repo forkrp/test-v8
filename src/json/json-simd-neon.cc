@@ -12,6 +12,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/memory.h"
+#include "src/json/json-array-scanner.h"
 #include "src/json/json-scanner.h"
 #include "src/json/json-stringifier-escape.h"
 
@@ -208,6 +209,8 @@ const JsonSimdFunctions kJsonNeonFunctions = {
     CopyStringNeon<uint8_t, uint16_t>,
     CopyStringNeon<uint16_t, uint8_t>,
     CopyStringNeon<uint16_t, uint16_t>,
+    FindJsonArrayCuts<uint8_t>,
+    FindJsonArrayCuts<uint16_t>,
     true};
 
 }  // namespace internal
