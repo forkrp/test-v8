@@ -1,0 +1,72 @@
+{
+  "reference_commit": "cd985f42b1e54328dfa52a01149d9350701df5b8",
+  "candidate_commit": "ea4fbabb8d19ce26b0df0fe7151c25b5e7544dc3",
+  "reference_build_manifest_sha256": "bc19354b398c5a4fcbc65ff127ec9b2c353edde450c90989aa511be134fe451e",
+  "candidate_build_manifest_sha256": "e319bd3e0f82abac3aaeb4078fc7435efd38af8c5d5a8776dc60564f3637b763",
+  "candidate_acceptance_sha256": "f6d13b1da148057ba27df991bf8a111e97577a9927ee89be9bf91352a113acbb",
+  "device": {
+    "adb_serial": "885841c1",
+    "ro.product.model": "ONEPLUS A6003",
+    "ro.build.version.release": "15",
+    "ro.product.cpu.abilist": "arm64-v8a,armeabi-v7a,armeabi"
+  },
+  "driver_sha256": "1693c464ceca07a1e3a36bbed9ff750376c9e22b294a611024b9b4c96c49bbe1",
+  "runner_sha256": "4a713306201b25c68525bd3414aa407da64ed19d9e9161be655dce9174a2e97c",
+  "source_corpus_sha256": "9769eaaa271655364eb895de3ab046938bbbdc7d81abfc86d2938f1e1558b238",
+  "original_external_parse_transcript_sha256": "2756cd0683d06c7dbb85ccc66331a8f9d6acdfef2c714824c8e303d8aa3a6f5a",
+  "rejected_corpus_sha256": "36e288a565389f918632ec443ec0566b20c539cb71df791bb659ae156f2b1da3",
+  "local_transcripts": "out/json-error-parity-commit-android.o0Z2of",
+  "modes": {
+    "arm32-neon": {
+      "candidate_flags": [],
+      "reference_d8_sha256": "697c02e1788bf007f33f92c6f93be0af5a73a25b837053a03c6f9cb939de19e9",
+      "candidate_d8_sha256": "31d5f8a694ec84f9aa05355297da8c48b5f064fa85aa0407dcefa92ceda002a5",
+      "libcxx_sha256": "fd7bbe2586a529ed0eb98ca8a9d1507468173069f80e58db1c007ce874fa1588",
+      "replay_report_sha256": "cb1a2d573a41e342284df3f086b5b68b4befbb19289fed039572d48bf1761c54"
+    },
+    "arm32-scalar": {
+      "candidate_flags": [
+        "--no-json-simd"
+      ],
+      "reference_d8_sha256": "697c02e1788bf007f33f92c6f93be0af5a73a25b837053a03c6f9cb939de19e9",
+      "candidate_d8_sha256": "31d5f8a694ec84f9aa05355297da8c48b5f064fa85aa0407dcefa92ceda002a5",
+      "libcxx_sha256": "fd7bbe2586a529ed0eb98ca8a9d1507468173069f80e58db1c007ce874fa1588",
+      "replay_report_sha256": "d127a24c0a26bda0f9e1874830d89ce4fc3a149e7afc59d1c5ac53dcb4c6989d"
+    },
+    "arm64-default": {
+      "candidate_flags": [],
+      "reference_d8_sha256": "7bdb00a81d0378ca49781eadbedc57abf88097f4936fc677d4e2e80707a04cd5",
+      "candidate_d8_sha256": "b368b516259b38feeda7c63cb714d9d4223d8cf5e8cee50bd84087058660e826",
+      "libcxx_sha256": "d523468d62d9b603cb3354294d70d4b2feabf2c3f1e43b0c96c9aabf32813708",
+      "replay_report_sha256": "45342fc26dd0827485632c77c11dd90a99bfe2125b7da0efb443abe2c7b2d354"
+    }
+  },
+  "shared_transcripts": {
+    "parse/edges": {
+      "rows": 84,
+      "errors": 79,
+      "stdout_sha256": "add1f2131bb54f79bc807c11ffb5f34bdd1409a841cfc26f1fbfc19cc6d4d1cc"
+    },
+    "parse/large": {
+      "rows": 44,
+      "errors": 44,
+      "stdout_sha256": "803ed35777c487c87306376a22cfd918570e0f1dd42f4fda8a480014a90bdb1d"
+    },
+    "stringify/edges": {
+      "rows": 111,
+      "errors": 101,
+      "stdout_sha256": "e70e78bb729b49deafe5056ea72d3a32d90b26e2fa76bad523125bf7938338e7"
+    },
+    "parse/external": {
+      "rows": 2700,
+      "errors": 2700,
+      "stdout_sha256": "f005ab816196a8faeb5dbf62a1fbadfd353bfa62f05840684b0094b68c6cedc6"
+    }
+  },
+  "candidate_error_comparisons": 17544,
+  "candidate_success_comparisons": 90,
+  "mismatches": 0,
+  "matches_initial_transcripts": true,
+  "all_passed": true,
+  "initial_run_report_sha256": "645ffeebfbd32929ed6cc5638fbd19aaf75ccf8de3f7e0b14366beb739ffa19f"
+}

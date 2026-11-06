@@ -152,7 +152,8 @@ structure. The d8 driver additionally checks prototypes, property descriptors an
 holes. Serializer inputs are built from tagged values, without calling a parser;
 string escaping also has a small independent quoting oracle. Other serialized
 outputs are compared exactly with original V8, not with C/C++ writer spelling.
-Error comparisons use `SyntaxError`, not engine-specific error messages.
+This runner compares rejected parses by `SyntaxError` class. The error parity
+runner below compares the full messages with the original V8 release.
 
 There are 36,680 unique cases in this snapshot: 33,979 serializer inputs, 2,653
 independently classified syntax errors and 48 deep inputs checked only by parse
@@ -187,3 +188,37 @@ chosen simdjson-data revision.
 The [2026-11-05 upstream validation report](../../docs/json-external-correctness-20261105.md)
 records the five candidate configurations, source/binary identities and explicit
 coverage limits.
+
+## Error parity with V8 12.6
+
+Run the four APIs against the corresponding synchronous API in original 12.6.
+The driver checks direct throws, Promise rejections, native exception prototypes
+and exact UTF-16 messages, including positions when present. It also checks
+the identity of exceptions thrown by user code and compares callback traces.
+The fixtures cover malformed large arrays across the 4 Mi and 16 Mi code-unit
+partition thresholds, input coercion, BigInt, cycles and output length limits.
+Positive controls check values such as `JSON.stringify(undefined)`.
+
+```sh
+python3 tools/json_correctness/error_parity.py \
+  --reference /absolute/path/to/original-12.6/d8 \
+  --candidate /absolute/path/to/current/d8 \
+  --out out/json-errors-new
+```
+
+To replay external syntax errors, also pass `--prepared` with the prepared
+fixture directory and `--external-reference-results` with the original 12.6
+external runner's `results.json`. Keep its `parse.gz` transcript available at
+the path recorded in that report. The runner checks the manifest and transcript
+hashes and retests every input that the original runner recorded as rejected.
+
+For Android, use same-ABI binaries and add `--adb-serial SERIAL` and, for builds
+with a shared C++ runtime, `--libcxx /absolute/path/to/libc++_shared.so`. Use a new
+output directory for each ABI and mode. On ARM32, repeat with
+`--flag=--no-json-simd` to test the scalar JSON implementation. The runner
+checks the device payload hashes before and after each run and retains the
+transcripts, stderr, and `results.json` in the local output directory.
+
+The [OnePlus 6 evidence](evidence/android-error-parity-20261107.json) records
+17,544 error comparisons and 90 success controls with zero differences against
+original 12.6, across ARM32 automatic dispatch, ARM32 forced scalar and ARM64.
