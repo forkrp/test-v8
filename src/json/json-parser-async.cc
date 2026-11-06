@@ -641,7 +641,7 @@ class JsonParseAsyncState final {
   std::vector<Frame> frames_;
   std::vector<Handle<Object>> roots_;
   size_t live_roots_ = 0, cursor_ = 0;
-  std::deque<BackgroundJsonNode>::const_iterator next_;
+  BackgroundJsonTape::const_iterator next_;
   size_t next_part_ = std::numeric_limits<size_t>::max();
   size_t part_boundary_index_ = 0;
   uint32_t part_node_offset_ = 0;

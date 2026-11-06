@@ -210,23 +210,43 @@ TEST(JsonParseAsyncCompactRecords) {
   nodes[0].kind = i::BackgroundJsonNode::kString;
   CHECK_EQ(i::JsonString::kNoCacheSlot,
            nodes[0].AsString(0, true).cache_slot());
+}
 
+TEST(JsonParseAsyncTapeDiscard) {
+  constexpr size_t kCount = 20000;
+  // Stop before, at and after the ARM32 tape block boundaries.
+  constexpr size_t kDiscardPoints[] = {
+      0, 255, 256, 257, 4097, 8447, 8448, 8449, 16640, kCount - 1, kCount};
   i::BackgroundJsonData data(false);
-  for (int index = 0; index < 10000; ++index) {
+  const i::BackgroundJsonNode* first = nullptr;
+  for (size_t index = 0; index < kCount; ++index) {
     i::BackgroundJsonNode node;
     node.kind = i::BackgroundJsonNode::kNumber;
-    node.SetNumber(index);
+    node.SetNumber(static_cast<double>(index));
     data.nodes.push_back(node);
+    if (index == 0) first = &data.nodes.front();
   }
-  size_t bytes = data.MemoryUsage();
-  data.DiscardBefore(4097);
-  CHECK_EQ(10000u, data.NodeCount());
-  CHECK_EQ(4097.0, data.NodeAt(4097).Number());
-  CHECK_EQ(9999.0, data.NodeAt(9999).Number());
-  CHECK_LT(data.MemoryUsage(), bytes);
-  data.DiscardBefore(10000);
+  CHECK_EQ(first, &data.nodes.front());
+  const auto* last = &data.nodes.back();
+  const size_t bytes = data.MemoryUsage();
+
+  for (size_t start : kDiscardPoints) {
+    data.DiscardBefore(start);
+    CHECK_EQ(kCount, data.NodeCount());
+    CHECK_EQ(kCount - start, data.nodes.size());
+    if (start < kCount) {
+      CHECK_EQ(static_cast<double>(start), data.NodeAt(start).Number());
+      CHECK_EQ(last, &data.NodeAt(kCount - 1));
+    }
+    size_t index = start;
+    for (const auto& node : data.nodes) {
+      CHECK_EQ(static_cast<double>(index++), node.Number());
+    }
+    CHECK_EQ(kCount, index);
+    if (start == 4097) CHECK_LT(data.MemoryUsage(), bytes);
+  }
   CHECK(data.nodes.empty());
-  CHECK_EQ(10000u, data.NodeCount());
+  CHECK_EQ(0u, data.MemoryUsage());
 }
 
 TEST(JsonParseAsyncLeadingWhitespaceParts) {

@@ -8,6 +8,8 @@
 #include <array>
 #include <cstring>
 #include <limits>
+#include <new>
+#include <type_traits>
 
 #include "include/v8-platform.h"
 #include "src/base/bits.h"
@@ -21,6 +23,10 @@
 #include "src/json/json-scanner.h"
 #include "src/json/json-simd.h"
 #include "src/numbers/conversions-inl.h"
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
+#include "src/base/page-allocator.h"
+#include "src/utils/allocation.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -361,7 +367,7 @@ class BackgroundJsonParser {
       output_->source_starts.push_back(start);
       output_->source_ends.push_back(position_);
     }
-    // Appending to the deque preserves pointers to existing nodes.
+    // Appending to the tape preserves pointers to existing nodes.
     return &output_->nodes.back();
   }
   void CompleteValue(bool number = false, bool smi = false) {
@@ -1052,6 +1058,36 @@ const uint16_t* ScanJsonStringCharactersLong(const uint16_t* begin,
                                              uint32_t* bits) {
   return ScanLongJsonString(begin, end, bits);
 }
+
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
+BackgroundJsonTape::Block::Block(size_t capacity) : capacity_(capacity) {
+  if (capacity == kInitialBlockNodes) {
+    nodes_ = NewArray<BackgroundJsonNode>(capacity);
+    return;
+  }
+  // Large blocks have independent mappings so consumed pages go straight
+  // back to the OS instead of accumulating in the native allocator's cache.
+  base::PageAllocator allocator;
+  const size_t page_size = allocator.AllocatePageSize();
+  mapped_size_ = RoundUp(capacity * sizeof(BackgroundJsonNode), page_size);
+  void* storage = AllocatePages(&allocator, nullptr, mapped_size_, page_size,
+                                PageAllocator::kReadWrite);
+  if (storage == nullptr) {
+    V8::FatalProcessOutOfMemory(nullptr, "BackgroundJsonTape");
+  }
+  nodes_ = new (storage) BackgroundJsonNode[capacity];
+}
+
+BackgroundJsonTape::Block::~Block() {
+  static_assert(std::is_trivially_destructible_v<BackgroundJsonNode>);
+  if (mapped_size_ != 0) {
+    base::PageAllocator allocator;
+    FreePages(&allocator, nodes_, mapped_size_);
+  } else {
+    DeleteArray(nodes_);
+  }
+}
+#endif
 
 }  // namespace internal
 }  // namespace v8
