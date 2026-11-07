@@ -1015,7 +1015,8 @@
     "The first callback profiler did not observe incremental GC; superseded by LongTaskStats counters.",
     "The stdout GC trace probe was invalid on Android because OS::VPrint routes to logcat; not used in conclusions.",
     "Official Release rejects --verify-heap at process startup. Initial flags were corrected, and real heap verification was run in a dedicated ASan+DCHECK+VERIFY_HEAP build.",
-    "GC window counters overlap worker and task waits. Four-job windows must not be added together."
+    "GC window counters overlap worker and task waits. Four-job windows must not be added together.",
+    "The v2 attribution snapshot predates the final whole-task timer: it omits non-final re-enqueue and isolate-scope overhead. Its account_us includes initial API-entry accounting. Final foreground guards use matched final-probe builds with complete task bodies and separately recorded entry/foreground accounting."
   ],
   "phase2_baseline": "Unchanged production engine; original frozen build also serves as phase1 endpoint"
 }

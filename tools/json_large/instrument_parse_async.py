@@ -25,7 +25,7 @@ profile = '''struct JsonAsyncPhaseProfile {
   int64_t queued = 0, returned = 0, entry_gc_us = 0, gc_start_us = 0;
   int64_t worker_start = 0, worker_end = 0, completion_post = 0;
   int64_t foreground_time = 0, foreground_wait = 0, foreground_last_end = 0;
-  int64_t build_us = 0, discard_us = 0, account_us = 0, foreground_gc_us = 0;
+  int64_t build_us = 0, discard_us = 0, account_us = 0, entry_account_us = 0, foreground_gc_us = 0;
   size_t input_bytes = 0, tape_accounted_bytes = 0;
   uint32_t source_units = 0, nodes = 0, parts = 0;
   std::vector<int64_t> slices;
@@ -180,6 +180,63 @@ text = replace(text, '      std::make_unique<JsonParseAsyncTask>(isolate, root))
                '      std::make_unique<JsonParseAsyncTask>(isolate, root)));\n'
                '  phase_profile->returned = base::TimeTicks::Now().ToInternalValue();\n'
                '  phase_profile->entry_gc_us = phase_entry_gc.elapsed();\n  return promise;')
+# Initial input accounting happens at API entry; keep it distinct from the
+# accounting inside foreground tasks rather than attributing it twice.
+text = replace(text, '  root->raw()->AccountNativeMemory();',
+               '  root->raw()->AccountNativeMemory();\n'
+               '  root->raw()->PhaseProfile().entry_account_us = root->raw()->PhaseProfile().account_us;')
+text = replace(text, r'\"account_us\":%lld,',
+               r'\"account_us\":%lld,\"entry_account_us\":%lld,\"foreground_account_us\":%lld,')
+text = replace(text, '          static_cast<long long>(snapshot.account_us),',
+               '          static_cast<long long>(snapshot.account_us),\n'
+               '          static_cast<long long>(snapshot.entry_account_us),\n'
+               '          static_cast<long long>(snapshot.account_us - snapshot.entry_account_us),')
+
+# Capture isolate scope entry/exit, Run(), final root release and re-enqueue.
+# Logging and profile-vector bookkeeping remain outside the measured interval.
+method_begin = text.index('  void RunInternal() override {',
+                          text.index('class JsonParseAsyncTask final'))
+method_end = text.index('\n private:', method_begin)
+method = text[method_begin:method_end]
+printing = method[method.index('      std::fprintf(stderr,'):
+                  method.index('    } else {')]
+replacement = '''  void RunInternal() override {
+    const int64_t begin = base::TimeTicks::Now().ToInternalValue();
+    JsonAsyncPhaseProfile snapshot;
+    JsonAsyncPhaseProfile* record;
+    int64_t release_begin = 0;
+    bool done;
+    {
+      v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate_));
+      auto& profile = state_->raw()->PhaseProfile();
+      profile.foreground_wait += begin -
+          (profile.foreground_last_end ? profile.foreground_last_end : profile.completion_post);
+      const int64_t gc_before = JsonPhaseGCTotal(isolate_);
+      done = state_->raw()->Run();
+      if (done) {
+        snapshot = std::move(profile);
+        record = &snapshot;
+        release_begin = base::TimeTicks::Now().ToInternalValue();
+        state_->raw()->ReleaseRoots();
+        GlobalHandles::Destroy(state_.location());
+      } else {
+        record = &profile;
+        state_->raw()->runner()->PostNonNestableTask(
+            std::make_unique<JsonParseAsyncTask>(isolate_, state_));
+      }
+      record->foreground_gc_us += JsonPhaseGCTotal(isolate_) - gc_before;
+    }
+    const int64_t finished = base::TimeTicks::Now().ToInternalValue();
+    record->foreground_time += finished - begin;
+    record->foreground_last_end = finished;
+    record->slices.push_back(finished - begin);
+    if (done) {
+      const int64_t gc_end = JsonPhaseGCTotal(isolate_);
+''' + printing + '''    }
+  }
+'''
+text = text[:method_begin] + replacement + text[method_end:]
+
 path.write_text(text)
 changes.append(('src/json/json-parser-async.cc', before, text))
 args.patch.write_text(''.join(''.join(difflib.unified_diff(a.splitlines(True), b.splitlines(True),

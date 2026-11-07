@@ -229,7 +229,9 @@ python3 tools/json_large/instrument_parse_async.py /absolute/path/to/isolated-ch
 
 The tool records input allocation/copy, background parsing and input release,
 foreground construction, tape reclamation, memory accounting, task waits, and
-whole foreground slices. It reads the existing `LongTaskStats` counters to
+whole foreground `RunInternal` bodies, including isolate scope entry/exit and
+re-enqueue. Initial input accounting is reported separately from foreground
+accounting. Diagnostic printing is excluded from the timed interval. It reads the existing `LongTaskStats` counters to
 include incremental GC; the counters overlap other timings and must not be
 added to them. For concurrent documents, GC windows overlap: use the batch's
 maximum end counter minus minimum start counter. Completion-time conclusions
