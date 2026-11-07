@@ -53,6 +53,74 @@ The original `12.6` build does not expose parseAsync. That API is measured only
 on the extension branch. Four-job checks compare four serial parse calls with
 four concurrent parseAsync calls on the 12- and 60-field record families.
 
+## Public production data snapshots
+
+`real-sources.json` adds four sources with different production structures:
+the USGS monthly GeoJSON feed, full npm TypeScript package metadata, Taipei's
+YouBike station feed, and the Kubernetes v1.34.1 OpenAPI document. These are
+public service responses or a released API schema; they are not private
+application traffic and do not establish coverage of every production workload.
+Upstream documentation and attribution are recorded in the source configuration.
+
+Fetch an immutable local snapshot, then expand it without changing its root:
+
+```sh
+JSON_REAL_OUT=/absolute/path/to/fresh-real-corpus
+python3 tools/json_large/real_corpus.py fetch \
+  --out "$JSON_REAL_OUT/originals"
+python3 tools/json_large/real_corpus.py generate \
+  --sources "$JSON_REAL_OUT/originals" \
+  --out "$JSON_REAL_OUT/expanded" --sizes 10 20 50
+python3 -m unittest discover -s tools/json_large -p test_real_corpus.py -v
+```
+
+Original files retain response bytes. The manifest records URLs, fetch time,
+response headers, SHA-256, UTF-8 byte length, UTF-16 code-unit length, root kind,
+value counts, maximum container widths, and ordered object-shape diversity.
+Every generation checks original hashes and records the generator hash and seed.
+Live responses change: replay from the saved snapshot, not from another fetch.
+
+Generated files retain all original records and append shuffled cycles of real
+records at their existing location. USGS remains an object with `features` and
+metadata; npm remains an object with a `versions` dictionary; YouBike remains a
+station array. Generated identifiers are unique, USGS's count is updated, and
+npm's added version keys, version fields and time keys agree. Root member order,
+record optional fields, nulls, Unicode and the remaining values are preserved.
+JSON lexical formatting is compacted by Python and therefore differs from the
+original responses. Generated records reuse non-identifier values and upstream
+URLs; they are synthetic load fixtures, not new events, stations, or packages.
+Do not report gains on these replicas as gains on unseen real data.
+
+The generator skips targets below the original compact size instead of deleting
+real records. Kubernetes remains an original-only control, preserving its
+reference graph and the proportions of definitions and paths. In the initial
+snapshot, TypeScript is already 15.90 MB and receives only 20/50 MB derivatives.
+Generated derivatives and raw responses must be reported separately from the
+older repeated-whole-document arrays and fully synthetic stress tests.
+
+`benchmark.js` accepts `parse`, `parseAsync`, `stringify` and `stringifyAsync`.
+Both async modes await all returned promises. Parsing checks every value and key;
+serialization checks every output UTF-16 code unit. Input loading, reference
+generation and result validation remain outside the timer. An original `12.6`
+build supplies the correctness reference through `oracle` mode. Use complete
+canonical output SHA-256 as an additional correctness check when admitting new
+fixtures; a round trip alone cannot detect matching parser/stringifier bugs.
+
+The initial device probe is retained in `out/json-real-corpus-20261107/`, with
+`probe.py`, `validate.js`, `protocol.json`, original/derived manifests, and raw
+timings. The [compact device evidence](evidence/real-corpus-android-20261107.json)
+records 96 successful full-tree/canonical-SHA comparisons, runtime dictionary
+checks, and all original-document timings. Its two-process, three-sample timing
+cells are exploratory baselines
+on unmodified engines. They do not establish an optimization win, tail latency,
+four-job behavior, peak memory, or frame responsiveness. Optimization acceptance
+still needs frozen before/after binaries, adjacent alternating runs on ARM32 and
+ARM64, one/four jobs, raw and expanded sizes, API return time, completion latency,
+foreground blocking, and peak native/process memory. Preserve unfavorable cells
+and run the existing malformed-input and JavaScript-semantics suites as well.
+
+## Existing benchmark replay
+
 For a corpus-only regeneration into a fresh experiment directory:
 
 ```sh

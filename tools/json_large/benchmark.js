@@ -17,13 +17,17 @@ async function main() {
     write(canonical);
     return;
   }
-  if (!['parse', 'parseAsync', 'stringify'].includes(mode)) throw Error('mode');
+  if (!['parse', 'parseAsync', 'stringify', 'stringifyAsync'].includes(mode)) {
+    throw Error('mode');
+  }
   if (typeof JSON[mode] !== 'function') throw Error('API unavailable: ' + mode);
+  const stringify = mode === 'stringify' || mode === 'stringifyAsync';
+  const asynchronous = mode === 'parseAsync' || mode === 'stringifyAsync';
   const expected = JSON.parse(read(expectedPath))[name];
   if (!expected) throw Error('Missing oracle: ' + name);
   if (text.length !== expected.code_units) throw Error('Input code-unit length');
   let sourceValue = null;
-  if (mode === 'stringify') {
+  if (stringify) {
     sourceValue = JSON.parse(text);
     largeJson.same(largeJson.fingerprint(sourceValue), expected.tree, 'stringify input');
   }
@@ -34,15 +38,16 @@ async function main() {
     const before = performance.now();
     for (let job = 0; job < jobs; ++job) {
       if (mode === 'parseAsync') pending.push(JSON.parseAsync(text));
+      else if (mode === 'stringifyAsync') pending.push(JSON.stringifyAsync(sourceValue));
       else if (mode === 'parse') values.push(JSON.parse(text));
       else values.push(JSON.stringify(sourceValue));
     }
     const entry = performance.now() - before;
-    const results = mode === 'parseAsync' ? await Promise.all(pending) : values;
+    const results = asynchronous ? await Promise.all(pending) : values;
     const wall = performance.now() - before;
     if (results.length !== jobs) throw Error('Job count');
     for (const result of results) {
-      if (mode === 'stringify') {
+      if (stringify) {
         largeJson.same(largeJson.textDigest(result), expected.canonical, 'stringify output');
       } else {
         largeJson.same(largeJson.fingerprint(result), expected.tree, mode + ' output');
