@@ -1,0 +1,45 @@
+--- a/src/json/json-parser-async.cc
++++ b/src/json/json-parser-async.cc
+@@ -163,6 +163,8 @@
+     uint32_t elements = 0;
+     Handle<JSArray> direct_array{};
+     uint32_t next_element = 0;
++    size_t key_cache_part = 0;
++    bool has_cached_keys = false;
+   };
+ 
+   Handle<Object> Retain(Handle<Object> value) {
+@@ -478,7 +480,13 @@
+     } else {
+       auto feedback = ObjectFeedback(
+           parser, frames_.size() > 1 ? &frames_[frames_.size() - 2] : nullptr);
+-      value = parser->BuildJsonObject(cont, feedback);
++      // A frame may outlive slices, but cached slots belong to one native
++      // parser segment. A spanning object uses the generic key iterator.
++      const bool cached = !data_->track_source && frame.has_cached_keys &&
++                          frame.key_cache_part == part_boundary_index_;
++      value = cached ? parser->BuildJsonObjectWithCachedKeys(cont, feedback,
++                                                            KeyCache())
++                     : parser->BuildJsonObject(cont, feedback);
+       if (data_->track_source) {
+         int length =
+             static_cast<int>(parser->property_stack_.size() - frame.index);
+@@ -599,6 +607,9 @@
+                              array ? parser.element_stack_.size()
+                                    : parser.property_stack_.size(),
+                              live_roots_});
++          frames_.back().key_cache_part = part_boundary_index_;
++          frames_.back().has_cached_keys =
++              !array && (token.flags & Node::kHasCachedKeys);
+           if (array && !data_->track_source) {
+             ElementsKind kind =
+                 token.flags & Node::kAllSmis      ? PACKED_SMI_ELEMENTS
+@@ -612,7 +623,7 @@
+           continue;
+         }
+         case Node::kKey: {
+-          auto key = token.AsString(source_offset);
++          auto key = token.AsString(source_offset, !data_->track_source);
+           if (key.is_index()) {
+             ++frames_.back().elements;
+             frames_.back().max_index =

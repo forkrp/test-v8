@@ -1,0 +1,152 @@
+{
+  "base_engine_commit": "ea4fbabb8d19ce26b0df0fe7151c25b5e7544dc3",
+  "purpose": "Retained rejected experiments. Each patch is independent; none is applied to production source.",
+  "candidates": [
+    {
+      "candidate": "input-pages",
+      "patch": "input-pages.patch",
+      "sha256": "aeb4b52173542e9f6cde12297fff9cd36056d69fd029e014e74493a27c8b3453",
+      "applied_to_production": false,
+      "immutable_original": "/Users/james/projects/v8/v8-standalone/out/json-parse-real-opt-20261107/builds/input-pages/source.patch",
+      "disposition": "rejected_at_two_pair_screening",
+      "reason": "No screened ABI/data group approaches the required 5% improvement; do not advance this candidate to formal 6-pair acceptance.",
+      "grouped_completion_ratios": {
+        "arm32/original": 1.0145821101164214,
+        "arm32/expanded50": 1.0068677367358965,
+        "arm64/original": 0.9971989953807467,
+        "arm64/expanded50": 0.9937119670031266
+      }
+    },
+    {
+      "candidate": "frame-keys",
+      "patch": "frame-keys.patch",
+      "sha256": "7eb3c017ca8200ffbab4abc7a3b3415414622032475620ad8c2430575ae601d7",
+      "applied_to_production": false,
+      "immutable_original": "/Users/james/projects/v8/v8-standalone/out/json-parse-real-opt-20261107/builds/frame-keys/source.patch",
+      "disposition": "rejected_at_two_pair_screening",
+      "reason": "No screened group approaches the required 5% gain; added frame bookkeeping does not improve this real corpus.",
+      "grouped_completion_ratios": {
+        "arm32/original": 1.018798727304457,
+        "arm32/expanded50": 1.0074343427787718,
+        "arm64/original": 0.9971191016501038,
+        "arm64/expanded50": 0.9975603145717525
+      }
+    },
+    {
+      "candidate": "arm64-tape",
+      "patch": "arm64-tape.patch",
+      "sha256": "7de6938afeb64426836fd4cf185aceb8d439e011272b52a74fff348ad92135a3",
+      "applied_to_production": false,
+      "immutable_original": "/Users/james/projects/v8/v8-standalone/out/json-parse-real-opt-20261107/builds/arm64-tape/source.patch",
+      "disposition": "rejected_at_two_pair_screening",
+      "reason": "No target group approaches the required 5% completion gain. ARM64 page-backed tape slows both raw and expanded groups in the pilot.",
+      "grouped_completion_ratios": {
+        "arm32/original": 0.98953452076691,
+        "arm32/expanded50": 0.9921145825167497,
+        "arm64/original": 1.0644271636786622,
+        "arm64/expanded50": 1.0179879788495725
+      }
+    },
+    {
+      "candidate": "object-array",
+      "patch": "object-array.patch",
+      "sha256": "b484c0995444c4b4a51d6a85d86398c01243287243f65d30eb753158c0f56158",
+      "applied_to_production": false,
+      "immutable_original": "/Users/james/projects/v8/v8-standalone/out/json-parse-real-opt-20261107/builds/object-array/source.patch",
+      "disposition": "rejected_after_full_six_plus_six_pair_acceptance",
+      "reason": "One or more per-cell 5% guards still fail after twelve paired samples. See the complete final acceptance report; no threshold exception.",
+      "failed_guards": [
+        {
+          "abi": "arm32",
+          "case": "canada",
+          "api": "parseAsync",
+          "jobs": 1,
+          "metric": "entry_ms",
+          "pairs": 12,
+          "medians": {
+            "before": 1.6739999999999924,
+            "object-array": 1.781499999999994
+          },
+          "aggregate_ratio": 1.0642174432497027,
+          "paired_median_ratio": 1.0159295904101246,
+          "pair_ratios": [
+            1.0984393757503097,
+            1.0499405469679146,
+            0.7231552162849821,
+            0.7591240875912177,
+            0.9819186338523347,
+            1.0865800865801192,
+            1.1930261519302214,
+            1.0790051207022697,
+            0.9098734177215058,
+            0.957446808510669,
+            1.5267284390591342,
+            0.9439567859554556
+          ],
+          "faster_pairs": 6,
+          "gate_pass": false
+        },
+        {
+          "abi": "arm64",
+          "case": "npm-typescript",
+          "api": "parseAsync",
+          "jobs": 4,
+          "metric": "foreground_p95_ms",
+          "pairs": 12,
+          "medians": {
+            "profile-final-before": 2.2895000000000003,
+            "profile-final-object-array": 2.4135
+          },
+          "aggregate_ratio": 1.0541602970080801,
+          "paired_median_ratio": 1.0774144588211132,
+          "pair_ratios": [
+            1.0924444444444446,
+            0.997626957759848,
+            0.8989082086534573,
+            1.0623844731977818,
+            1.056676685272649,
+            1.1124893071000854,
+            1.1908466819221968,
+            0.9267979452054795,
+            1.1061052631578947,
+            1.093216428241809,
+            0.8462732919254659,
+            1.1418701059419625
+          ],
+          "faster_pairs": 4,
+          "gate_pass": false
+        },
+        {
+          "abi": "arm32",
+          "case": "records60-20mb",
+          "api": "parseAsync",
+          "jobs": 4,
+          "metric": "foreground_p95_ms",
+          "pairs": 12,
+          "medians": {
+            "profile-final-before": 2.5835,
+            "profile-final-object-array": 2.7489999999999997
+          },
+          "aggregate_ratio": 1.0640603832010838,
+          "paired_median_ratio": 1.026357361906247,
+          "pair_ratios": [
+            1.1602077506991608,
+            1.0172955974842768,
+            0.9764890282131661,
+            1.170555108608206,
+            0.8811387900355871,
+            1.073489803770681,
+            1.1078095238095238,
+            1.058037418862161,
+            0.9996105919003115,
+            0.9827027027027027,
+            1.0068027210884352,
+            1.035419126328217
+          ],
+          "faster_pairs": 4,
+          "gate_pass": false
+        }
+      ]
+    }
+  ]
+}

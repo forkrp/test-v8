@@ -1,0 +1,66 @@
+--- a/src/json/json-parser-background.cc
++++ b/src/json/json-parser-background.cc
+@@ -24,7 +24,8 @@
+ #include "src/json/json-scanner.h"
+ #include "src/json/json-simd.h"
+ #include "src/numbers/conversions-inl.h"
+-#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
++#if defined(V8_OS_ANDROID) && \
++    (defined(V8_HOST_ARCH_ARM) || defined(V8_HOST_ARCH_ARM64))
+ #include "src/base/page-allocator.h"
+ #include "src/utils/allocation.h"
+ #endif
+@@ -989,7 +990,8 @@
+   return ScanLongJsonString(begin, end, bits);
+ }
+ 
+-#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
++#if defined(V8_OS_ANDROID) && \
++    (defined(V8_HOST_ARCH_ARM) || defined(V8_HOST_ARCH_ARM64))
+ BackgroundJsonTape::Block::Block(size_t capacity) : capacity_(capacity) {
+   if (capacity == kInitialBlockNodes) {
+     nodes_ = NewArray<BackgroundJsonNode>(capacity);
+--- a/src/json/json-parser-background.h
++++ b/src/json/json-parser-background.h
+@@ -80,7 +80,8 @@
+ };
+ static_assert(sizeof(BackgroundJsonNode) == 12);
+ 
+-#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
++#if defined(V8_OS_ANDROID) && \
++    (defined(V8_HOST_ARCH_ARM) || defined(V8_HOST_ARCH_ARM64))
+ // Freeing many small deque blocks can make the Android 32-bit allocator
+ // repeatedly scan for pages to return to the OS. Reserve larger blocks once,
+ // keep their node addresses stable, and release each block as it is consumed.
+@@ -263,7 +264,8 @@
+   void DiscardBefore(size_t index) {
+     DCHECK_GE(index, node_base);
+     DCHECK_LE(index, node_base + nodes.size());
+-#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
++#if defined(V8_OS_ANDROID) && \
++    (defined(V8_HOST_ARCH_ARM) || defined(V8_HOST_ARCH_ARM64))
+     nodes.DiscardPrefix(index - node_base);
+ #else
+     nodes.erase(nodes.begin(), nodes.begin() + (index - node_base));
+@@ -272,7 +274,8 @@
+   }
+ 
+   size_t MemoryUsage() const {
+-#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
++#if defined(V8_OS_ANDROID) && \
++    (defined(V8_HOST_ARCH_ARM) || defined(V8_HOST_ARCH_ARM64))
+     // A partially consumed block stays allocated until its last node is used.
+     size_t tape_bytes = nodes.AllocatedBytes();
+     for (const auto& part : remaining_parts) tape_bytes += part.AllocatedBytes();
+--- a/test/cctest/test-json-async.cc
++++ b/test/cctest/test-json-async.cc
+@@ -263,7 +263,8 @@
+   CHECK_EQ(0u, data.MemoryUsage());
+ }
+ 
+-#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
++#if defined(V8_OS_ANDROID) && \
++    (defined(V8_HOST_ARCH_ARM) || defined(V8_HOST_ARCH_ARM64))
+ TEST(JsonParseAsyncTapeMoveReclaims) {
+   i::BackgroundJsonData destination(false), source(false);
+   for (int index = 0; index < 20000; ++index) {

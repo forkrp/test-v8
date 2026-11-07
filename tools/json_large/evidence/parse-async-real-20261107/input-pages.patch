@@ -1,0 +1,224 @@
+--- a/src/json/json-parser-background.cc
++++ b/src/json/json-parser-background.cc
+@@ -24,7 +24,7 @@
+ #include "src/json/json-scanner.h"
+ #include "src/json/json-simd.h"
+ #include "src/numbers/conversions-inl.h"
+-#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
++#if defined(V8_OS_ANDROID)
+ #include "src/base/page-allocator.h"
+ #include "src/utils/allocation.h"
+ #endif
+@@ -971,10 +971,52 @@
+ 
+ void ParseJsonInBackground(BackgroundJsonData* data, Platform* platform) {
+   if (data->is_one_byte) {
+-    ParseBackgroundInput<uint8_t>(data, platform, data->one_byte.as_vector());
++    ParseBackgroundInput<uint8_t>(data, platform, data->Input<uint8_t>());
+   } else {
+-    ParseBackgroundInput<uint16_t>(data, platform, data->two_byte.as_vector());
+-  }
++    ParseBackgroundInput<uint16_t>(data, platform, data->Input<uint16_t>());
++  }
++}
++
++BackgroundJsonData::~BackgroundJsonData() { ReleaseInput(); }
++
++void BackgroundJsonData::AllocateInput(size_t length) {
++  DCHECK_EQ(InputMemoryUsage(), 0);
++#if defined(V8_OS_ANDROID)
++  const size_t bytes = length * (is_one_byte ? 1 : sizeof(uint16_t));
++  if (bytes >= 1024 * 1024) {
++    // A job owns these pages until all its parsing workers have joined.
++    // Returning a large copy directly avoids native allocator reclamation
++    // work on the completion path. Small copies retain the existing allocator.
++    base::PageAllocator allocator;
++    const size_t page_size = allocator.AllocatePageSize();
++    input_mapped_bytes_ = RoundUp(bytes, page_size);
++    input_pages_ = AllocatePages(&allocator, nullptr, input_mapped_bytes_,
++                                 page_size, PageAllocator::kReadWrite);
++    if (!input_pages_) {
++      V8::FatalProcessOutOfMemory(nullptr, "BackgroundJsonInput");
++    }
++    input_units_ = length;
++    return;
++  }
++#endif
++  if (is_one_byte) {
++    one_byte = base::OwnedVector<uint8_t>::NewForOverwrite(length);
++  } else {
++    two_byte = base::OwnedVector<uint16_t>::NewForOverwrite(length);
++  }
++}
++
++void BackgroundJsonData::ReleaseInput() {
++  one_byte = base::OwnedVector<uint8_t>();
++  two_byte = base::OwnedVector<uint16_t>();
++#if defined(V8_OS_ANDROID)
++  if (input_pages_) {
++    base::PageAllocator allocator;
++    FreePages(&allocator, input_pages_, input_mapped_bytes_);
++    input_pages_ = nullptr;
++    input_mapped_bytes_ = input_units_ = 0;
++  }
++#endif
+ }
+ 
+ const uint8_t* ScanJsonStringCharactersLong(const uint8_t* begin,
+--- a/src/json/json-parser-async.cc
++++ b/src/json/json-parser-async.cc
+@@ -723,8 +723,7 @@
+     ParseJsonInBackground(data_.get(), V8::GetCurrentPlatform());
+     // The tape stores offsets into the rooted original string. No foreground
+     // code needs the worker's input copy after parsing has finished.
+-    data_->one_byte = base::OwnedVector<uint8_t>();
+-    data_->two_byte = base::OwnedVector<uint16_t>();
++    data_->ReleaseInput();
+     runner_->PostNonNestableTask(std::move(completion_));
+   }
+ 
+@@ -762,14 +761,13 @@
+   auto data = std::make_shared<BackgroundJsonData>(IsCallable(*reviver));
+   data->is_one_byte = String::IsOneByteRepresentationUnderneath(*string);
+   int length = string->length();
++  data->AllocateInput(length);
+   if (data->is_one_byte) {
+-    data->one_byte = base::OwnedVector<uint8_t>::NewForOverwrite(length);
+     DisallowGarbageCollection no_gc;
+-    String::WriteToFlat(*string, data->one_byte.begin(), 0, length);
++    String::WriteToFlat(*string, data->Input<uint8_t>().begin(), 0, length);
+   } else {
+-    data->two_byte = base::OwnedVector<uint16_t>::NewForOverwrite(length);
+     DisallowGarbageCollection no_gc;
+-    String::WriteToFlat(*string, data->two_byte.begin(), 0, length);
++    String::WriteToFlat(*string, data->Input<uint16_t>().begin(), 0, length);
+   }
+   auto state = Managed<JsonParseAsyncState>::FromUniquePtr(
+       isolate, sizeof(JsonParseAsyncState) + sizeof(BackgroundJsonData),
+--- a/src/json/json-parser-background.h
++++ b/src/json/json-parser-background.h
+@@ -234,6 +234,31 @@
+ 
+ struct BackgroundJsonData {
+   explicit BackgroundJsonData(bool track_source) : track_source(track_source) {}
++  ~BackgroundJsonData();
++
++  void AllocateInput(size_t length);
++  void ReleaseInput();
++  template <typename Char>
++  base::Vector<Char> Input() {
++#if defined(V8_OS_ANDROID)
++    if (input_pages_) {
++      return base::Vector<Char>(static_cast<Char*>(input_pages_), input_units_);
++    }
++#endif
++    if constexpr (sizeof(Char) == 1) {
++      return one_byte.as_vector();
++    } else {
++      return two_byte.as_vector();
++    }
++  }
++  size_t InputMemoryUsage() const {
++    size_t bytes = one_byte.size() + two_byte.size() * sizeof(uint16_t);
++#if defined(V8_OS_ANDROID)
++    bytes += input_mapped_bytes_;
++#endif
++    return bytes;
++  }
++
+   const bool track_source;
+   std::atomic<bool> cancelled{false};
+   base::OwnedVector<uint8_t> one_byte;
+@@ -283,11 +308,17 @@
+     for (const auto& part : remaining_parts) live_nodes += part.size();
+     size_t tape_bytes = live_nodes * sizeof(BackgroundJsonNode);
+ #endif
+-    return one_byte.size() + two_byte.size() * sizeof(uint16_t) +
+-           tape_bytes +
++    return InputMemoryUsage() + tape_bytes +
+            (source_starts.capacity() + source_ends.capacity()) *
+                sizeof(uint32_t);
+   }
++
++ private:
++#if defined(V8_OS_ANDROID)
++  void* input_pages_ = nullptr;
++  size_t input_mapped_bytes_ = 0;
++  size_t input_units_ = 0;
++#endif
+ };
+ 
+ // Uses only native memory, immutable input, and V8's numeric conversion helper.
+--- a/test/cctest/test-json-async.cc
++++ b/test/cctest/test-json-async.cc
+@@ -987,6 +987,70 @@
+   CHECK(!runner->RunOne());
+ }
+ 
++TEST(JsonParseAsyncInputStorageBounds) {
++  for (bool wide : {false, true}) {
++    const size_t threshold = (1024 * 1024) / (wide ? 2 : 1);
++    for (size_t length : {size_t{0}, size_t{1}, threshold - 1, threshold,
++                          threshold + 1, threshold * 2 + 17}) {
++      i::BackgroundJsonData data(false);
++      data.is_one_byte = !wide;
++      for (int repeat = 0; repeat < 2; ++repeat) {
++        data.AllocateInput(length);
++        const size_t bytes = length * (wide ? 2 : 1);
++        CHECK_GE(data.InputMemoryUsage(), bytes);
++        CHECK_LT(data.InputMemoryUsage() - bytes, size_t{1024 * 1024});
++        if (wide) {
++          auto input = data.Input<uint16_t>();
++          CHECK_EQ(input.size(), length);
++          for (size_t index = 0; index < length; ++index)
++            input[index] = static_cast<uint16_t>(index * 31 + 0x6f22);
++          for (size_t index = 0; index < length; ++index)
++            CHECK_EQ(input[index], static_cast<uint16_t>(index * 31 + 0x6f22));
++        } else {
++          auto input = data.Input<uint8_t>();
++          CHECK_EQ(input.size(), length);
++          for (size_t index = 0; index < length; ++index)
++            input[index] = static_cast<uint8_t>(index * 17 + 5);
++          for (size_t index = 0; index < length; ++index)
++            CHECK_EQ(input[index], static_cast<uint8_t>(index * 17 + 5));
++        }
++        data.ReleaseInput();
++        CHECK_EQ(data.InputMemoryUsage(), 0);
++        CHECK_EQ(data.Input<uint8_t>().size(), 0);
++        CHECK_EQ(data.Input<uint16_t>().size(), 0);
++        data.ReleaseInput();
++      }
++    }
++  }
++}
++
++TEST_WITH_PLATFORM(JsonParseAsyncLargeQueuedInputOutlivesIsolate,
++                   JsonTestPlatform) {
++  for (bool wide : {false, true}) {
++    v8::Isolate::CreateParams params;
++    params.array_buffer_allocator = CcTest::array_buffer_allocator();
++    auto isolate = v8::Isolate::New(params);
++    auto runner = platform.HoldTasks(isolate);
++    auto gate = std::make_shared<JsonWorkerGate>();
++    {
++      v8::Isolate::Scope isolate_scope(isolate);
++      v8::HandleScope scope(isolate);
++      auto context = v8::Context::New(isolate);
++      v8::Context::Scope context_scope(context);
++      platform.SetWorkerGate(gate);
++      CompileRun(wide ? "JSON.parseAsync('\"' + '\\u6f22'.repeat(600000) + '\"')"
++                      : "JSON.parseAsync('\"' + 'x'.repeat(1200000) + '\"')");
++      platform.SetWorkerGate(nullptr);
++      CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
++      CHECK(isolate->HasPendingBackgroundTasks());
++    }
++    isolate->Dispose();
++    gate->proceed.Signal();
++    CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
++    CHECK(!runner->RunOne());
++  }
++}
++
+ TEST(JsonStringifyAsyncNativeBounds) {
+   i::JsonStringifyData data;
+   CHECK(data.AddLength(i::String::kMaxLength));

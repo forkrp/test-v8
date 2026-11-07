@@ -242,3 +242,53 @@ The original 12.6 `JSON.parse` is the correctness and error-message oracle;
 the frozen current-branch engine is the performance baseline. Original 12.6
 has no `JSON.parseAsync`. The artifact root in the evidence contains immutable
 binaries/source patches, all raw attempts, exact commands, and input hashes.
+
+The completed two-stage experiment is recorded in the
+[filterable Android report](../../docs/json-parse-async-real-corpus-20261107.html)
+and [complete machine-readable evidence](evidence/parse-async-real-android-20261107.json).
+The three phase-1 candidates did not meet the screening gain target. The
+root-object array parallel candidate passed correctness checks and the ARM64
+USGS single-job gain targets, but failed the fixed per-cell performance guards
+after the prescribed full-family repeats. None of the four candidate engine
+patches is applied to production source. Their independent, byte-preserved
+patches and dispositions are in
+[the candidate manifest](evidence/parse-async-real-20261107/candidates.json).
+
+The report contains all 126 uninstrumented performance cells and 90 matched
+foreground diagnostic cells. It retains the original six pairs and the six
+extra pairs for each triggered input family, with AB/BA order balanced in each
+stream. Completion time, call-return time and process peak RSS use uninstrumented
+builds; foreground p95/max use the final complete-task probes. A cell must pass
+both the aggregate median ratio and the median paired ratio at 1.05. Original
+documents, structure-preserving expansions, ARM32 and ARM64 remain separate.
+RSS outliers and unfavorable samples are retained. CPU governor restoration,
+payload hashes, process counts and overlap records are included in the evidence.
+
+Correctness uses the original 12.6 synchronous APIs as the oracle in ARM32
+automatic/scalar and ARM64 modes. The report separately identifies full-tree
+and canonical-SHA checks, Test262, the pinned upstream corpus, exact rejected
+input messages, lifecycle/guard-page checks, and the scope of sanitizers.
+`test/json/parse-async-object-array.js` preserves the 82-case public-API regression
+suite independently of whether the performance candidate is adopted.
+
+The local artifact directory is
+`out/json-parse-real-opt-20261107`. It retains source-matched frozen binaries,
+input hashes, every raw sample, standalone controllers, and phase attribution.
+Use a fresh tag to replay without overwriting evidence:
+
+```sh
+python3 out/json-parse-real-opt-20261107/compare.py \
+  --tag replay-real-full --labels before object-array --set full \
+  --pairs 6 --abis arm64 arm32
+python3 out/json-parse-real-opt-20261107/compare.py \
+  --tag replay-real-foreground \
+  --labels profile-final-before profile-final-object-array --set profile_full \
+  --pairs 6 --abis arm64 arm32
+python3 out/json-parse-real-opt-20261107/qualify.py \
+  object-array --level full --tag replay-real-correctness
+```
+
+Use the exact saved real-service snapshots for a replay. The benchmark
+controllers serialize through the existing shared Android device lock. The
+candidate is retained for review/reproduction, not presented as an accepted
+engine improvement.

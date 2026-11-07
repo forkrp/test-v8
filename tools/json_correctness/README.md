@@ -65,9 +65,37 @@ numeric conversion, external strings, truncated escapes and error reporting.
 The existing `test-json-async` tests cover task cancellation, dropped completion,
 isolate teardown, realms and GC; the new differential suite supplements them.
 
+`test/json/parse-async-object-array.js` adds 82 cases for arrays inside root
+objects. It covers member placement, duplicate members, cache-key collisions,
+multiple arrays, the 4 Mi/16 Mi UTF-16 thresholds, narrow/wide input, four
+concurrent requests, revivers, and malformed prefixes, array parts and suffixes.
+Run the same file with the original reference and both candidate parsing APIs:
+
+```sh
+/absolute/path/to/original-12.6/d8 --expose-gc \
+  test/json/parse-async-object-array.js -- parse > reference-object-array.stdout
+/absolute/path/to/candidate/d8 --expose-gc \
+  test/json/parse-async-object-array.js -- parse > sync-object-array.stdout
+/absolute/path/to/candidate/d8 --expose-gc \
+  test/json/parse-async-object-array.js -- parseAsync > async-object-array.stdout
+cmp reference-object-array.stdout sync-object-array.stdout
+cmp reference-object-array.stdout async-object-array.stdout
+```
+
+Use fresh output paths and require `OBJECT_ARRAY_DONE` with count 82 as well as
+matching output; identical early failures are not a pass. The suite encodes
+numeric bits, UTF-16, property order and descriptors independently of JSON
+serialization and compares exact error names/messages. It also checks that
+`parseAsync` returns a Promise and rejects malformed input asynchronously.
+Repeat with `--stress-compaction`; use `--verify-heap` only with a build that
+actually enables `v8_enable_verify_heap`. Release builds that reject that flag
+have not executed the test. The Android experiment additionally checks logical
+tape coordinates, cancellation and isolate teardown in native tests; those
+checks are preserved with its frozen candidate source and evidence.
+
 For ARM32, distinguish a portable code path from a portable complete binary.
-The current default ARM32 configuration enables NEON. `__ARM_NEON` is a compile
-time condition, and V8 CPU feature probing incorporates compiler-implied
+The original 2026-11-05 audit used a globally NEON-enabled build. `__ARM_NEON`
+is a compile time condition, and V8 CPU feature probing incorporates compiler-implied
 features. A check inside JSON cannot make a globally NEON-compiled V8 safe on a
 CPU lacking NEON.
 
@@ -79,9 +107,13 @@ arm_fpu = "vfpv3-d16"
 ```
 
 These settings must apply to the complete build and be audited with its native
-dependencies, snapshot generation and target-device execution. Separate NEON
-kernels and runtime dispatch would be additional work. Merely setting Android
-API level 21 does not perform hardware detection.
+dependencies, snapshot generation and target-device execution. The repository
+now has separate JSON NEON kernels and the
+`v8_enable_json_arm32_runtime_dispatch` build option. The 2026-11-07 real-corpus
+experiment uses that option with the portable baseline above, and verifies both
+automatic dispatch and `--no-json-simd` on a NEON-capable phone. This does not
+claim execution on a physical CPU without NEON. Merely setting Android API
+level 21 does not perform hardware detection.
 
 The 2026-11-05 validation compiled eight JSON/numeric translation units with
 NEON disabled, and exercised the portable string implementation on the host.
