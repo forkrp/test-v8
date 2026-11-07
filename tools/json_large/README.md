@@ -209,3 +209,34 @@ The delivered change explicitly retains one strict 3% gate exception: CITM 20 MB
 parse has an eight-pair median slowdown of 3.009%. The original gate failure and
 all samples remain intact. See results/markseg256-disposition.json and the report
 for the engineering decision and whole-process RSS tradeoffs.
+
+
+## Real-corpus parseAsync screening (2026-11-07)
+
+`evidence/parse-async-real-phase1-20261107.json` records the frozen engine,
+inputs, per-phase attribution, and all three independently screened candidates.
+None met the required 5% target-group improvement, so phase 1 retains the
+original engine. The two-pair pilots are exploratory screening, not formal
+six-pair acceptance or statistically established regressions. No unfavorable
+sample was removed.
+
+For diagnostic builds only:
+
+```sh
+python3 tools/json_large/instrument_parse_async.py /absolute/path/to/isolated-checkout \
+  --patch /absolute/path/to/diagnostic.patch
+```
+
+The tool records input allocation/copy, background parsing and input release,
+foreground construction, tape reclamation, memory accounting, task waits, and
+whole foreground slices. It reads the existing `LongTaskStats` counters to
+include incremental GC; the counters overlap other timings and must not be
+added to them. For concurrent documents, GC windows overlap: use the batch's
+maximum end counter minus minimum start counter. Completion-time conclusions
+must use the matching builds without instrumentation. Foreground p95/max can
+be compared in identically instrumented diagnostic builds.
+
+The original 12.6 `JSON.parse` is the correctness and error-message oracle;
+the frozen current-branch engine is the performance baseline. Original 12.6
+has no `JSON.parseAsync`. The artifact root in the evidence contains immutable
+binaries/source patches, all raw attempts, exact commands, and input hashes.

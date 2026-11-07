@@ -1,0 +1,1021 @@
+{
+  "completed": true,
+  "stage": "phase1",
+  "scope": "Independent screening; no engine candidate retained",
+  "baseline": {
+    "started_utc": "2026-11-07T06:02:51.283875+00:00",
+    "branch": "12.6-jsonparse-async",
+    "baseline_commit": "0847d8ba5361efe32a4c2fc12998f14d6fca2463",
+    "engine_commit": "ea4fbabb8d19ce26b0df0fe7151c25b5e7544dc3",
+    "reference_commit": "cd985f42b1e54328dfa52a01149d9350701df5b8",
+    "source_sha256": {
+      "src/json/json-number-parser.cc": "754c1a61e526dcba39edb0c7e13cc3805798d4c7271c86335c3c223d2d129a6c",
+      "src/json/json-parser.cc": "b19b43566345c2b7ed59c8b64368f05cf59fc6f141b64dd10076c991311884c0",
+      "src/json/json-stringifier-capture.h": "ad7729f1fb0d14bea3ce7596ac342e91769eeadcb97dc6beb19b1ca8f0ad6e8c",
+      "src/json/DIR_METADATA": "c5b1649a19fe28d66806a037d7d62b8790db93073bd5ef2bc701edab2fdc66d6",
+      "src/json/json-simd.cc": "a62241c082a78710c0c88ba9f4dbb0c7dc82df29d238629060bdd75d8558af55",
+      "src/json/json-stringifier-escape.h": "78bdb98dec6822a4289db59154ef0c5c0b3c3e2df8995083552fefd7861123b7",
+      "src/json/json-parser-background.cc": "1b00e931410fb2917de54642af997d32f04634d634810623bb71dd60cb0e751a",
+      "src/json/json-stringifier.cc": "dab2c3d57eadb58ebab2d3adcd1e11b7b83aee9ce8b27d7d29261e98860531ad",
+      "src/json/json-stringifier.h": "f78df895564c01d9b5a791d8deb5fac982c18c22f21c493e721ba33e25bed505",
+      "src/json/json-number-parser.h": "97bdc99ce241fc8b5cb965b7d8f14385db02676157de19be43c5d0b9224c35fe",
+      "src/json/json-array-scanner.h": "083c1da92397c801a1b35e05ee76ec1e3262681ca26cd9cb32c000f19d22f4b5",
+      "src/json/json-stringifier-async.cc": "b8f4f3b32829300bc7707c5163133068c3e5c88e22ca47e1f57778222de305b6",
+      "src/json/json-parser.h": "e0de1eed083bd6925982b2a742c1fb05569c6974b9165b84d5ef58343460ca69",
+      "src/json/json-stringifier-background.cc": "81145f71bbeb77e7d7ac51e9d8500b663ee0d00d7d567fbc2040e264a045e185",
+      "src/json/json-simd-neon.cc": "4f54e73e0821cf10110d45c4a96876612ce64907c9f808a991a11e7c8f29cb9d",
+      "src/json/json-stringifier-async.h": "ada9c1d370f5245dddad259c70dbc7249c8c8e31a9f8438e6906b4a600d7d715",
+      "src/json/json-parser-async.cc": "3f5b55c95c6d50a86fd128d444e49a433dedfb96f5a314a517ee1ae1b2a74189",
+      "src/json/OWNERS": "f095445e985816c9eea54a55e04d47e7fd2535a8788a1c689bf390264c229730",
+      "src/json/json-stringifier-fast.cc": "00a6f5f2acce7473945f926ec736e32fd0503d5e5f4268f7f5a115823ef5b9a5",
+      "src/json/json-parser-background.h": "1b726b9d62d9e4b3e4eac040f51af0f728db4e26af471e470dc2871c3f26c27c",
+      "src/json/json-scanner.h": "cf6e113b233b6b282d8db25da94ebcf5b45ed04223a4af6d1364c8fe3f1caeb5",
+      "src/json/json-stringifier-escape.cc": "d202aa8b8e2c46915829e44ca184a715cee578be395aa20e34682148445b0139",
+      "src/json/json-simd.h": "8a386bff1aef10583df51915b9fc74d5da3fe917cc929b75c279458f44f8819a",
+      "src/json/json-clone.h": "722dd04246c2186c1dc7ae3f1e50d76b062548a888d94a123a935604cac04277",
+      "src/json/json-clone.cc": "c0d7a0cc7838a72426b41e7c77dca87302ddd52a58effaa88031c5445102b5f7"
+    },
+    "build_freeze_sha256": "e319bd3e0f82abac3aaeb4078fc7435efd38af8c5d5a8776dc60564f3637b763",
+    "builds": {
+      "arm32": {
+        "baseline_sha256": "1724a24b606752fa7b6d98a7e9c92caca9720709da3233f7e3c581da54b97a7c",
+        "candidate_sha256": "31d5f8a694ec84f9aa05355297da8c48b5f064fa85aa0407dcefa92ceda002a5",
+        "cctest_sha256": "a6c578611f204c999e4265a413a86681e4fdcf266ff94033408050d001f7276d",
+        "libcxx_sha256": "fd7bbe2586a529ed0eb98ca8a9d1507468173069f80e58db1c007ce874fa1588",
+        "args_gn": "target_os=\"android\"\ntarget_cpu=\"arm\"\nv8_target_cpu=\"arm\"\nhost_toolchain=\"//out/host-adapter:review_generators32\"\nv8_snapshot_toolchain=\"//build/toolchain/android:android_clang_arm\"\nuse_thin_lto=false\nuse_lld=true\nclang_use_chrome_plugins=false\nchrome_pgo_phase=0\nis_component_build=false\nv8_monolithic=true\nuse_custom_libcxx=true\nis_debug=false\nv8_use_external_startup_data=false\nis_official_build=true\nv8_enable_i18n_support=false\ntreat_warnings_as_errors=false\nsymbol_level=0\nv8_enable_webassembly=false\nv8_enable_sandbox=false\nv8_enable_static_roots=false\nandroid_ndk_root=\"/Users/james/software/android/sdk/ndk/27.3.13750724\"\nclang_base_path=\"/Users/james/projects/v8/v8-standalone/out/json-android-review/toolchain\"\nandroid_ndk_version=\"r27d\"\nandroid32_ndk_api_level=21\nandroid64_ndk_api_level=21\nuse_custom_libunwind=true\nuse_ml_inliner=false\nllvm_android_mainline=true\n\nenable_dsyms=false\n\narm_use_neon=false\narm_fpu=\"vfpv3-d16\"\nv8_enable_json_arm32_runtime_dispatch=true\n\nlibcxx_use_ndk_abi=true\nv8_android_arm32_crt_dir=\"/Users/james/projects/v8/v8-standalone/out/json-arm32-dispatch-20261105/crt-compatible\"\n",
+        "snapshot_sha256": {
+          "embedded.S": "ffa1eb89ed84122bfa9f039bb434a222ce9e851e9eb30531adc0e07ef3709532",
+          "snapshot.cc": "7042e3feed10276d94a5f91f88288618f0c1ed27d988b5e31a2ae9cf1220ee60"
+        }
+      },
+      "arm64": {
+        "baseline_sha256": "50552d118dbc1b4fede741486c8d7a9208bfc46b3f1097f767955bdb2b25f14a",
+        "candidate_sha256": "b368b516259b38feeda7c63cb714d9d4223d8cf5e8cee50bd84087058660e826",
+        "cctest_sha256": "08ca521d1b482f7c071988a4321e1f77619c3892963f04895fc18f4ff0f3b1ef",
+        "libcxx_sha256": "d523468d62d9b603cb3354294d70d4b2feabf2c3f1e43b0c96c9aabf32813708",
+        "args_gn": "target_os=\"android\"\ntarget_cpu=\"arm64\"\nv8_target_cpu=\"arm64\"\nhost_toolchain=\"//out/host-adapter:review_host\"\nv8_snapshot_toolchain=\"//build/toolchain/android:android_clang_arm64\"\nuse_thin_lto=false\nuse_lld=true\nclang_use_chrome_plugins=false\nchrome_pgo_phase=0\nis_component_build=false\nv8_monolithic=true\nuse_custom_libcxx=false\nis_debug=false\nv8_use_external_startup_data=false\nis_official_build=true\nv8_enable_i18n_support=false\ntreat_warnings_as_errors=false\nsymbol_level=0\nv8_enable_webassembly=false\nv8_enable_sandbox=false\nv8_enable_static_roots=false\nandroid_ndk_root=\"/Users/james/software/android/sdk/ndk/27.3.13750724\"\nclang_base_path=\"/Users/james/projects/v8/v8-standalone/out/json-android-review/toolchain\"\nandroid_ndk_version=\"r27d\"\nandroid32_ndk_api_level=21\nandroid64_ndk_api_level=21\nuse_custom_libunwind=false\nuse_ml_inliner=false\nllvm_android_mainline=true\n\nenable_dsyms=false\n",
+        "snapshot_sha256": {
+          "embedded.S": "dd7f3ac4cdeaa10326ed592388fbcd743d3978c86c940668a2c6db1cd238f235",
+          "snapshot.cc": "56024c3d549688218ac0c0ce7c39d1f000d8fa6918b8729142599dfc96eb8b8e"
+        }
+      }
+    },
+    "corpus_manifest_sha256": {
+      "originals": "2faf639e9e91b641e10798b80360778e57cbd5c9cc0a5a58b72fabb03f70fa83",
+      "expanded": "e03dde571c504e5cd4ecfb09d35604c50fe4ce2c570c25eeb48525bb7073f75a"
+    },
+    "stages": [
+      "profile",
+      "input-pages",
+      "frame-keys",
+      "arm64-tape",
+      "stage1-acceptance",
+      "object-array-parallel",
+      "final-acceptance"
+    ],
+    "gates": {
+      "max_ratio": 1.05,
+      "pairs": 6,
+      "extra_family_pairs": 6,
+      "warmups": 2,
+      "samples": 3,
+      "stage1_group_gain": 0.05,
+      "stage1_direction_pairs": 5,
+      "stage2_usgs_gain": 0.1
+    },
+    "push": false
+  },
+  "candidate_dispositions": [
+    {
+      "candidate": "input-pages",
+      "status": "rejected_at_pilot",
+      "production_change": false,
+      "reason": "No screened ABI/data group approaches the required 5% improvement; do not advance this candidate to formal 6-pair acceptance.",
+      "grouped_completion_ratios": {
+        "arm32/original": 1.0145821101164214,
+        "arm32/expanded50": 1.0068677367358965,
+        "arm64/original": 0.9971989953807467,
+        "arm64/expanded50": 0.9937119670031266
+      },
+      "adverse_pilot_observations": [
+        {
+          "abi": "arm32",
+          "case": "youbike-taipei",
+          "jobs": 1,
+          "api": "parseAsync",
+          "metric": "entry_ms",
+          "medians": {
+            "before": 1.1039999999999992,
+            "input-pages": 1.6270000000000095
+          },
+          "aggregate_ratio": 1.4737318840579807,
+          "paired_median_ratio": 1.473384142738991,
+          "pair_ratios": [
+            1.5053763440860282,
+            1.4413919413919543
+          ],
+          "faster_pairs": 0,
+          "gate_pass": false
+        },
+        {
+          "abi": "arm32",
+          "case": "usgs-month-20mb",
+          "jobs": 4,
+          "api": "parseAsync",
+          "metric": "rss_kib",
+          "medians": {
+            "before": 345396.0,
+            "input-pages": 370272.0
+          },
+          "aggregate_ratio": 1.0720216794635722,
+          "paired_median_ratio": 1.072029017551521,
+          "pair_ratios": [
+            1.0607140790463514,
+            1.0833439560566906
+          ],
+          "faster_pairs": 0,
+          "gate_pass": false
+        },
+        {
+          "abi": "arm32",
+          "case": "mixed_nested-20mb",
+          "jobs": 4,
+          "api": "parseAsync",
+          "metric": "rss_kib",
+          "medians": {
+            "before": 390006.0,
+            "input-pages": 409488.0
+          },
+          "aggregate_ratio": 1.0499530776449593,
+          "paired_median_ratio": 1.0524812741724194,
+          "pair_ratios": [
+            0.9827787565074526,
+            1.1221837918373863
+          ],
+          "faster_pairs": 1,
+          "gate_pass": false
+        },
+        {
+          "abi": "arm64",
+          "case": "usgs-month-20mb",
+          "jobs": 4,
+          "api": "parseAsync",
+          "metric": "rss_kib",
+          "medians": {
+            "before": 356806.0,
+            "input-pages": 379152.0
+          },
+          "aggregate_ratio": 1.0626278706075571,
+          "paired_median_ratio": 1.0626289105238975,
+          "pair_ratios": [
+            1.0420151110911822,
+            1.0832427099566129
+          ],
+          "faster_pairs": 0,
+          "gate_pass": false
+        }
+      ],
+      "paired_rounds": 2,
+      "formal_regression_claim": false,
+      "correctness": "Focused qualification passed all 3 modes; 72 real parse/parseAsync full comparisons with descriptors",
+      "artifacts": [
+        "builds/input-pages",
+        "qualification/input-pages-summary.json",
+        "runs/input-pages-pilot"
+      ]
+    },
+    {
+      "candidate": "frame-keys",
+      "status": "rejected_at_pilot",
+      "production_change": false,
+      "reason": "No screened group approaches the required 5% gain; added frame bookkeeping does not improve this real corpus.",
+      "grouped_completion_ratios": {
+        "arm32/original": 1.018798727304457,
+        "arm32/expanded50": 1.0074343427787718,
+        "arm64/original": 0.9971191016501038,
+        "arm64/expanded50": 0.9975603145717525
+      },
+      "paired_rounds": 2,
+      "adverse_pilot_observations": [
+        {
+          "abi": "arm32",
+          "case": "usgs-month",
+          "jobs": 1,
+          "api": "parseAsync",
+          "metric": "wall_ms",
+          "medians": {
+            "before": 98.6405,
+            "frame-keys": 103.82
+          },
+          "aggregate_ratio": 1.0525088579234694,
+          "paired_median_ratio": 1.0549267042195571,
+          "pair_ratios": [
+            1.1128214894044695,
+            0.9970319190346448
+          ],
+          "faster_pairs": 1,
+          "gate_pass": false
+        },
+        {
+          "abi": "arm32",
+          "case": "youbike-taipei",
+          "jobs": 1,
+          "api": "parseAsync",
+          "metric": "entry_ms",
+          "medians": {
+            "before": 1.3090000000000117,
+            "frame-keys": 1.5790000000000077
+          },
+          "aggregate_ratio": 1.206264323911378,
+          "paired_median_ratio": 1.2446151330927397,
+          "pair_ratios": [
+            1.4462264150943511,
+            1.0430038510911284
+          ],
+          "faster_pairs": 0,
+          "gate_pass": false
+        },
+        {
+          "abi": "arm32",
+          "case": "youbike-taipei-50mb",
+          "jobs": 1,
+          "api": "parseAsync",
+          "metric": "rss_kib",
+          "medians": {
+            "before": 297732.0,
+            "frame-keys": 321872.0
+          },
+          "aggregate_ratio": 1.0810796286593312,
+          "paired_median_ratio": 1.0875373118923113,
+          "pair_ratios": [
+            1.1707981357413342,
+            1.0042764880432886
+          ],
+          "faster_pairs": 0,
+          "gate_pass": false
+        },
+        {
+          "abi": "arm32",
+          "case": "usgs-month-20mb",
+          "jobs": 4,
+          "api": "parseAsync",
+          "metric": "rss_kib",
+          "medians": {
+            "before": 356776.0,
+            "frame-keys": 380520.0
+          },
+          "aggregate_ratio": 1.0665515617642443,
+          "paired_median_ratio": 1.0664929072602394,
+          "pair_ratios": [
+            1.042494605286819,
+            1.0904912092336598
+          ],
+          "faster_pairs": 0,
+          "gate_pass": false
+        },
+        {
+          "abi": "arm64",
+          "case": "youbike-taipei-50mb",
+          "jobs": 1,
+          "api": "parseAsync",
+          "metric": "rss_kib",
+          "medians": {
+            "before": 301032.0,
+            "frame-keys": 349118.0
+          },
+          "aggregate_ratio": 1.1597371707991178,
+          "paired_median_ratio": 1.1708511692812222,
+          "pair_ratios": [
+            1.0574232742763094,
+            1.2842790642861353
+          ],
+          "faster_pairs": 0,
+          "gate_pass": false
+        },
+        {
+          "abi": "arm64",
+          "case": "usgs-month-20mb",
+          "jobs": 4,
+          "api": "parseAsync",
+          "metric": "rss_kib",
+          "medians": {
+            "before": 370562.0,
+            "frame-keys": 391022.0
+          },
+          "aggregate_ratio": 1.0552134325699882,
+          "paired_median_ratio": 1.0581841217771173,
+          "pair_ratios": [
+            1.126891182941276,
+            0.9894770606129586
+          ],
+          "faster_pairs": 1,
+          "gate_pass": false
+        },
+        {
+          "abi": "arm64",
+          "case": "usgs-month",
+          "jobs": 1,
+          "api": "parse",
+          "metric": "rss_kib",
+          "medians": {
+            "before": 53764.0,
+            "frame-keys": 56430.0
+          },
+          "aggregate_ratio": 1.0495870842943233,
+          "paired_median_ratio": 1.0528232782557005,
+          "pair_ratios": [
+            1.1554121533379427,
+            0.9502344031734583
+          ],
+          "faster_pairs": 1,
+          "gate_pass": false
+        }
+      ],
+      "formal_regression_claim": false,
+      "correctness": "Focused Release qualification passed all 3 modes including new >4Mi frame/GC cases and 72 full real parse comparisons.",
+      "configuration_retry": "Official Release does not support --verify-heap; baseline and candidate abort before JS. Corrected Release stress flags; verifier build remains a separate requirement.",
+      "artifacts": [
+        "builds/frame-keys",
+        "qualification/frame-keys-focused-release-gc",
+        "frame-gc-reproduction",
+        "runs/frame-keys-pilot"
+      ]
+    },
+    {
+      "candidate": "arm64-tape",
+      "status": "rejected_at_pilot",
+      "production_change": false,
+      "reason": "No target group approaches the required 5% completion gain. ARM64 page-backed tape slows both raw and expanded groups in the pilot.",
+      "grouped_completion_ratios": {
+        "arm32/original": 0.98953452076691,
+        "arm32/expanded50": 0.9921145825167497,
+        "arm64/original": 1.0644271636786622,
+        "arm64/expanded50": 1.0179879788495725
+      },
+      "paired_rounds": 2,
+      "adverse_pilot_observations": [
+        {
+          "abi": "arm32",
+          "case": "usgs-month-50mb",
+          "jobs": 1,
+          "api": "parseAsync",
+          "metric": "rss_kib",
+          "medians": {
+            "before": 303540.0,
+            "arm64-tape": 323450.0
+          },
+          "aggregate_ratio": 1.0655926731238057,
+          "paired_median_ratio": 1.0705246184263897,
+          "pair_ratios": [
+            1.1437654539032145,
+            0.9972837829495648
+          ],
+          "faster_pairs": 1,
+          "gate_pass": false
+        },
+        {
+          "abi": "arm64",
+          "case": "usgs-month",
+          "jobs": 1,
+          "api": "parseAsync",
+          "metric": "wall_ms",
+          "medians": {
+            "before": 78.8485,
+            "arm64-tape": 87.46600000000001
+          },
+          "aggregate_ratio": 1.1092918698516776,
+          "paired_median_ratio": 1.1090599852578789,
+          "pair_ratios": [
+            1.15075611386482,
+            1.0673638566509378
+          ],
+          "faster_pairs": 0,
+          "gate_pass": false
+        },
+        {
+          "abi": "arm64",
+          "case": "youbike-taipei",
+          "jobs": 1,
+          "api": "parseAsync",
+          "metric": "wall_ms",
+          "medians": {
+            "before": 9.103500000000011,
+            "arm64-tape": 9.697499999999998
+          },
+          "aggregate_ratio": 1.0652496292634686,
+          "paired_median_ratio": 1.0658163757859893,
+          "pair_ratios": [
+            1.1276053215077584,
+            1.0040274300642202
+          ],
+          "faster_pairs": 0,
+          "gate_pass": false
+        },
+        {
+          "abi": "arm64",
+          "case": "npm-typescript-50mb",
+          "jobs": 1,
+          "api": "parseAsync",
+          "metric": "entry_ms",
+          "medians": {
+            "before": 23.12249999999949,
+            "arm64-tape": 24.845500000000357
+          },
+          "aggregate_ratio": 1.074516163909651,
+          "paired_median_ratio": 1.0746641000844326,
+          "pair_ratios": [
+            1.03369818150483,
+            1.1156300186640349
+          ],
+          "faster_pairs": 0,
+          "gate_pass": false
+        }
+      ],
+      "formal_regression_claim": false,
+      "correctness": "Focused qualification passed all 3 modes, including 72 full real parse comparisons.",
+      "artifacts": [
+        "builds/arm64-tape",
+        "qualification/arm64-tape-focused",
+        "runs/arm64-tape-pilot"
+      ]
+    }
+  ],
+  "phase_attribution": {
+    "completed": true,
+    "diagnostic_only": true,
+    "notes": [
+      "Foreground GC is an overlapping counter, not additive to build/account time.",
+      "Four-job GC window spans overlap; per-job windows must not be summed.",
+      "Formal completion results use uninstrumented binaries."
+    ],
+    "results": [
+      {
+        "abi": "arm32",
+        "case": "usgs-month",
+        "jobs": 1,
+        "per_job_mean_ms": {
+          "entry_us": 8.608833333333333,
+          "allocate_us": 0.02683333333333333,
+          "copy_us": 8.507833333333334,
+          "worker_us": 44.8845,
+          "worker_free_us": 1.3456666666666668,
+          "build_us": 38.29866666666666,
+          "discard_us": 2.7001666666666666,
+          "account_us": 0.017,
+          "foreground_gc_us": 0.0,
+          "gc_window_us": 1.3475,
+          "foreground_wait_us": 1.796,
+          "worker_queue_us": 0.285
+        },
+        "foreground_p95_ms": 2.22,
+        "foreground_max_ms": 2.292,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm32",
+        "case": "npm-typescript",
+        "jobs": 1,
+        "per_job_mean_ms": {
+          "entry_us": 9.602,
+          "allocate_us": 0.02033333333333333,
+          "copy_us": 9.515666666666666,
+          "worker_us": 75.91616666666667,
+          "worker_free_us": 1.522,
+          "build_us": 95.14533333333333,
+          "discard_us": 4.166333333333333,
+          "account_us": 0.0345,
+          "foreground_gc_us": 0.0,
+          "gc_window_us": 16.88583333333333,
+          "foreground_wait_us": 17.553833333333333,
+          "worker_queue_us": 0.22316666666666665
+        },
+        "foreground_p95_ms": 2.199,
+        "foreground_max_ms": 3.539,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm32",
+        "case": "youbike-taipei",
+        "jobs": 1,
+        "per_job_mean_ms": {
+          "entry_us": 1.2873333333333332,
+          "allocate_us": 0.007,
+          "copy_us": 1.2015,
+          "worker_us": 4.649333333333333,
+          "worker_free_us": 0.4896666666666667,
+          "build_us": 3.4673333333333334,
+          "discard_us": 0.354,
+          "account_us": 0.003,
+          "foreground_gc_us": 0.0,
+          "gc_window_us": 0.0,
+          "foreground_wait_us": 0.3398333333333333,
+          "worker_queue_us": 0.17033333333333334
+        },
+        "foreground_p95_ms": 2.217,
+        "foreground_max_ms": 2.217,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm32",
+        "case": "kubernetes-openapi",
+        "jobs": 1,
+        "per_job_mean_ms": {
+          "entry_us": 4.796333333333333,
+          "allocate_us": 0.024333333333333332,
+          "copy_us": 4.716833333333333,
+          "worker_us": 12.813333333333334,
+          "worker_free_us": 0.77,
+          "build_us": 16.46666666666667,
+          "discard_us": 0.6508333333333334,
+          "account_us": 0.0075,
+          "foreground_gc_us": 0.0,
+          "gc_window_us": 0.0,
+          "foreground_wait_us": 0.348,
+          "worker_queue_us": 0.219
+        },
+        "foreground_p95_ms": 2.239,
+        "foreground_max_ms": 2.266,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm32",
+        "case": "usgs-month-50mb",
+        "jobs": 1,
+        "per_job_mean_ms": {
+          "entry_us": 58.378,
+          "allocate_us": 0.02333333333333333,
+          "copy_us": 57.532666666666664,
+          "worker_us": 314.144,
+          "worker_free_us": 5.629166666666667,
+          "build_us": 266.4003333333333,
+          "discard_us": 17.2835,
+          "account_us": 0.8638333333333333,
+          "foreground_gc_us": 0.0,
+          "gc_window_us": 197.669,
+          "foreground_wait_us": 96.24483333333333,
+          "worker_queue_us": 0.226
+        },
+        "foreground_p95_ms": 2.22,
+        "foreground_max_ms": 2.373,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm32",
+        "case": "usgs-month-50mb",
+        "jobs": 4,
+        "per_job_mean_ms": {
+          "entry_us": 107.79175,
+          "allocate_us": 0.03675,
+          "copy_us": 59.3385,
+          "worker_us": 353.3999166666667,
+          "worker_free_us": 6.284,
+          "build_us": 291.75166666666667,
+          "discard_us": 25.79554166666667,
+          "account_us": 39.41608333333333,
+          "foreground_gc_us": 8.2435,
+          "gc_window_us": 517.0697916666667,
+          "foreground_wait_us": 1026.2995,
+          "worker_queue_us": 6.459
+        },
+        "foreground_p95_ms": 2.271,
+        "foreground_max_ms": 14.24,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm32",
+        "case": "npm-typescript-50mb",
+        "jobs": 1,
+        "per_job_mean_ms": {
+          "entry_us": 28.913833333333333,
+          "allocate_us": 0.022333333333333334,
+          "copy_us": 28.82483333333333,
+          "worker_us": 245.85016666666667,
+          "worker_free_us": 3.5766666666666667,
+          "build_us": 309.4761666666667,
+          "discard_us": 12.539166666666667,
+          "account_us": 0.1245,
+          "foreground_gc_us": 0.0,
+          "gc_window_us": 76.11783333333332,
+          "foreground_wait_us": 78.05966666666667,
+          "worker_queue_us": 0.26416666666666666
+        },
+        "foreground_p95_ms": 2.175,
+        "foreground_max_ms": 8.198,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm32",
+        "case": "npm-typescript-50mb",
+        "jobs": 4,
+        "per_job_mean_ms": {
+          "entry_us": 68.94266666666667,
+          "allocate_us": 0.034958333333333334,
+          "copy_us": 28.68270833333333,
+          "worker_us": 278.9710833333333,
+          "worker_free_us": 2.8609166666666663,
+          "build_us": 329.3944583333333,
+          "discard_us": 15.568833333333334,
+          "account_us": 0.5450833333333334,
+          "foreground_gc_us": 3.1696666666666666,
+          "gc_window_us": 492.650875,
+          "foreground_wait_us": 1188.8966666666668,
+          "worker_queue_us": 2.9822916666666663
+        },
+        "foreground_p95_ms": 2.198,
+        "foreground_max_ms": 21.521,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm32",
+        "case": "youbike-taipei-50mb",
+        "jobs": 1,
+        "per_job_mean_ms": {
+          "entry_us": 54.06216666666666,
+          "allocate_us": 0.017166666666666667,
+          "copy_us": 53.186,
+          "worker_us": 237.90616666666665,
+          "worker_free_us": 5.288333333333333,
+          "build_us": 168.0615,
+          "discard_us": 14.184666666666667,
+          "account_us": 0.8815,
+          "foreground_gc_us": 0.0,
+          "gc_window_us": 176.45316666666665,
+          "foreground_wait_us": 109.01283333333333,
+          "worker_queue_us": 0.20933333333333334
+        },
+        "foreground_p95_ms": 2.264,
+        "foreground_max_ms": 2.44,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm32",
+        "case": "youbike-taipei-50mb",
+        "jobs": 4,
+        "per_job_mean_ms": {
+          "entry_us": 96.82991666666668,
+          "allocate_us": 0.040791666666666664,
+          "copy_us": 54.651041666666664,
+          "worker_us": 265.537875,
+          "worker_free_us": 5.693333333333333,
+          "build_us": 247.65254166666665,
+          "discard_us": 19.43508333333333,
+          "account_us": 38.291291666666666,
+          "foreground_gc_us": 66.18145833333332,
+          "gc_window_us": 511.5250833333333,
+          "foreground_wait_us": 763.4130833333334,
+          "worker_queue_us": 7.930083333333333
+        },
+        "foreground_p95_ms": 8.11,
+        "foreground_max_ms": 22.677,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm64",
+        "case": "usgs-month",
+        "jobs": 1,
+        "per_job_mean_ms": {
+          "entry_us": 6.915666666666667,
+          "allocate_us": 0.028,
+          "copy_us": 6.821,
+          "worker_us": 35.517833333333336,
+          "worker_free_us": 1.395,
+          "build_us": 33.274166666666666,
+          "discard_us": 0.5411666666666666,
+          "account_us": 0.0165,
+          "foreground_gc_us": 0.0,
+          "gc_window_us": 0.0,
+          "foreground_wait_us": 0.3968333333333333,
+          "worker_queue_us": 0.246
+        },
+        "foreground_p95_ms": 2.07,
+        "foreground_max_ms": 2.129,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm64",
+        "case": "npm-typescript",
+        "jobs": 1,
+        "per_job_mean_ms": {
+          "entry_us": 8.036666666666667,
+          "allocate_us": 0.025333333333333333,
+          "copy_us": 7.9505,
+          "worker_us": 67.129,
+          "worker_free_us": 1.5026666666666668,
+          "build_us": 70.6965,
+          "discard_us": 0.8358333333333333,
+          "account_us": 0.0325,
+          "foreground_gc_us": 0.0,
+          "gc_window_us": 14.559166666666666,
+          "foreground_wait_us": 15.202166666666667,
+          "worker_queue_us": 0.2105
+        },
+        "foreground_p95_ms": 2.075,
+        "foreground_max_ms": 3.359,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm64",
+        "case": "youbike-taipei",
+        "jobs": 1,
+        "per_job_mean_ms": {
+          "entry_us": 1.1926666666666668,
+          "allocate_us": 0.009666666666666665,
+          "copy_us": 1.1248333333333334,
+          "worker_us": 3.846,
+          "worker_free_us": 0.6053333333333334,
+          "build_us": 2.8718333333333335,
+          "discard_us": 0.056,
+          "account_us": 0.0023333333333333335,
+          "foreground_gc_us": 0.0,
+          "gc_window_us": 0.0,
+          "foreground_wait_us": 0.3175,
+          "worker_queue_us": 0.306
+        },
+        "foreground_p95_ms": 2.086,
+        "foreground_max_ms": 2.086,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm64",
+        "case": "kubernetes-openapi",
+        "jobs": 1,
+        "per_job_mean_ms": {
+          "entry_us": 3.7326666666666664,
+          "allocate_us": 0.025166666666666667,
+          "copy_us": 3.6355,
+          "worker_us": 11.353666666666665,
+          "worker_free_us": 0.8148333333333334,
+          "build_us": 15.441166666666666,
+          "discard_us": 0.0995,
+          "account_us": 0.008833333333333334,
+          "foreground_gc_us": 0.0,
+          "gc_window_us": 0.0,
+          "foreground_wait_us": 0.3446666666666667,
+          "worker_queue_us": 0.2658333333333333
+        },
+        "foreground_p95_ms": 2.088,
+        "foreground_max_ms": 2.092,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm64",
+        "case": "usgs-month-50mb",
+        "jobs": 1,
+        "per_job_mean_ms": {
+          "entry_us": 45.68416666666666,
+          "allocate_us": 0.033,
+          "copy_us": 45.0755,
+          "worker_us": 250.90833333333333,
+          "worker_free_us": 5.503166666666667,
+          "build_us": 231.78233333333336,
+          "discard_us": 4.707833333333333,
+          "account_us": 0.64,
+          "foreground_gc_us": 0.0,
+          "gc_window_us": 151.198,
+          "foreground_wait_us": 84.65366666666667,
+          "worker_queue_us": 0.2733333333333333
+        },
+        "foreground_p95_ms": 2.079,
+        "foreground_max_ms": 2.281,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm64",
+        "case": "usgs-month-50mb",
+        "jobs": 4,
+        "per_job_mean_ms": {
+          "entry_us": 97.78754166666667,
+          "allocate_us": 0.06166666666666666,
+          "copy_us": 48.206208333333336,
+          "worker_us": 285.3027083333333,
+          "worker_free_us": 6.570291666666667,
+          "build_us": 265.116625,
+          "discard_us": 13.67525,
+          "account_us": 27.47204166666667,
+          "foreground_gc_us": 14.832833333333333,
+          "gc_window_us": 475.9924166666667,
+          "foreground_wait_us": 932.115875,
+          "worker_queue_us": 1.9305833333333333
+        },
+        "foreground_p95_ms": 2.157,
+        "foreground_max_ms": 21.882,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm64",
+        "case": "npm-typescript-50mb",
+        "jobs": 1,
+        "per_job_mean_ms": {
+          "entry_us": 24.239833333333333,
+          "allocate_us": 0.02283333333333333,
+          "copy_us": 24.145666666666667,
+          "worker_us": 209.608,
+          "worker_free_us": 3.153,
+          "build_us": 235.79666666666665,
+          "discard_us": 3.0866666666666664,
+          "account_us": 0.10416666666666667,
+          "foreground_gc_us": 0.0,
+          "gc_window_us": 62.624,
+          "foreground_wait_us": 64.31983333333334,
+          "worker_queue_us": 0.2835
+        },
+        "foreground_p95_ms": 2.073,
+        "foreground_max_ms": 7.058,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm64",
+        "case": "npm-typescript-50mb",
+        "jobs": 4,
+        "per_job_mean_ms": {
+          "entry_us": 34.47779166666666,
+          "allocate_us": 0.042,
+          "copy_us": 24.40125,
+          "worker_us": 273.7235416666667,
+          "worker_free_us": 3.1117916666666665,
+          "build_us": 254.43966666666665,
+          "discard_us": 9.750625,
+          "account_us": 3.7564166666666665,
+          "foreground_gc_us": 6.41,
+          "gc_window_us": 433.2319166666667,
+          "foreground_wait_us": 914.7747083333334,
+          "worker_queue_us": 1.281125
+        },
+        "foreground_p95_ms": 2.129,
+        "foreground_max_ms": 22.766,
+        "parts": [
+          0
+        ]
+      },
+      {
+        "abi": "arm64",
+        "case": "youbike-taipei-50mb",
+        "jobs": 1,
+        "per_job_mean_ms": {
+          "entry_us": 45.3105,
+          "allocate_us": 0.026,
+          "copy_us": 44.695166666666665,
+          "worker_us": 95.00883333333333,
+          "worker_free_us": 5.8355,
+          "build_us": 148.81533333333334,
+          "discard_us": 3.9578333333333333,
+          "account_us": 0.6446666666666666,
+          "foreground_gc_us": 0.0,
+          "gc_window_us": 159.463,
+          "foreground_wait_us": 92.235,
+          "worker_queue_us": 0.242
+        },
+        "foreground_p95_ms": 2.09,
+        "foreground_max_ms": 2.565,
+        "parts": [
+          7
+        ]
+      },
+      {
+        "abi": "arm64",
+        "case": "youbike-taipei-50mb",
+        "jobs": 4,
+        "per_job_mean_ms": {
+          "entry_us": 76.87520833333333,
+          "allocate_us": 0.04454166666666667,
+          "copy_us": 44.291875,
+          "worker_us": 197.06908333333334,
+          "worker_free_us": 6.332958333333333,
+          "build_us": 220.02075,
+          "discard_us": 8.851833333333333,
+          "account_us": 19.543916666666668,
+          "foreground_gc_us": 58.227,
+          "gc_window_us": 423.707875,
+          "foreground_wait_us": 648.027125,
+          "worker_queue_us": 9.882083333333334
+        },
+        "foreground_p95_ms": 7.209,
+        "foreground_max_ms": 22.383,
+        "parts": [
+          0,
+          7
+        ]
+      }
+    ]
+  },
+  "artifact_root": "/Users/james/projects/v8/v8-standalone/out/json-parse-real-opt-20261107",
+  "performance_acceptance": "No candidate qualified for formal six-pair acceptance; two-pair pilots retained in full, no claim of formal regression significance.",
+  "correctness": {
+    "input_pages": "/Users/james/projects/v8/v8-standalone/out/json-parse-real-opt-20261107/qualification/input-pages-summary.json",
+    "frame_keys": "/Users/james/projects/v8/v8-standalone/out/json-parse-real-opt-20261107/qualification/frame-keys-focused-release-gc/state.json",
+    "arm64_tape": "/Users/james/projects/v8/v8-standalone/out/json-parse-real-opt-20261107/qualification/arm64-tape-focused/state.json",
+    "frame_keys_asan_heap_verifier": {
+      "build_config": {
+        "arch": "arm64",
+        "asan": true,
+        "atomic_object_field_writes": true,
+        "cet_shadow_stack": false,
+        "cfi": false,
+        "clang": true,
+        "clang_coverage": false,
+        "code_comments": false,
+        "component_build": false,
+        "concurrent_marking": true,
+        "conservative_stack_scanning": false,
+        "current_cpu": "arm64",
+        "dcheck_always_on": true,
+        "debug_code": false,
+        "DEBUG_defined": true,
+        "debugging_features": false,
+        "dict_property_const_tracking": false,
+        "direct_handle": false,
+        "direct_local": false,
+        "disassembler": false,
+        "full_debug": false,
+        "gdbjit": false,
+        "has_jitless": false,
+        "has_maglev": true,
+        "has_turbofan": true,
+        "has_webassembly": false,
+        "i18n": false,
+        "is_android": false,
+        "is_ios": false,
+        "js_shared_memory": true,
+        "lite_mode": false,
+        "local_off_stack_check": false,
+        "mips_arch_variant": "",
+        "mips_use_msa": false,
+        "msan": false,
+        "official_build": false,
+        "pointer_compression": true,
+        "pointer_compression_shared_cage": true,
+        "runtime_call_stats": false,
+        "sandbox": false,
+        "shared_ro_heap": true,
+        "simd_mips": false,
+        "simulator_run": false,
+        "single_generation": false,
+        "slow_dchecks": false,
+        "target_cpu": "arm64",
+        "third_party_heap": false,
+        "tsan": false,
+        "ubsan": false,
+        "use_sanitizer": true,
+        "v8_cfi": false,
+        "v8_current_cpu": "arm64",
+        "v8_target_cpu": "arm64",
+        "verify_csa": false,
+        "verify_heap": true,
+        "verify_predictable": false,
+        "memory_corruption_api": false
+      },
+      "command": [
+        "out/json-parse-real-opt-20261107/asan-checkout/out/json-correctness-20261105/asan/d8",
+        "--expose-gc",
+        "--verify-heap",
+        "--stress-compaction",
+        "--thread-pool-size=4",
+        "out/json-parse-real-opt-20261107/tests/frame-keys.js"
+      ],
+      "returncode": 0,
+      "sha256": "e99c1bf2eeb98b811858521cc7edc3719f5eafb9594dc06c7cdee45a74eadf10",
+      "passed": true
+    }
+  },
+  "diagnostic_limitations": [
+    "The first callback profiler did not observe incremental GC; superseded by LongTaskStats counters.",
+    "The stdout GC trace probe was invalid on Android because OS::VPrint routes to logcat; not used in conclusions.",
+    "Official Release rejects --verify-heap at process startup. Initial flags were corrected, and real heap verification was run in a dedicated ASan+DCHECK+VERIFY_HEAP build.",
+    "GC window counters overlap worker and task waits. Four-job windows must not be added together."
+  ],
+  "phase2_baseline": "Unchanged production engine; original frozen build also serves as phase1 endpoint"
+}
