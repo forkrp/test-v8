@@ -11,6 +11,10 @@
 #include <new>
 #include <type_traits>
 
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM64)
+#include <sys/mman.h>
+#endif
+
 #include "include/v8-platform.h"
 #include "src/base/bits.h"
 #include "src/base/memory.h"
@@ -154,6 +158,10 @@ V8_NOINLINE const Char* ScanLongJsonString(const Char* begin, const Char* end,
 #endif
 }
 
+enum class ParseArrayResult { kSkipped, kParsed, kFailed };
+using ParseRootArray = ParseArrayResult (*)(void*, uint32_t*,
+                                            BackgroundJsonNode*);
+
 template <typename Char>
 class BackgroundJsonParser {
  public:
@@ -176,8 +184,9 @@ class BackgroundJsonParser {
     Parse<true>();
   }
 
-  template <bool array_part = false>
-  void Parse() {
+  template <bool array_part = false, bool root_object_array = false>
+  void Parse(ParseRootArray parse_root_array = nullptr,
+             void* array_context = nullptr) {
     using Node = BackgroundJsonNode;
     // Grow by blocks, not by input bytes: a huge single string has one node.
     while (!Cancelled()) {
@@ -266,6 +275,26 @@ class BackgroundJsonParser {
             case '{':
             case '[': {
               bool array = c == '[';
+              if constexpr (root_object_array) {
+                // Only a direct array property of the root object is eligible.
+                if (array && stack_.size() == 1 && !stack_.back().array) {
+                  auto result =
+                      parse_root_array(array_context, &position_, &node);
+                  if (result == ParseArrayResult::kFailed) {
+                    Fail();
+                    return;
+                  }
+                  if (result == ParseArrayResult::kParsed) {
+                    // A placeholder lets the ordinary grammar validate the
+                    // entire outer object before any tape is published.
+                    node.data.container.end =
+                        static_cast<uint32_t>(output_->nodes.size()) + 1;
+                    Append(node, start);
+                    CompleteContainer(node.depth);
+                    continue;
+                  }
+                }
+              }
               node.kind = array ? Node::kArray : Node::kObject;
               node.depth = 1;
               if (array) node.flags |= Node::kAllNumbers | Node::kAllSmis;
@@ -848,9 +877,19 @@ class ParseArrayPartsJob final : public JobTask {
 };
 
 template <typename Char>
-bool TryParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
-                             base::Vector<const Char> input,
-                             uint32_t* parse_start) {
+bool HasArrayDensity(base::Vector<const Char> input, size_t array_begin,
+                     const std::atomic<bool>& cancelled) {
+  BackgroundJsonData probe(false);
+  const size_t probe_end = std::min(input.size(), array_begin + 4096);
+  BackgroundJsonParser<Char>(&probe, input.SubVector(0, probe_end), cancelled,
+                             static_cast<uint32_t>(array_begin))
+      .Parse();
+  return probe.NodeCount() >= 32;
+}
+
+template <typename Char>
+bool CanParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
+                             base::Vector<const Char> input) {
 #if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
   // Large two-byte copies and parallel tapes exceeded the ARM32 peak-memory
   // budget on device. Keep these inputs on the serial path.
@@ -861,30 +900,18 @@ bool TryParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
       platform->NumberOfWorkerThreads() < 2) {
     return false;
   }
-  // Retain offsets into the original input for strings and error reporting.
-  size_t array_begin = 0;
-  while (array_begin < input.size() && IsJsonArraySpace(input[array_begin])) {
-    ++array_begin;
-    if ((array_begin & 4095) == 0 &&
-        data->cancelled.load(std::memory_order_relaxed)) {
-      return false;
-    }
+  return true;
+}
+
+template <typename Char, bool known_cuts = false>
+bool ParseArrayRangeInParallel(BackgroundJsonData* data, Platform* platform,
+                               base::Vector<const Char> input,
+                               size_t array_begin,
+                               const std::atomic<bool>& cancelled,
+                               base::Vector<const size_t> hints = {}) {
+  if constexpr (known_cuts) {
+    if (hints.empty()) return false;
   }
-  *parse_start = static_cast<uint32_t>(array_begin);
-  if (array_begin == input.size() || input[array_begin] != '[') return false;
-#if defined(V8_OS_ANDROID)
-  {
-    // Sparse arrays, such as one large string or payload object, can spend
-    // more time finding cuts than parsing. Reuse the native grammar for a
-    // bounded density probe; its partial result is never materialized.
-    BackgroundJsonData probe(false);
-    const size_t probe_end = std::min(input.size(), array_begin + 4096);
-    BackgroundJsonParser<Char>(&probe, input.SubVector(0, probe_end),
-                               data->cancelled, *parse_start)
-        .Parse();
-    if (probe.NodeCount() < 32) return false;
-  }
-#endif
   ArrayPartsWork work;
   std::unique_ptr<JobHandle> job;
   size_t begin = array_begin + 1;
@@ -894,37 +921,54 @@ bool TryParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
     if (!job) {
       job = platform->CreateJob(
           TaskPriority::kUserVisible,
-          std::make_unique<ParseArrayPartsJob<Char>>(input, data->cancelled,
-                                                    work));
+          std::make_unique<ParseArrayPartsJob<Char>>(input, cancelled, work));
     }
     job->NotifyConcurrencyIncrease();
   };
   // More ranges let workers start earlier and shorten the last range after
   // the scan. Reuse the same platform worker pool.
-  size_t part_limit = input.size() >= 16 * 1024 * 1024 ? kMaxArrayParts : 4;
-  auto publish_cut = [](void* context, size_t end) {
-    (*static_cast<decltype(publish)*>(context))(end);
-  };
-#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
-  auto scan = [] {
-    if constexpr (sizeof(Char) == 1) {
-      return GetJsonSimdFunctions().array_cuts8;
-    } else {
-      return GetJsonSimdFunctions().array_cuts16;
+  size_t part_limit =
+      input.size() - array_begin >= 16 * 1024 * 1024 ? kMaxArrayParts : 4;
+  size_t end = 0;
+  if constexpr (known_cuts) {
+    end = input.size() - 1;
+    const size_t spacing = (input.size() - array_begin) / part_limit;
+    auto next_hint = hints.begin();
+    for (size_t part = 1; part < part_limit; ++part) {
+      if (cancelled.load(std::memory_order_relaxed)) {
+        end = 0;
+        break;
+      }
+      next_hint = std::lower_bound(next_hint, hints.end(),
+                                   array_begin + part * spacing);
+      if (next_hint == hints.end()) break;
+      publish(*next_hint++);
     }
-  }();
+  } else {
+    auto publish_cut = [](void* context, size_t end) {
+      (*static_cast<decltype(publish)*>(context))(end);
+    };
+#if defined(V8_JSON_ARM32_RUNTIME_DISPATCH)
+    auto scan = [] {
+      if constexpr (sizeof(Char) == 1) {
+        return GetJsonSimdFunctions().array_cuts8;
+      } else {
+        return GetJsonSimdFunctions().array_cuts16;
+      }
+    }();
 #else
-  auto scan = FindJsonArrayCuts<Char>;
+    auto scan = FindJsonArrayCuts<Char>;
 #endif
-  size_t end = scan(input.begin(), input.size(), array_begin, data->cancelled,
-                    part_limit, &publish, publish_cut);
+    end = scan(input.begin(), input.size(), array_begin, cancelled, part_limit,
+               &publish, publish_cut);
+  }
   if (end == 0 || !job) {
     if (job) job->Join();
     return false;
   }
   work.Publish(begin, end);
   job->Join();
-  if (data->cancelled.load(std::memory_order_relaxed)) return true;
+  if (cancelled.load(std::memory_order_relaxed)) return true;
   const size_t count = work.ready.load(std::memory_order_relaxed);
   for (size_t i = 0; i < count; ++i) {
     const auto& part = work.parts[i].data;
@@ -942,7 +986,8 @@ bool TryParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
     root.flags &= part_root.flags;
     root.depth = std::max(root.depth, part_root.depth);
     root.data.container.count += part_root.data.container.count;
-    data->part_boundaries.push_back(total_nodes);
+    data->part_boundaries.push_back(
+        {total_nodes, static_cast<uint32_t>(total_nodes - 1)});
     nodes.pop_front();
     total_nodes += nodes.size();
     data->remaining_parts.push_back(std::move(nodes));
@@ -951,6 +996,123 @@ bool TryParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
   data->total_nodes = total_nodes;
   return true;
 }
+
+template <typename Char>
+bool TryParseArrayInParallel(BackgroundJsonData* data, Platform* platform,
+                             base::Vector<const Char> input,
+                             uint32_t* parse_start) {
+  if (!CanParseArrayInParallel(data, platform, input)) return false;
+  size_t array_begin = 0;
+  while (array_begin < input.size() && IsJsonArraySpace(input[array_begin])) {
+    ++array_begin;
+    if ((array_begin & 4095) == 0 &&
+        data->cancelled.load(std::memory_order_relaxed))
+      return false;
+  }
+  *parse_start = static_cast<uint32_t>(array_begin);
+  if (array_begin == input.size() || input[array_begin] != '[') return false;
+#if defined(V8_OS_ANDROID)
+  if (!HasArrayDensity(input, array_begin, data->cancelled)) return false;
+#endif
+  return ParseArrayRangeInParallel(data, platform, input, array_begin,
+                                   data->cancelled);
+}
+
+#if defined(V8_OS_ANDROID)
+template <typename Char>
+struct RootObjectArray {
+  BackgroundJsonData* skeleton;
+  Platform* platform;
+  base::Vector<const Char> input;
+  const std::atomic<bool>& cancelled;
+  BackgroundJsonData array{false};
+  size_t placeholder = 0;
+  bool selected = false;
+
+  static ParseArrayResult Parse(void* context, uint32_t* position,
+                                BackgroundJsonNode* node) {
+    auto& self = *static_cast<RootObjectArray*>(context);
+    if (self.selected || self.input.size() - *position < 4 * 1024 * 1024 ||
+        !HasArrayDensity(self.input, *position, self.cancelled)) {
+      return ParseArrayResult::kSkipped;
+    }
+    // Locate the end and collect coarse element boundaries in one scan.
+    // Workers still validate every token; the native outer parser checks
+    // every prefix/suffix token before publishing any tape.
+    std::vector<size_t> hints;
+    auto collect = [](void* context, size_t position) {
+      static_cast<std::vector<size_t>*>(context)->push_back(position);
+    };
+    size_t end = FindJsonArrayCuts<Char, true, true>(
+        self.input.begin(), self.input.size(), *position, self.cancelled, 1,
+        &hints, collect);
+    if (!end) return ParseArrayResult::kFailed;
+    if (end + 1 - *position < 4 * 1024 * 1024) {
+      return ParseArrayResult::kSkipped;
+    }
+    self.selected = true;
+    self.placeholder = self.skeleton->nodes.size();
+    if (!ParseArrayRangeInParallel<Char, true>(
+            &self.array, self.platform, self.input.SubVector(0, end + 1),
+            *position, self.cancelled, base::VectorOf(hints)) ||
+        self.cancelled.load(std::memory_order_relaxed)) {
+      return ParseArrayResult::kFailed;
+    }
+    *node = self.array.nodes.front();
+    *position = static_cast<uint32_t>(end + 1);
+    return ParseArrayResult::kParsed;
+  }
+};
+
+template <typename Char>
+bool TryParseRootObjectInParallel(BackgroundJsonData* data, Platform* platform,
+                                  base::Vector<const Char> input,
+                                  uint32_t start) {
+  if (!CanParseArrayInParallel(data, platform, input) ||
+      start == input.size() || input[start] != '{')
+    return false;
+  BackgroundJsonData skeleton(false);
+  RootObjectArray<Char> split{&skeleton, platform, input, data->cancelled};
+  BackgroundJsonParser<Char>(&skeleton, input, data->cancelled, start)
+      .template Parse<false, true>(RootObjectArray<Char>::Parse, &split);
+  if (data->cancelled.load(std::memory_order_relaxed)) return true;
+  // Release all temporary parts before the caller replays the complete source
+  // with the ordinary serial parser to report exactly its first error.
+  if (skeleton.failed) return false;
+  if (!split.selected) {
+    data->nodes.swap(skeleton.nodes);
+    return true;
+  }
+  auto& array = split.array;
+  const size_t extra = array.NodeCount() - 1;
+  data->total_nodes = skeleton.nodes.size() + extra;
+  skeleton.nodes.front().data.container.end += static_cast<uint32_t>(extra);
+  // Stream the prefix instead of retaining an extra copy of a large outer
+  // object. Its only container crossing the placeholder is the root object.
+  for (size_t i = 0; i < split.placeholder; ++i) {
+    data->nodes.push_back(skeleton.nodes.front());
+    skeleton.nodes.pop_front();
+  }
+  skeleton.nodes.pop_front();  // Replace the placeholder with the real array.
+  data->part_boundaries.push_back(
+      {split.placeholder, static_cast<uint32_t>(split.placeholder), true});
+  data->remaining_parts.push_back(std::move(array.nodes));
+  for (size_t i = 0; i < array.part_boundaries.size(); ++i) {
+    const auto& boundary = array.part_boundaries[i];
+    data->part_boundaries.push_back(
+        {split.placeholder + boundary.index,
+         static_cast<uint32_t>(split.placeholder) + boundary.node_offset});
+    data->remaining_parts.push_back(std::move(array.remaining_parts[i]));
+  }
+  if (!skeleton.nodes.empty()) {
+    data->part_boundaries.push_back(
+        {split.placeholder + array.NodeCount(), static_cast<uint32_t>(extra)});
+    data->remaining_parts.push_back(std::move(skeleton.nodes));
+  }
+  DCHECK_EQ(data->part_boundaries.size(), data->remaining_parts.size());
+  return true;
+}
+#endif  // V8_OS_ANDROID
 #endif  // Supported parallel-array platforms
 
 template <typename Char>
@@ -962,6 +1124,9 @@ void ParseBackgroundInput(BackgroundJsonData* data, Platform* platform,
     (defined(V8_OS_ANDROID) &&                            \
      (defined(V8_HOST_ARCH_ARM) || defined(V8_HOST_ARCH_ARM64)))
   if (TryParseArrayInParallel(data, platform, input, &start)) return;
+#if defined(V8_OS_ANDROID)
+  if (TryParseRootObjectInParallel(data, platform, input, start)) return;
+#endif
 #endif
   // The split probe has already validated this prefix as JSON whitespace.
   BackgroundJsonParser<Char>(data, input, data->cancelled, start).Parse();
@@ -971,11 +1136,67 @@ void ParseBackgroundInput(BackgroundJsonData* data, Platform* platform,
 
 void ParseJsonInBackground(BackgroundJsonData* data, Platform* platform) {
   if (data->is_one_byte) {
-    ParseBackgroundInput<uint8_t>(data, platform, data->one_byte.as_vector());
+    ParseBackgroundInput<uint8_t>(data, platform,
+                                  data->input.AsVector<uint8_t>());
   } else {
-    ParseBackgroundInput<uint16_t>(data, platform, data->two_byte.as_vector());
+    ParseBackgroundInput<uint16_t>(data, platform,
+                                   data->input.AsVector<uint16_t>());
   }
 }
+
+void* BackgroundJsonInput::AllocateBytes(size_t size_bytes, bool populate) {
+  DCHECK_NULL(storage_);
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM64)
+  if (populate) {
+    DCHECK(CanPopulate(size_bytes));
+    void* mapping = mmap(nullptr, size_bytes, PROT_READ | PROT_WRITE,
+                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE, -1, 0);
+    if (mapping != MAP_FAILED) {
+      storage_ = mapping;
+      size_bytes_ = size_bytes;
+      is_mapped_ = true;
+      return storage_;
+    }
+  }
+#else
+  USE(populate);
+#endif
+  storage_ = ::operator new(size_bytes);
+  size_bytes_ = size_bytes;
+  return storage_;
+}
+
+void BackgroundJsonInput::Reset() {
+  if (!storage_) return;
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM64)
+  if (is_mapped_) {
+    CHECK_EQ(0, munmap(storage_, size_bytes_));
+    is_mapped_ = false;
+  } else
+#endif
+  {
+    ::operator delete(storage_);
+  }
+  storage_ = nullptr;
+  size_bytes_ = 0;
+}
+
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
+void BackgroundJsonInput::TouchHeapPages(void* storage, size_t size_bytes,
+                                         size_t max_bytes) {
+  constexpr size_t kMinBytes = 2 * 1024 * 1024;
+  if (size_bytes < kMinBytes || size_bytes > max_bytes) return;
+  // Fault in the destination pages before reading the source. Keep the
+  // original native allocator so its resident memory can be reused.
+  const size_t page_size = base::PageAllocator().AllocatePageSize();
+  auto* bytes = static_cast<volatile unsigned char*>(storage);
+  for (size_t offset = 0; offset < size_bytes; offset += page_size) {
+    bytes[offset] = 0;
+  }
+  // The allocation may begin partway through a page.
+  bytes[size_bytes - 1] = 0;
+}
+#endif
 
 const uint8_t* ScanJsonStringCharactersLong(const uint8_t* begin,
                                             const uint8_t* end,

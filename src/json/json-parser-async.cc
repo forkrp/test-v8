@@ -104,7 +104,7 @@ class JsonParseAsyncState final {
         data_->is_one_byte ? BuildSlice<uint8_t>() : BuildSlice<uint16_t>();
     // No tape references escape BuildSlice. Completed values are already
     // rooted in V8; release consumed native blocks before yielding again.
-    data_->DiscardBefore(cursor_);
+    DiscardConsumedTape();
     AccountNativeMemory();
     if (isolate_->has_exception()) {
       RejectJsonException(isolate_, promise_, &caught);
@@ -230,6 +230,8 @@ class JsonParseAsyncState final {
     }
   }
 
+  void DiscardConsumedTape() { data_->DiscardBefore(cursor_); }
+
   uint32_t NodeEnd(const BackgroundJsonNode& node) const {
     return node.data.container.end + part_node_offset_;
   }
@@ -237,9 +239,9 @@ class JsonParseAsyncState final {
   void SwitchArrayPart() {
     DCHECK_EQ(cursor_, next_part_);
     DCHECK_EQ(cursor_, data_->node_base + data_->nodes.size());
-    // The synthetic part root has been removed. Translate local container
-    // ends using its original index in the logical tape.
-    part_node_offset_ = static_cast<uint32_t>(cursor_ - 1);
+    // Prefix, array parts and suffix retain their parser's tape coordinates.
+    part_node_offset_ =
+        data_->part_boundaries[part_boundary_index_].node_offset;
     data_->nodes = std::move(data_->remaining_parts[part_boundary_index_]);
     data_->node_base = cursor_;
     next_ = data_->nodes.cbegin();
@@ -251,7 +253,7 @@ class JsonParseAsyncState final {
     short_strings_.fill({});
     ++part_boundary_index_;
     next_part_ = part_boundary_index_ < data_->part_boundaries.size()
-                     ? data_->part_boundaries[part_boundary_index_]
+                     ? data_->part_boundaries[part_boundary_index_].index
                      : std::numeric_limits<size_t>::max();
   }
 
@@ -332,9 +334,17 @@ class JsonParseAsyncState final {
     bool smis = token.flags & Node::kAllSmis;
     auto* factory = isolate_->factory();
     if (!smis) {
+      AllocationType allocation = AllocationType::kYoung;
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM64)
+      // Numeric arrays in large results remain live across many build slices.
+      // Keep their double storage and headers out of repeated young collection.
+      if (data_->NodeCount() >= 2 * 1024 * 1024) {
+        allocation = AllocationType::kOld;
+      }
+#endif
       // Fill the complete numeric backing store before allocating the header,
       // avoiding initialization with holes that would immediately be replaced.
-      auto storage = factory->NewFixedDoubleArray(length);
+      auto storage = factory->NewFixedDoubleArray(length, allocation);
       {
         DisallowGarbageCollection no_gc;
         auto elements = FixedDoubleArray::cast(*storage);
@@ -342,7 +352,7 @@ class JsonParseAsyncState final {
         DCHECK_EQ(cursor_, NodeEnd(token));
       }
       return factory->NewJSArrayWithElements(storage, PACKED_DOUBLE_ELEMENTS,
-                                            length);
+                                            length, allocation);
     }
     auto array = factory->NewJSArray(PACKED_SMI_ELEMENTS, length, length);
     {
@@ -505,6 +515,12 @@ class JsonParseAsyncState final {
 
   template <typename Char>
   bool BuildSlice() {
+    if (data_->HasObjectArrayParts()) return BuildSliceImpl<Char, true>();
+    return BuildSliceImpl<Char, false>();
+  }
+
+  template <typename Char, bool object_array_parts>
+  bool BuildSliceImpl() {
     using Node = BackgroundJsonNode;
     JsonParser<Char> parser(isolate_, source_);
     STACK_CHECK(isolate_, true);
@@ -522,13 +538,23 @@ class JsonParseAsyncState final {
     // consumes the completed tape; never reuse this iterator across slices.
     DCHECK_EQ(cursor_, data_->node_base);
     if (cursor_ == 0 && !data_->part_boundaries.empty()) {
-      next_part_ = data_->part_boundaries.front();
+      next_part_ = data_->part_boundaries.front().index;
     }
     next_ = data_->nodes.cbegin();
     parser.property_stack_ = std::move(properties_);
     parser.element_stack_ = std::move(elements_);
-    const auto deadline =
-        base::TimeTicks::Now() + base::TimeDelta::FromMilliseconds(2);
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
+    // Leave room in the 2 ms task target for work between deadline checks
+    // and the tape reclamation and accounting at the end of the task.
+    constexpr int build_budget_us = 1750;
+#elif defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM64)
+    // Later submissions share the foreground runner with existing parses.
+    const int build_budget_us = data_->allow_parallel ? 2000 : 1650;
+#else
+    constexpr int build_budget_us = 2000;
+#endif
+    const auto deadline = base::TimeTicks::Now() +
+                          base::TimeDelta::FromMicroseconds(build_budget_us);
     bool done = false;
     int next_budget_check = 0;
     // Only materialization is sliced. Use JSON's fast builders instead of
@@ -546,6 +572,16 @@ class JsonParseAsyncState final {
       if (work >= next_budget_check) {
         next_budget_check = work + 512;
         STACK_CHECK(isolate_, true);
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
+        // Include page-backed tape reclamation in the slice's soft budget.
+        // Completed subtrees retain handles and source offsets, not tape
+        // references. Recreate the iterator after releasing consumed blocks.
+        if (cursor_ - data_->node_base >= 8192) {
+          next_ = {};
+          DiscardConsumedTape();
+          next_ = data_->nodes.cbegin();
+        }
+#endif
         if (work != 0 && base::TimeTicks::Now() >= deadline) break;
       }
       HandleScope iteration_scope(isolate_);
@@ -580,6 +616,7 @@ class JsonParseAsyncState final {
           bool flat_record = !array && token.depth == 1 &&
                              token.data.container.count <= 128;
           if (!data_->track_source && (small || flat_record) &&
+              (!object_array_parts || NodeEnd(token) <= next_part_) &&
               (cursor_ != 0 || data_->part_boundaries.empty()) &&
               subtree_size <= static_cast<size_t>(maximum_slice_work - work) &&
               GetCurrentStackPosition() >
@@ -604,8 +641,16 @@ class JsonParseAsyncState final {
                 token.flags & Node::kAllSmis      ? PACKED_SMI_ELEMENTS
                 : token.flags & Node::kAllNumbers ? PACKED_DOUBLE_ELEMENTS
                                                   : PACKED_ELEMENTS;
+            // GC can inspect the backing store before later slices fill it.
+            // Unfilled Smi slots must contain holes rather than undefined.
+            const auto initialization =
+                kind == PACKED_SMI_ELEMENTS
+                    ? ArrayStorageAllocationMode::
+                          INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
+                    : ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS;
             auto result = isolate_->factory()->NewJSArray(
-                kind, 0, static_cast<int>(token.data.container.count));
+                kind, 0, static_cast<int>(token.data.container.count),
+                initialization);
             frames_.back().direct_array = Handle<JSArray>::cast(Retain(result));
           }
           Next();
@@ -723,8 +768,7 @@ class JsonParseBackgroundTask final : public CancelableTask {
     ParseJsonInBackground(data_.get(), V8::GetCurrentPlatform());
     // The tape stores offsets into the rooted original string. No foreground
     // code needs the worker's input copy after parsing has finished.
-    data_->one_byte = base::OwnedVector<uint8_t>();
-    data_->two_byte = base::OwnedVector<uint16_t>();
+    data_->input.Reset();
     runner_->PostNonNestableTask(std::move(completion_));
   }
 
@@ -762,14 +806,23 @@ MaybeHandle<JSPromise> JsonParseAsync(Isolate* isolate, Handle<Object> source,
   auto data = std::make_shared<BackgroundJsonData>(IsCallable(*reviver));
   data->is_one_byte = String::IsOneByteRepresentationUnderneath(*string);
   int length = string->length();
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM64)
+  const size_t bytes =
+      static_cast<size_t>(length) * (data->is_one_byte ? 1 : sizeof(uint16_t));
+  // Keep the separate resident mapping limited to a small first submission.
+  const bool populate = BackgroundJsonInput::CanPopulate(bytes) &&
+                        !HasPendingJsonParseTasks(isolate);
+#else
+  constexpr bool populate = false;
+#endif
   if (data->is_one_byte) {
-    data->one_byte = base::OwnedVector<uint8_t>::NewForOverwrite(length);
+    auto input = data->input.Allocate<uint8_t>(length, populate);
     DisallowGarbageCollection no_gc;
-    String::WriteToFlat(*string, data->one_byte.begin(), 0, length);
+    String::WriteToFlat(*string, input.begin(), 0, length);
   } else {
-    data->two_byte = base::OwnedVector<uint16_t>::NewForOverwrite(length);
+    auto input = data->input.Allocate<uint16_t>(length, populate);
     DisallowGarbageCollection no_gc;
-    String::WriteToFlat(*string, data->two_byte.begin(), 0, length);
+    String::WriteToFlat(*string, input.begin(), 0, length);
   }
   auto state = Managed<JsonParseAsyncState>::FromUniquePtr(
       isolate, sizeof(JsonParseAsyncState) + sizeof(BackgroundJsonData),

@@ -69,11 +69,13 @@ text = replace(text, '          ->AdjustAmountOfExternalAllocatedMemory(delta);\
                '          ->AdjustAmountOfExternalAllocatedMemory(delta);\n    }\n'
                '    PhaseProfile().account_us += base::TimeTicks::Now().ToInternalValue() - phase_begin;\n  }')
 text = replace(text, '    bool done =\n        data_->is_one_byte ? BuildSlice<uint8_t>() : BuildSlice<uint16_t>();',
+               '    const auto phase_build_discard = PhaseProfile().discard_us;\n'
                '    const auto phase_build = base::TimeTicks::Now().ToInternalValue();\n'
                '    bool done =\n        data_->is_one_byte ? BuildSlice<uint8_t>() : BuildSlice<uint16_t>();\n'
-               '    PhaseProfile().build_us += base::TimeTicks::Now().ToInternalValue() - phase_build;')
-text = replace(text, '    data_->DiscardBefore(cursor_);',
-               '    const auto phase_discard = base::TimeTicks::Now().ToInternalValue();\n'
+               '    PhaseProfile().build_us += base::TimeTicks::Now().ToInternalValue() - phase_build\n'
+               '        - (PhaseProfile().discard_us - phase_build_discard);')
+text = replace(text, 'data_->DiscardBefore(cursor_);',
+               'const auto phase_discard = base::TimeTicks::Now().ToInternalValue();\n'
                '    data_->DiscardBefore(cursor_);\n'
                '    PhaseProfile().discard_us += base::TimeTicks::Now().ToInternalValue() - phase_discard;')
 old = '''    if (state_->raw()->Run()) {
@@ -161,8 +163,12 @@ text = replace(text, '  int length = string->length();',
                '  data->phase_profile.gc_start_us = phase_gc_start;\n'
                '  data->phase_profile.source_units = length;\n'
                '  data->phase_profile.input_bytes = size_t{static_cast<size_t>(length)} * (data->is_one_byte ? 1 : 2);')
-for name in ('one_byte', 'two_byte'):
-    pattern = r'    data->' + name + r' = [^;]+;\n    DisallowGarbageCollection no_gc;\n    String::WriteToFlat\(\*string, data->' + name + r'\.begin\(\), 0, length\);'
+for name, char in (('one_byte', 'uint8_t'), ('two_byte', 'uint16_t')):
+    pattern = (
+        rf'    (?:data->{name} = [^;]+|auto input = data->input\.Allocate<{char}>\(length(?:, populate)?\));\n'
+        r'    DisallowGarbageCollection no_gc;\n'
+        rf'    String::WriteToFlat\(\*string, (?:data->{name}|input)\.begin\(\), 0, length\);'
+    )
     matches = list(re.finditer(pattern, text))
     assert len(matches) == 1
     old = matches[0].group()

@@ -36,27 +36,34 @@ V8_INLINE uint64_t JsonArrayStructureLanes(uint8x16_t mask) {
 
 // Keep scalar and NEON instantiations local to their translation units. ARM32
 // dispatch builds both variants and must never coalesce their implementations.
-template <typename Char>
+template <typename Char, bool find_end = false, bool collect_hints = false>
 static size_t FindJsonArrayCuts(const Char* input, size_t length,
-                               size_t array_begin,
-                               const std::atomic<bool>& cancelled,
-                               size_t part_limit, void* context,
-                               void (*publish)(void*, size_t)) {
+                                size_t array_begin,
+                                const std::atomic<bool>& cancelled,
+                                size_t part_limit, void* context,
+                                void (*publish)(void*, size_t)) {
+  static_assert(!collect_hints || find_end);
+  // A coarse index stays small even at V8's maximum string length. Only
+  // complete top-level element boundaries are recorded, never syntax tokens
+  // inside a string or nested container.
+  constexpr size_t kHintSpacing = 512 * 1024;
   const Char* start = input;
   const Char* end = input + length;
-  while (end != start && IsJsonArraySpace(end[-1])) {
+  while (!find_end && end != start && IsJsonArraySpace(end[-1])) {
     --end;
     if ((end - start) % 4096 == 0 &&
         cancelled.load(std::memory_order_relaxed)) {
       return 0;
     }
   }
-  if (end == start || end[-1] != ']') return 0;
+  if (end == start || (!find_end && end[-1] != ']')) return 0;
   const Char* p = start + array_begin + 1;
   size_t next_cancel_check = 4096;
   size_t cuts_remaining = part_limit - 1;
-  const size_t spacing = length / part_limit;
-  size_t target = spacing;
+  const size_t spacing = (length - array_begin) / part_limit;
+  size_t target = collect_hints ? array_begin + kHintSpacing
+                  : find_end    ? length
+                                : array_begin + spacing;
   int depth = 1;
   bool in_string = false;
   bool escaped = false;
@@ -90,8 +97,15 @@ static size_t FindJsonArrayCuts(const Char* input, size_t length,
         const auto close = vceqq_u8(braces, vdupq_n_u8('}'));
         const int closes =
             __builtin_popcountll(JsonArrayStructureLanes(close) & outside);
-        const bool look_for_cut =
-            static_cast<size_t>(limit - start) > target;
+        bool look_for_cut = static_cast<size_t>(limit - start) > target;
+        if constexpr (collect_hints) {
+          // Crossing a hint target inside a large string must not force a
+          // byte-at-a-time scan until that string ends.
+          look_for_cut =
+              look_for_cut &&
+              (JsonArrayStructureLanes(vceqq_u8(block, vdupq_n_u8(','))) &
+               outside) != 0;
+        }
         if (depth > closes && (!look_for_cut || depth > closes + 1)) {
           const auto open = vceqq_u8(braces, vdupq_n_u8('{'));
           depth +=
@@ -121,11 +135,17 @@ static size_t FindJsonArrayCuts(const Char* input, size_t length,
         case '[': case '{': ++depth; break;
         case ']': case '}':
           if (--depth == 0) {
-            return p == end - 1 ? p - start : 0;
+            return *p == ']' && (find_end || p == end - 1) ? p - start : 0;
           }
           break;
         case ',':
-          if (depth == 1 && static_cast<size_t>(p - start) >= target) {
+          if constexpr (collect_hints) {
+            if (depth == 1 && static_cast<size_t>(p - start) >= target) {
+              publish(context, p - start);
+              target = p - start + kHintSpacing;
+            }
+          } else if (!find_end && depth == 1 &&
+                     static_cast<size_t>(p - start) >= target) {
             publish(context, p - start);
             if (--cuts_remaining == 0) {
               // The part parser validates the final interval through its end.

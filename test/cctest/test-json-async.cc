@@ -40,6 +40,14 @@
 
 namespace {
 
+template <typename Char>
+v8::base::Vector<Char> CopyBackgroundJsonTestInput(i::BackgroundJsonData& data,
+                                                   const std::string& input) {
+  auto storage = data.input.Allocate<Char>(input.size());
+  std::copy(input.begin(), input.end(), storage.begin());
+  return storage;
+}
+
 class JsonTaskRunner final : public v8::TaskRunner {
  public:
   explicit JsonTaskRunner(std::shared_ptr<v8::TaskRunner> delegate)
@@ -317,9 +325,9 @@ TEST(JsonParseAsyncLeadingWhitespaceParts) {
         data.is_one_byte = one_byte;
         data.allow_parallel = allow_parallel;
         if (one_byte) {
-          data.one_byte = v8::base::OwnedVector<uint8_t>::Of(input);
+          CopyBackgroundJsonTestInput<uint8_t>(data, input);
         } else {
-          data.two_byte = v8::base::OwnedVector<uint16_t>::Of(input);
+          CopyBackgroundJsonTestInput<uint16_t>(data, input);
         }
         i::ParseJsonInBackground(&data, platform);
         CHECK(!data.failed);
@@ -371,9 +379,9 @@ TEST_WITH_PLATFORM(JsonParseAsyncParallelCancellation, JsonTestPlatform) {
     i::BackgroundJsonData data(false);
     data.is_one_byte = one_byte;
     if (one_byte) {
-      data.one_byte = v8::base::OwnedVector<uint8_t>::Of(input);
+      CopyBackgroundJsonTestInput<uint8_t>(data, input);
     } else {
-      data.two_byte = v8::base::OwnedVector<uint16_t>::Of(input);
+      CopyBackgroundJsonTestInput<uint16_t>(data, input);
     }
     // Cancel after a first part has been published. The split job must join
     // before its local part descriptors and input can be destroyed.
@@ -394,6 +402,166 @@ TEST_WITH_PLATFORM(JsonParseAsyncParallelCancellation, JsonTestPlatform) {
     CHECK(data.remaining_parts.empty());
   }
 #endif
+}
+
+// Inspect the logical tape independently of foreground materialization.
+namespace {
+std::vector<i::BackgroundJsonNode> LogicalJsonTape(
+    const i::BackgroundJsonData& data) {
+  std::vector<i::BackgroundJsonNode> result;
+  auto append = [&](const auto& nodes, uint32_t offset) {
+    for (auto node : nodes) {
+      if (node.kind == i::BackgroundJsonNode::kObject ||
+          node.kind == i::BackgroundJsonNode::kArray) {
+        node.data.container.end += offset;
+      } else {
+        node.depth = 0;  // Cache slots are local to each native parser.
+      }
+      node.flags &= ~i::BackgroundJsonNode::kCachedString;
+      result.push_back(node);
+    }
+  };
+  CHECK_EQ(data.part_boundaries.size(), data.remaining_parts.size());
+  append(data.nodes, 0);
+  for (size_t i = 0; i < data.remaining_parts.size(); ++i) {
+    CHECK_EQ(result.size(), data.part_boundaries[i].index);
+    append(data.remaining_parts[i], data.part_boundaries[i].node_offset);
+  }
+  CHECK_EQ(result.size(), data.NodeCount());
+  return result;
+}
+
+std::string JsonObjectArrayInput(size_t array_size, const char* placement) {
+  std::string array = "[";
+  for (int i = 0; i < 64; ++i) {
+    if (i) array += ',';
+    array += "{\"value\":" + std::to_string(i) +
+             ",\"child\":[-0,1e400],\"name\":\"_[,]{}\\\"\\\\\"}";
+    if (i >= 56) array.append((array_size - 8192) / 8, ' ');
+  }
+  CHECK_LT(array.size(), array_size);
+  array.append(array_size - array.size() - 1, ' ');
+  array += ']';
+  if (std::strcmp(placement, "first") == 0)
+    return "{\"any\":" + array + ",\"last\":{\"BB\":1,\"\":2}}";
+  if (std::strcmp(placement, "last") == 0)
+    return "{\"first\":{\"Aa\":1},\"any\":" + array + '}';
+  if (std::strcmp(placement, "two") == 0)
+    return "{\"any\":" + array + ",\"other\":" + array + '}';
+  return "{\"first\":{\"Aa\":1},\"any\":" + array + ",\"last\":{\"BB\":1}}";
+}
+}  // namespace
+
+TEST(JsonParseAsyncObjectArrayTape) {
+  auto* platform = i::V8::GetCurrentPlatform();
+  for (size_t length :
+       {4u * 1024 * 1024 - 1u, 4u * 1024 * 1024, 4u * 1024 * 1024 + 1u,
+        16u * 1024 * 1024 - 1u, 16u * 1024 * 1024, 16u * 1024 * 1024 + 1u}) {
+    for (const char* placement : {"first", "middle", "last", "two"}) {
+      const auto input = JsonObjectArrayInput(length, placement);
+      for (bool one_byte : {true, false}) {
+        i::BackgroundJsonData serial(false), parallel(false);
+        for (auto* data : {&serial, &parallel}) {
+          data->is_one_byte = one_byte;
+          data->allow_parallel = data == &parallel;
+          if (one_byte) {
+            CopyBackgroundJsonTestInput<uint8_t>(*data, input);
+          } else {
+            for (auto& c :
+                 CopyBackgroundJsonTestInput<uint16_t>(*data, input)) {
+              if (c == '_') c = 0x015b;  // Must not become a '[' syntax byte.
+            }
+          }
+          i::ParseJsonInBackground(data, platform);
+          CHECK(!data->failed);
+        }
+        auto expected = LogicalJsonTape(serial);
+        auto actual = LogicalJsonTape(parallel);
+        CHECK_EQ(expected.size(), actual.size());
+        for (size_t i = 0; i < expected.size(); ++i) {
+          CHECK_EQ(0,
+                   std::memcmp(&expected[i], &actual[i], sizeof(expected[i])));
+        }
+        bool expect_parts = false;
+#if defined(V8_OS_ANDROID)
+        expect_parts = length >= 4u * 1024 * 1024 &&
+                       platform->NumberOfWorkerThreads() >= 2;
+#if defined(V8_HOST_ARCH_ARM)
+        expect_parts = expect_parts && one_byte;
+#endif
+#endif
+        CHECK_EQ(expect_parts, !parallel.part_boundaries.empty());
+        if (expect_parts) {
+          // One prefix plus at most eight worker tapes and one suffix.
+          CHECK_LE(parallel.remaining_parts.size(), 9u);
+        }
+      }
+    }
+  }
+}
+
+TEST_WITH_PLATFORM(JsonParseAsyncObjectArrayCancellation, JsonTestPlatform) {
+#if defined(V8_OS_ANDROID)
+  if (platform.NumberOfWorkerThreads() < 2) return;
+  auto input = JsonObjectArrayInput(4u * 1024 * 1024 + 1, "middle");
+  i::BackgroundJsonData data(false);
+  CopyBackgroundJsonTestInput<uint8_t>(data, input);
+  platform.cancel_on_job = &data.cancelled;
+  i::ParseJsonInBackground(&data, &platform);
+  platform.cancel_on_job = nullptr;
+  CHECK(data.cancelled.load(std::memory_order_relaxed));
+  CHECK(data.nodes.empty());
+  CHECK(data.remaining_parts.empty());
+#endif
+}
+
+TEST_WITH_PLATFORM(JsonParseAsyncObjectArrayTasksOutliveIsolate,
+                   JsonTestPlatform) {
+  for (bool run_first_slice : {false, true}) {
+    v8::Isolate::CreateParams params;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    auto isolate = v8::Isolate::New(params);
+    auto runner = platform.HoldTasks(isolate);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope scope(isolate);
+      auto context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      CompileRun(
+          "JSON.parseAsync('{\"list\":[' + '{\"value\":0},'.repeat(400000) + "
+          "'{\"value\":1}],\"last\":0}')");
+      if (run_first_slice) CHECK(runner->RunOne(isolate));
+    }
+    isolate->Dispose();
+    while (runner->RunOne()) {
+    }
+  }
+}
+
+TEST_WITH_PLATFORM(JsonParseAsyncObjectArrayQueuedWorkerOutlivesIsolate,
+                   JsonTestPlatform) {
+  v8::Isolate::CreateParams params;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  auto isolate = v8::Isolate::New(params);
+  auto runner = platform.HoldTasks(isolate);
+  auto gate = std::make_shared<JsonWorkerGate>();
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    auto context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+    platform.SetWorkerGate(gate);
+    CompileRun(
+        "JSON.parseAsync('{\"data\":[' + '{\"x\":0},'.repeat(600000) + "
+        "'{}]}')");
+    platform.SetWorkerGate(nullptr);
+    CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+    CHECK(isolate->HasPendingBackgroundTasks());
+  }
+  isolate->Dispose();
+  gate->proceed.Signal();
+  CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+  CHECK(!runner->RunOne());
 }
 
 TEST(JsonParseAsyncSnapshotTableGrowth) {
@@ -458,6 +626,54 @@ TEST_WITH_PLATFORM(JsonParseAsyncYieldsAndSurvivesGC, JsonTestPlatform) {
             ->IsTrue());
   CHECK(CompileRun("let leaf = result; for (let i = 0; i < 40000; ++i) "
                    "leaf = leaf[1]; leaf === 1")
+            ->IsTrue());
+}
+
+TEST_WITH_PLATFORM(JsonParseAsyncReviverTapeGC, JsonTestPlatform) {
+  auto* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  auto promise = CompileRun(R"JS(
+    var row = '{"1":-0,"remove":2,"n":9007199254740993,' +
+              '"s":"\\u0061\\uD800","dup":1,"dup":2,"child":[0,1]}';
+    var text = '[' + (row + ',').repeat(11999) + row + ']';
+    var expectedCalls = [], actualCalls = [];
+    function revive(calls) {
+      return function(key, value, context) {
+        calls.push([key, context.source, Array.isArray(this)]);
+        if (key === 'remove') return undefined;
+        if (key === 'n') return context.source;
+        return value;
+      };
+    }
+    var expected = JSON.parse(text, revive(expectedCalls));
+    JSON.parseAsync(text, revive(actualCalls));
+  )JS")
+                     .As<v8::Promise>();
+  runner->WaitForTasks(1);
+  CHECK(runner->RunOne(isolate));
+  // This document exceeds the physical-node slice cap. No user reviver may
+  // run until every value and its source record have been materialized.
+  CHECK_EQ(v8::Promise::kPending, promise->State());
+  CHECK(CompileRun("actualCalls.length === 0")->IsTrue());
+  isolate->LowMemoryNotification();
+  CHECK(runner->RunOne(isolate));
+  isolate->LowMemoryNotification();
+  while (runner->RunOne(isolate)) {
+  }
+  CHECK_EQ(v8::Promise::kFulfilled, promise->State());
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("result"), promise->Result())
+            .FromJust());
+  CHECK(CompileRun(R"JS(
+    JSON.stringify(actualCalls) === JSON.stringify(expectedCalls) &&
+    JSON.stringify(result) === JSON.stringify(expected) &&
+    result.length === 12000 &&
+    result.every(x => Object.is(x[1], -0) && !Object.hasOwn(x, 'remove') &&
+                      x.n === '9007199254740993' && x.dup === 2 &&
+                      x.s.length === 2 && x.s.charCodeAt(1) === 0xD800)
+  )JS")
             ->IsTrue());
 }
 
@@ -539,7 +755,12 @@ TEST_WITH_PLATFORM(JsonParseAsyncPrimitiveArraysGC, JsonTestPlatform) {
   const struct {
     const char* input;
     const char* check;
-  } cases[] = {{"'[' + '1.5,-0,'.repeat(100000) + '2]'",
+  } cases[] = {{"'[' + '0,1,-1,'.repeat(40000) + '0]'",
+                "result.length === 120001 && result[0] === 0 && "
+                "result[1] === 1 && result[2] === -1 && "
+                "result[120000] === 0 && result.every((value, i) => "
+                "value === (i % 3 === 2 ? -1 : i % 3))"},
+               {"'[' + '1.5,-0,'.repeat(100000) + '2]'",
                 "result.length === 200001 && result[0] === 1.5 && "
                 "Object.is(result[1], -0) && result[200000] === 2"},
                {"'[' + '[1.5,-0],'.repeat(40000) + '[1e400,-1e400]]'",
@@ -987,6 +1208,70 @@ TEST_WITH_PLATFORM(JsonParseAsyncQueuedWorkerOutlivesIsolate,
   CHECK(!runner->RunOne());
 }
 
+template <typename Char>
+void CheckJsonAsyncInputStorageBounds() {
+  constexpr size_t kMin = 1024 * 1024 / sizeof(Char);
+  constexpr size_t kMapMax = 3 * kMin / 2;
+  constexpr size_t kTouchMin = 2 * kMin;
+  constexpr size_t kTouchMax = (sizeof(Char) == 1 ? 50 : 20) * kMin;
+  i::BackgroundJsonInput storage;
+  for (size_t length :
+       {size_t{0}, size_t{1}, kMin - 1, kMin, kMin + 1, kMapMax - 1, kMapMax,
+        kMapMax + 1, kTouchMin - 1, kTouchMin, kTouchMin + 1, kTouchMax - 1,
+        kTouchMax, kTouchMax + 1}) {
+    const size_t bytes = length * sizeof(Char);
+    auto input = storage.Allocate<Char>(
+        length, i::BackgroundJsonInput::CanPopulate(bytes));
+    CHECK_EQ(input.size(), length);
+    CHECK_EQ(storage.size_bytes(), bytes);
+    auto worker_input = storage.AsVector<Char>();
+    CHECK_EQ(worker_input.size(), length);
+    if (!input.empty()) {
+      const Char fill = sizeof(Char) == 1 ? 0x62 : 0x6f22;
+      std::fill(input.begin(), input.end(), fill);
+      input[length - 1] = static_cast<Char>(0x5b);
+      if (length > 1) CHECK_EQ(worker_input[0], fill);
+      CHECK_EQ(worker_input[length - 1], static_cast<Char>(0x5b));
+    }
+    storage.Reset();
+    CHECK_EQ(storage.size_bytes(), 0);
+    CHECK(storage.AsVector<Char>().empty());
+  }
+}
+
+TEST(JsonParseAsyncInputStorageBounds) {
+  CheckJsonAsyncInputStorageBounds<uint8_t>();
+  CheckJsonAsyncInputStorageBounds<uint16_t>();
+}
+
+TEST_WITH_PLATFORM(JsonParseAsyncLargeQueuedInputOutlivesIsolate,
+                   JsonTestPlatform) {
+  for (bool wide : {false, true}) {
+    v8::Isolate::CreateParams params;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    auto isolate = v8::Isolate::New(params);
+    auto runner = platform.HoldTasks(isolate);
+    auto gate = std::make_shared<JsonWorkerGate>();
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope scope(isolate);
+      auto context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      platform.SetWorkerGate(gate);
+      CompileRun(wide
+                     ? "JSON.parseAsync('\"' + '\\u6f22'.repeat(600000) + '\"')"
+                     : "JSON.parseAsync('\"' + 'x'.repeat(1200000) + '\"')");
+      platform.SetWorkerGate(nullptr);
+      CHECK(gate->arrived.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+      CHECK(isolate->HasPendingBackgroundTasks());
+    }
+    isolate->Dispose();
+    gate->proceed.Signal();
+    CHECK(gate->finished.WaitFor(v8::base::TimeDelta::FromSeconds(5)));
+    CHECK(!runner->RunOne());
+  }
+}
+
 TEST(JsonStringifyAsyncNativeBounds) {
   i::JsonStringifyData data;
   CHECK(data.AddLength(i::String::kMaxLength));
@@ -1250,6 +1535,14 @@ void CheckJsonArrayScannerGuardPages() {
       if (trailing) text.push_back(' ');
       Char* chars = storage.Tail<Char>(text.size());
       std::copy(text.begin(), text.end(), chars);
+      CHECK_EQ(close,
+               (i::FindJsonArrayCuts<Char, true>(
+                   chars, text.size(), 0, cancelled, 1, nullptr, nullptr)));
+      std::vector<size_t> hints;
+      CHECK_EQ(close,
+               (i::FindJsonArrayCuts<Char, true, true>(
+                   chars, text.size(), 0, cancelled, 1, &hints, publish)));
+      CHECK(hints.empty());
       for (size_t parts : {4u, 8u}) {
         std::vector<size_t> cuts;
         CHECK_EQ(close, scan(chars, text.size(), 0, cancelled, parts, &cuts,
@@ -1264,6 +1557,51 @@ void CheckJsonArrayScannerGuardPages() {
       }
     }
   }
+}
+
+template <typename Char>
+void CheckJsonArrayHintScannerGuardPages() {
+  const std::string prefix = "{\"meta\":0,\"items\":";
+  std::vector<Char> text(prefix.begin(), prefix.end());
+  const size_t begin = text.size();
+  text.push_back('[');
+  text.push_back('"');
+  text.insert(text.end(), 512 * 1024 + 17,
+              static_cast<Char>(sizeof(Char) == 1 ? 'x' : 0x012c));
+  for (char c : std::string("\\\"[,]{}\\\\\"")) text.push_back(c);
+  const size_t first = text.size();
+  for (char c : std::string(",{\"s\":\"")) text.push_back(c);
+  text.insert(text.end(), 512 * 1024 + 65,
+              static_cast<Char>(sizeof(Char) == 1 ? 'y' : 0x015d));
+  for (char c : std::string("\"}")) text.push_back(c);
+  const size_t second = text.size();
+  text.push_back(',');
+  text.push_back('0');
+  const size_t end = text.size();
+  for (char c : std::string("],\"tail\":[42]}")) text.push_back(c);
+  JsonGuardedBuffer storage(text.size() * sizeof(Char));
+  auto publish = [](void* context, size_t position) {
+    static_cast<std::vector<size_t>*>(context)->push_back(position);
+  };
+  std::atomic<bool> cancelled{false};
+  for (size_t length : {end, end + 1, text.size()}) {
+    Char* input = storage.Tail<Char>(length);
+    std::copy_n(text.begin(), length, input);
+    std::vector<size_t> hints;
+    CHECK_EQ(length > end ? end : 0,
+             (i::FindJsonArrayCuts<Char, true, true>(
+                 input, length, begin, cancelled, 1, &hints, publish)));
+    CHECK_EQ(2u, hints.size());
+    CHECK_EQ(first, hints[0]);
+    CHECK_EQ(second, hints[1]);
+  }
+  cancelled.store(true);
+  Char* input = storage.Tail<Char>(text.size());
+  std::copy(text.begin(), text.end(), input);
+  std::vector<size_t> hints;
+  CHECK_EQ(0u, (i::FindJsonArrayCuts<Char, true, true>(
+                   input, text.size(), begin, cancelled, 1, &hints, publish)));
+  CHECK(hints.empty());
 }
 
 template <typename Char>
@@ -1414,6 +1752,8 @@ TEST(JsonArrayScannerGuardPages) {
 #endif
   CheckJsonArrayScannerGuardPages<uint8_t>();
   CheckJsonArrayScannerGuardPages<uint16_t>();
+  CheckJsonArrayHintScannerGuardPages<uint8_t>();
+  CheckJsonArrayHintScannerGuardPages<uint16_t>();
 }
 
 TEST(JsonNumberGuardPages) {
@@ -2307,4 +2647,60 @@ TEST_WITH_PLATFORM(MessagePackResourceAsyncPreparedRecords, JsonTestPlatform) {
   printf(
       "MessagePack prepared records: early foreground work, snapshot, "
       "GC and late rejection passed\n");
+}
+
+namespace {
+void CheckJsonParseAsyncNumericArraysGC(JsonTestPlatform& platform,
+                                        int worker_limit) {
+  platform.worker_thread_limit = worker_limit;
+  auto* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  auto runner = platform.HoldTasks(isolate);
+  // Each repeated pair has seven physical nodes. Exercise both sides of the
+  // large-result allocation threshold without changing worker counts mid-run.
+  constexpr int kRounds = 2 * 1024 * 1024 / 7;
+  for (int rounds : {kRounds - 1, kRounds + 1}) {
+    v8::HandleScope iteration_scope(isolate);
+    std::string script =
+        "globalThis.numericRounds = " + std::to_string(rounds) + ";"
+        "globalThis.numericInput = '[' +"
+        " '[1.5,-0],[0,1,-1],'.repeat(numericRounds) + '[]]';";
+    CompileRun(script.c_str());
+    i::heap::InvokeMajorGC(CcTest::heap());
+    auto promise = CompileRun("JSON.parseAsync(numericInput)")
+                       .As<v8::Promise>();
+    runner->WaitForTasks(1);
+    CHECK(runner->RunOne(isolate));
+    CHECK_EQ(v8::Promise::kPending, promise->State());
+    isolate->LowMemoryNotification();
+    CHECK(runner->RunOne(isolate));
+    isolate->LowMemoryNotification();
+    while (runner->RunOne(isolate)) {
+    }
+    CHECK_EQ(v8::Promise::kFulfilled, promise->State());
+    CHECK(context->Global()
+              ->Set(context.local(), v8_str("numericResult"),
+                    promise->Result())
+              .FromJust());
+    CHECK(CompileRun(
+              "numericResult.length === 2 * numericRounds + 1 && "
+              "numericResult.every((value, i) => "
+              " i === numericResult.length - 1 ? value.length === 0 : "
+              " i & 1 ? value.length === 3 && value[0] === 0 && "
+              " value[1] === 1 && value[2] === -1 : "
+              " value.length === 2 && value[0] === 1.5 && "
+              " Object.is(value[1], -0))")
+              ->IsTrue());
+    CompileRun("numericResult = undefined; numericInput = undefined;");
+  }
+}
+}  // namespace
+
+TEST_WITH_PLATFORM(JsonParseAsyncNumericArraysSerialGC, JsonTestPlatform) {
+  CheckJsonParseAsyncNumericArraysGC(platform, 1);
+}
+
+TEST_WITH_PLATFORM(JsonParseAsyncNumericArraysParallelGC, JsonTestPlatform) {
+  CheckJsonParseAsyncNumericArraysGC(platform, std::numeric_limits<int>::max());
 }

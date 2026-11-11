@@ -8,6 +8,8 @@
 #include <atomic>
 #include <cstring>
 #include <deque>
+#include <new>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -232,19 +234,78 @@ class BackgroundJsonTape {
 using BackgroundJsonTape = std::deque<BackgroundJsonNode>;
 #endif
 
+struct BackgroundJsonPartBoundary {
+  size_t index;
+  // Local container ends use this part's original parser coordinates.
+  uint32_t node_offset;
+  bool has_root = false;
+};
+// Keep the common job allocation unchanged when adding segment coordinates.
+static_assert(sizeof(std::vector<BackgroundJsonPartBoundary>) ==
+              sizeof(std::vector<size_t>));
+static_assert(alignof(std::vector<BackgroundJsonPartBoundary>) ==
+              alignof(std::vector<size_t>));
+
+// Owns the native character copy until the parsing workers have joined.
+class BackgroundJsonInput {
+ public:
+  BackgroundJsonInput() = default;
+  ~BackgroundJsonInput() { Reset(); }
+  BackgroundJsonInput(const BackgroundJsonInput&) = delete;
+  BackgroundJsonInput& operator=(const BackgroundJsonInput&) = delete;
+
+  template <typename Char>
+  base::Vector<Char> Allocate(size_t length, bool populate = false) {
+    static_assert(std::is_same_v<Char, uint8_t> ||
+                  std::is_same_v<Char, uint16_t>);
+    if (length == 0) return {};
+    const size_t bytes = length * sizeof(Char);
+    auto* data = new (AllocateBytes(bytes, populate)) Char[length];
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
+    constexpr size_t kMaxTouchBytes =
+        (sizeof(Char) == 1 ? 50 : 20) * 1024 * 1024;
+    TouchHeapPages(data, bytes, kMaxTouchBytes);
+#endif
+    return {data, length};
+  }
+
+  template <typename Char>
+  base::Vector<const Char> AsVector() const {
+    return {static_cast<const Char*>(storage_), size_bytes_ / sizeof(Char)};
+  }
+
+  void Reset();
+  size_t size_bytes() const { return size_bytes_; }
+  static constexpr bool CanPopulate(size_t size_bytes) {
+    return size_bytes >= 1024 * 1024 && size_bytes <= 1536 * 1024;
+  }
+
+ private:
+  void* AllocateBytes(size_t size_bytes, bool populate);
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM)
+  static void TouchHeapPages(void* storage, size_t size_bytes,
+                             size_t max_bytes);
+#endif
+
+  void* storage_ = nullptr;
+  size_t size_bytes_ = 0;
+#if defined(V8_OS_ANDROID) && defined(V8_HOST_ARCH_ARM64)
+  bool is_mapped_ = false;
+#endif
+};
+
 struct BackgroundJsonData {
   explicit BackgroundJsonData(bool track_source) : track_source(track_source) {}
   const bool track_source;
   std::atomic<bool> cancelled{false};
-  base::OwnedVector<uint8_t> one_byte;
-  base::OwnedVector<uint16_t> two_byte;
+  BackgroundJsonInput input;
   bool is_one_byte = true;
   bool allow_parallel = true;
   BackgroundJsonTape nodes;
   size_t node_base = 0;
   // The foreground owns the tapes once the background job has joined.
   std::vector<BackgroundJsonTape> remaining_parts;
-  std::vector<size_t> part_boundaries;
+  std::vector<BackgroundJsonPartBoundary> part_boundaries;
   size_t total_nodes = 0;
   // Needed only by revivers, not by the common no-reviver path.
   std::vector<uint32_t> source_ends;
@@ -252,6 +313,12 @@ struct BackgroundJsonData {
   bool failed = false;
   int error_position = 0;
   base::Optional<MessageTemplate> error_message;
+
+  bool HasObjectArrayParts() const {
+    // Root-array continuations remove their synthetic roots. An embedded
+    // array retains its first root after the outer-object prefix.
+    return !part_boundaries.empty() && part_boundaries.front().has_root;
+  }
 
   const BackgroundJsonNode& NodeAt(size_t index) const {
     DCHECK_GE(index, node_base);
@@ -283,8 +350,7 @@ struct BackgroundJsonData {
     for (const auto& part : remaining_parts) live_nodes += part.size();
     size_t tape_bytes = live_nodes * sizeof(BackgroundJsonNode);
 #endif
-    return one_byte.size() + two_byte.size() * sizeof(uint16_t) +
-           tape_bytes +
+    return input.size_bytes() + tape_bytes +
            (source_starts.capacity() + source_ends.capacity()) *
                sizeof(uint32_t);
   }
